@@ -1,0 +1,15 @@
+# Ignore dependencies and build outputs
+node_modules/
+build/
+.gradle/
+.idea/
+
+# Ignore specific files
+*.iml
+*.hprof
+
+# Ignore coverage reports
+coverage/
+
+# Ignore Yarn cache
+.yarn/*

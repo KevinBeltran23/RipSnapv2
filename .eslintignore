@@ -1,0 +1,12 @@
+# Ignore dependencies and build outputs
+node_modules/
+build/
+dist/
+
+# Ignore specific files
+*.min.js
+*.bundle.js
+
+# Ignore coverage reports
+coverage/
+functions/

@@ -1,0 +1,28 @@
+{
+    "cli": {
+        "version": ">= 12.0.0"
+    },
+    "build": {
+        "development": {
+            "developmentClient": true,
+            "distribution": "internal",
+            "env": {
+                "YARN_ENABLE_IMMUTABLE_INSTALLS": "false"
+            }
+        },
+        "preview": {
+            "distribution": "internal",
+            "env": {
+                "YARN_ENABLE_IMMUTABLE_INSTALLS": "false"
+            }
+        },
+        "production": {
+            "env": {
+                "YARN_ENABLE_IMMUTABLE_INSTALLS": "false"
+            }
+        }
+    },
+    "submit": {
+        "production": {}
+    }
+}
