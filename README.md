@@ -29,3 +29,8 @@ yarn expo run:ios
 ```
 yarn start
 ```
+
+
+## NOTE
+
+You will need the google-services.json and GoogleService-Info.plist files in the root directory as well as the .env file
