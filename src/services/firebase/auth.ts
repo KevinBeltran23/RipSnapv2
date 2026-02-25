@@ -4,6 +4,13 @@ import {
   statusCodes,
 } from '@react-native-google-signin/google-signin';
 
+// Must be called before any GoogleSignin methods
+GoogleSignin.configure({
+  webClientId:
+    '703962492488-q98nua8ure5o3h02fu78i8eh8d3g0okv.apps.googleusercontent.com',
+});
+
+
 export const signInWithGoogle = async () => {
   try {
     await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
