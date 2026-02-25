@@ -1,0 +1,8 @@
+# Exclude large ML model files — these are bundled at runtime, not needed by EAS builder
+*.onnx
+*.pt
+*_saved_model/
+calibration_image_sample_data_*.npy
+
+# Exclude dev dependencies not needed for build
+node_modules/.cache
