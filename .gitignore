@@ -3,6 +3,8 @@
 # dependencies
 node_modules/
 
+.env
+
 # Firebase secrets
 google-services.json
 GoogleService-Info.plist
