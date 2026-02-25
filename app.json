@@ -16,7 +16,6 @@
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "com.yourteam.surp",
-      "googleServicesFile": "$GOOGLE_SERVICES_INFO_PLIST",
       "infoPlist": {
         "NSCameraUsageDescription": "Allow $(PRODUCT_NAME) to access your camera"
       }
@@ -27,7 +26,6 @@
         "backgroundColor": "#ffffff"
       },
       "package": "com.yourteam.surp",
-      "googleServicesFile": "$GOOGLE_SERVICES_JSON",
       "edgeToEdgeEnabled": true,
       "permissions": [
         "android.permission.CAMERA",
