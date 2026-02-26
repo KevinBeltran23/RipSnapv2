@@ -4,7 +4,7 @@ import {
   Text,
   StyleSheet,
   Platform,
-  //  Dimensions,
+  Dimensions,
   StatusBar,
 } from 'react-native';
 import { useIsFocused } from '@react-navigation/native';
@@ -79,6 +79,9 @@ function LiveDetectionScreen() {
 
   const rotation = '0deg';
 
+  // View dimensions (screen dp) — must match the Canvas overlay coordinate space
+  const { width: viewWidth, height: viewHeight } = Dimensions.get('window');
+
   // Memoize static values for performance
   const scaleFactors = useMemo(
     () => ({
@@ -149,8 +152,10 @@ function LiveDetectionScreen() {
           yoloModel.model?.outputs[0]?.shape,
         );
 
-        const scaleX = frame.width / scaleFactors.inputWidth;
-        const scaleY = frame.height / scaleFactors.inputHeight;
+        // Scale detections from model input space → screen dp (view space)
+        // Canvas overlay covers the full view, so we use view dp dimensions, not frame pixels
+        const scaleX = viewWidth / scaleFactors.inputWidth;
+        const scaleY = viewHeight / scaleFactors.inputHeight;
         const mirror = cameraPosition === 'front';
 
         // Optimized coordinate transformation

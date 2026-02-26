@@ -155,7 +155,7 @@ function MediaUploader({ onMediaSelected }: MediaUploaderProps) {
     } catch (error) {
       if (error instanceof Error && !error.message.includes('User canceled')) {
         console.error('Document picker error:', error);
-        Alert.alert('Document Picker Error', error.message);
+        Alert.alert('Document Picker Error', 'Failed to open document. Please try again.');
       }
     } finally {
       setLoading(false);

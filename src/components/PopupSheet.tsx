@@ -512,7 +512,7 @@ function PopupSheet({
               console.error('Error deleting media:', error);
               Alert.alert(
                 'Error',
-                'Failed to delete media. Check console for details.',
+                'Failed to delete media. Please try again.',
               );
             }
           },

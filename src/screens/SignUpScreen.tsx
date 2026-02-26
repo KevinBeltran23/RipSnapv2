@@ -12,6 +12,7 @@ import {
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack'; // Import this
 import { useAuth } from '../services/AuthContext';
+import { getUserFacingMessage } from '../services/errorHandler';
 import { useColors } from '../hooks/useColors';
 import { useResponsiveStyles } from '../hooks/useResponsiveStyles';
 import { RootStackParamList } from '../types/navigation'; // Import RootStackParamList
@@ -54,8 +55,8 @@ const SignUpForm: React.FC<SignUpFormProps> = ({
     try {
       await onSignUp(email, password, displayName);
       navigation.replace('Main');
-    } catch (error: any) {
-      Alert.alert('Sign Up Error', error.message);
+    } catch (error) {
+      Alert.alert('Sign Up Error', getUserFacingMessage(error));
     } finally {
       setIsLoading(false);
     }

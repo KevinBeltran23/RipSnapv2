@@ -13,6 +13,7 @@ import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../types/navigation';
 import { useAuth } from '../services/AuthContext';
+import { getUserFacingMessage } from '../services/errorHandler';
 import { useColors } from '../hooks/useColors';
 import { useResponsiveStyles } from '../hooks/useResponsiveStyles'; // Import useResponsiveStyles
 
@@ -49,10 +50,7 @@ const ResetPasswordForm: React.FC<ResetPasswordFormProps> = ({
         [{ text: 'OK', onPress: () => navigation.navigate('Login') }],
       );
     } catch (error) {
-      Alert.alert(
-        'Error',
-        error instanceof Error ? error.message : 'An unknown error occurred',
-      );
+      Alert.alert('Error', getUserFacingMessage(error));
     } finally {
       setIsLoading(false);
     }

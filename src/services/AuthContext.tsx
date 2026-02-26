@@ -12,6 +12,7 @@ import {
 import { onSnapshot } from '@react-native-firebase/firestore';
 import * as GoogleAuth from './firebase/auth';
 import * as FirestoreService from './firebase/firestore';
+import { getUserFacingMessage } from './errorHandler';
 import { User } from '../types/user';
 
 interface AuthContextType {
@@ -54,6 +55,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   // Mutable ref to store the Firestore unsubscribe function
   const firestoreUnsubscribeRef = React.useRef<(() => void) | null>(null);
+  // Track previous admin state to detect privilege changes
+  const prevIsAdminRef = React.useRef<boolean | null>(null);
 
   useEffect(() => {
     const authUnsubscribe = onAuthStateChanged(auth, async firebaseUser => {
@@ -77,6 +80,18 @@ export function AuthProvider({ children }: AuthProviderProps) {
           async docSnapshot => {
             if (docSnapshot.exists()) {
               const profile = docSnapshot.data() as User;
+              // Force-refresh ID token when admin privilege changes so Firestore
+              // security rules honour the new role immediately (avoids up to 1hr stale JWT)
+              if (
+                prevIsAdminRef.current !== null &&
+                prevIsAdminRef.current !== profile.isAdmin &&
+                firebaseUser
+              ) {
+                firebaseUser.getIdToken(true).catch(e =>
+                  console.warn('Token refresh after admin change failed:', e),
+                );
+              }
+              prevIsAdminRef.current = !!profile.isAdmin;
               setUser(profile);
             } else {
               // If profile somehow disappears (unlikely but good to handle), create one
@@ -91,12 +106,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
           },
           error => {
             console.error('Error listening to user profile:', error);
-            // This error often occurs on logout due to permission denial.
-            // We can gracefully handle it without an Alert for this specific case.
             if ((error as any).code !== 'firestore/permission-denied') {
               Alert.alert(
                 'Profile Sync Error',
-                `There was a problem syncing your user profile. Error: ${error.message}`,
+                getUserFacingMessage(error),
               );
             }
             setUser(null); // Clear user on error

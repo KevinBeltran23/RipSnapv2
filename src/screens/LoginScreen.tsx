@@ -13,6 +13,7 @@ import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../types/navigation';
 import { useAuth } from '../services/AuthContext';
+import { getUserFacingMessage } from '../services/errorHandler';
 import { useColors } from '../hooks/useColors';
 import { useResponsiveStyles } from '../hooks/useResponsiveStyles';
 
@@ -50,10 +51,7 @@ const LoginForm: React.FC<LoginFormProps> = ({
       await onLogin(email, password);
       navigation.replace('Main');
     } catch (error) {
-      Alert.alert(
-        'Login Failed',
-        error instanceof Error ? error.message : 'An unknown error occurred',
-      );
+      Alert.alert('Login Failed', getUserFacingMessage(error));
     } finally {
       setIsLoading(false);
     }
@@ -65,10 +63,7 @@ const LoginForm: React.FC<LoginFormProps> = ({
       await onLoginWithGoogle();
       navigation.replace('Main');
     } catch (error) {
-      Alert.alert(
-        'Google Login Failed',
-        error instanceof Error ? error.message : 'An unknown error occurred',
-      );
+      Alert.alert('Google Sign-In Failed', getUserFacingMessage(error));
     } finally {
       setIsLoading(false);
     }
