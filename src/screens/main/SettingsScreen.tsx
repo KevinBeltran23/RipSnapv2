@@ -43,7 +43,7 @@ const ProfileSection: React.FC<ProfileSectionProps> = ({
       await onUpdateUser({ displayName });
       setIsEditing(false);
       Alert.alert('Success', 'Profile updated successfully');
-    } catch (error) {
+    } catch {
       Alert.alert('Error', 'Failed to update profile');
     }
   };
@@ -139,6 +139,7 @@ const ProfileSection: React.FC<ProfileSectionProps> = ({
       shadowRadius: proportionalSize(3),
       elevation: 3,
     },
+    editingContainer: { width: '100%', alignItems: 'center' },
   });
 
   return (
@@ -161,7 +162,7 @@ const ProfileSection: React.FC<ProfileSectionProps> = ({
       </View>
 
       {isEditing ? (
-        <View style={{ width: '100%', alignItems: 'center' }}>
+        <View style={dynamicStyles.editingContainer}>
           <TextInput
             style={dynamicStyles.textInput}
             placeholderTextColor={colors.textSecondary}
@@ -275,8 +276,7 @@ const AccessibilitySettings: React.FC = () => {
 };
 
 const SignOutButton = ({ onSignOut }: { onSignOut: () => void }) => {
-  const colors = useColors();
-  const { scaleHeight, proportionalSize, scaleFont } = useResponsiveStyles();
+  const { scaleHeight } = useResponsiveStyles();
 
   const dynamicStyles = StyleSheet.create({
     signOutButton: {
@@ -309,7 +309,7 @@ function SettingsScreen() {
         index: 0,
         routes: [{ name: 'Login' }],
       });
-    } catch (error) {
+    } catch {
       Alert.alert('Error', 'Failed to sign out');
     }
   };
@@ -326,6 +326,11 @@ function SettingsScreen() {
       padding: proportionalSize(20),
       backgroundColor: colors.background,
     },
+    loadingText: {
+      color: colors.textPrimary,
+      fontSize: proportionalSize(16),
+      marginTop: proportionalSize(10),
+    },
   });
 
   if (loading) {
@@ -335,15 +340,7 @@ function SettingsScreen() {
           size={proportionalSize(30)}
           color={colors.textPrimary}
         />
-        <Text
-          style={{
-            color: colors.textPrimary,
-            fontSize: proportionalSize(16),
-            marginTop: proportionalSize(10),
-          }}
-        >
-          Loading...
-        </Text>
+        <Text style={dynamicStyles.loadingText}>Loading...</Text>
       </View>
     );
   }

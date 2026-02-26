@@ -11,9 +11,8 @@ import Button from '../../components/common/Button';
 type InfoLinksNavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
 const InfoLinks = () => {
-  const colors = useColors();
   const navigation = useNavigation<InfoLinksNavigationProp>();
-  const { scaleHeight, proportionalSize, scaleFont } = useResponsiveStyles();
+  const { scaleHeight } = useResponsiveStyles();
 
   const dynamicStyles = StyleSheet.create({
     infoLinksContainer: {

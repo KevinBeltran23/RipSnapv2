@@ -5,49 +5,75 @@ import { useColors } from '../../hooks/useColors';
 import { useResponsiveStyles } from '../../hooks/useResponsiveStyles';
 
 interface MapControlsProps {
-    onLocate: () => void;
-    onReload: () => void;
-    onLegend: () => void;
-    isLoading: boolean;
+  onLocate: () => void;
+  onReload: () => void;
+  onLegend: () => void;
+  isLoading: boolean;
 }
 
-function MapControls({ onLocate, onReload, onLegend, isLoading }: MapControlsProps) {
-    const colors = useColors();
-    const { scaleHeight, scaleWidth, scaleFont, proportionalSize, isMediumScreen, isLargeScreen } = useResponsiveStyles();
+function MapControls({
+  onLocate,
+  onReload,
+  onLegend,
+  isLoading,
+}: MapControlsProps) {
+  const colors = useColors();
+  const {
+    scaleHeight,
+    scaleWidth,
+    scaleFont,
+    proportionalSize,
+    isMediumScreen,
+    isLargeScreen,
+  } = useResponsiveStyles();
 
-    const isLarge = isMediumScreen || isLargeScreen;
-    const s = StyleSheet.create({
-        base: {
-            position: 'absolute', right: scaleWidth(20),
-            backgroundColor: colors.background,
-            width: scaleFont(50), height: scaleFont(50),
-            borderRadius: proportionalSize(25),
-            justifyContent: 'center', alignItems: 'center',
-            shadowColor: colors.shadow, shadowOffset: { width: 0, height: scaleHeight(2) },
-            shadowOpacity: 0.25, shadowRadius: proportionalSize(3.84), elevation: 5,
-        },
-        locate: { top: isLarge ? scaleHeight(60) : scaleHeight(80) },
-        legend: { top: isLarge ? scaleHeight(120) : scaleHeight(140) },
-        reload: { top: isLarge ? scaleHeight(180) : scaleHeight(200) },
-    });
+  const isLarge = isMediumScreen || isLargeScreen;
+  const s = StyleSheet.create({
+    base: {
+      position: 'absolute',
+      right: scaleWidth(20),
+      backgroundColor: colors.background,
+      width: scaleFont(50),
+      height: scaleFont(50),
+      borderRadius: proportionalSize(25),
+      justifyContent: 'center',
+      alignItems: 'center',
+      shadowColor: colors.shadow,
+      shadowOffset: { width: 0, height: scaleHeight(2) },
+      shadowOpacity: 0.25,
+      shadowRadius: proportionalSize(3.84),
+      elevation: 5,
+    },
+    locate: { top: isLarge ? scaleHeight(60) : scaleHeight(80) },
+    legend: { top: isLarge ? scaleHeight(120) : scaleHeight(140) },
+    reload: { top: isLarge ? scaleHeight(180) : scaleHeight(200) },
+  });
 
-    return (
-        <>
-            <TouchableOpacity style={[s.base, s.locate]} onPress={onLocate}>
-                <Icon name="crosshairs-gps" size={scaleFont(24)} color={colors.primary} />
-            </TouchableOpacity>
-            <TouchableOpacity style={[s.base, s.legend]} onPress={onLegend}>
-                <Icon name="help-circle" size={scaleFont(24)} color={colors.primary} />
-            </TouchableOpacity>
-            <TouchableOpacity style={[s.base, s.reload]} onPress={onReload} disabled={isLoading}>
-                <Icon
-                    name={isLoading ? 'loading' : 'refresh'}
-                    size={scaleFont(24)}
-                    color={isLoading ? colors.gray400 : colors.primary}
-                />
-            </TouchableOpacity>
-        </>
-    );
+  return (
+    <>
+      <TouchableOpacity style={[s.base, s.locate]} onPress={onLocate}>
+        <Icon
+          name="crosshairs-gps"
+          size={scaleFont(24)}
+          color={colors.primary}
+        />
+      </TouchableOpacity>
+      <TouchableOpacity style={[s.base, s.legend]} onPress={onLegend}>
+        <Icon name="help-circle" size={scaleFont(24)} color={colors.primary} />
+      </TouchableOpacity>
+      <TouchableOpacity
+        style={[s.base, s.reload]}
+        onPress={onReload}
+        disabled={isLoading}
+      >
+        <Icon
+          name={isLoading ? 'loading' : 'refresh'}
+          size={scaleFont(24)}
+          color={isLoading ? colors.gray400 : colors.primary}
+        />
+      </TouchableOpacity>
+    </>
+  );
 }
 
 export default MapControls;

@@ -1,18 +1,18 @@
 /** Navigation route param types — canonical home is now navigation/types.ts */
 export type RootStackParamList = {
-    Login: undefined;
-    SignUp: undefined;
-    ForgotPassword: undefined;
-    Main: undefined;
-    PrivacyPolicy: undefined;
-    TermsOfService: undefined;
-    About: undefined;
-    TermsAcceptance: undefined;
+  Login: undefined;
+  SignUp: undefined;
+  ForgotPassword: undefined;
+  Main: undefined;
+  PrivacyPolicy: undefined;
+  TermsOfService: undefined;
+  About: undefined;
+  TermsAcceptance: undefined;
 };
 
 export type MainTabParamList = {
-    MapTab: undefined;
-    HomeTab: undefined;
-    SettingsTab: undefined;
-    LiveFeedTab: undefined;
+  MapTab: undefined;
+  HomeTab: undefined;
+  SettingsTab: undefined;
+  LiveFeedTab: undefined;
 };

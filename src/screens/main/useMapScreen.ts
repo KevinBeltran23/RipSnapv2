@@ -15,122 +15,156 @@ import { useMapUI } from '../../contexts/MapUIContext';
 import { useResponsiveStyles } from '../../hooks/useResponsiveStyles';
 
 export function useMapScreen() {
-    const {
-        selectedLocation,
-        setSelectedLocation,
-        setUserLocation,
-        setNewPinnedLocation,
-    } = useMapUI();
+  const {
+    selectedLocation,
+    setSelectedLocation,
+    setUserLocation,
+    setNewPinnedLocation,
+  } = useMapUI();
 
-    const { filteredLocations, isLoading: isLoadingLocations } = useFilteredLocations();
-    const queryClient = useQueryClient();
+  const { filteredLocations, isLoading: isLoadingLocations } =
+    useFilteredLocations();
+  const queryClient = useQueryClient();
 
-    const reloadAllLocations = useCallback(() => {
-        queryClient.invalidateQueries({ queryKey: LOCATIONS_QUERY_KEY });
-    }, [queryClient]);
+  const reloadAllLocations = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: LOCATIONS_QUERY_KEY });
+  }, [queryClient]);
 
-    const {
-        isAddingLocation,
-        setIsAddingLocation,
-        isPinPlacementMode,
-        setIsPinPlacementMode,
-        setShowDetailsPopup,
-    } = useMapUI();
+  const {
+    isAddingLocation,
+    setIsAddingLocation,
+    isPinPlacementMode,
+    setIsPinPlacementMode,
+    setShowDetailsPopup,
+  } = useMapUI();
 
-    const { proportionalSize } = useResponsiveStyles();
-    const mapRef = useRef<MapView>(null);
-    const [showLegend, setShowLegend] = useState(false);
+  const { proportionalSize } = useResponsiveStyles();
+  const mapRef = useRef<MapView>(null);
+  const [showLegend, setShowLegend] = useState(false);
 
-    const animateToCoords = useCallback(
-        (latitude: number, longitude: number, delta = 0.01) => {
-            mapRef.current?.animateToRegion(
-                { latitude, longitude, latitudeDelta: proportionalSize(delta), longitudeDelta: proportionalSize(delta) },
-                1000,
-            );
+  const animateToCoords = useCallback(
+    (latitude: number, longitude: number, delta = 0.01) => {
+      mapRef.current?.animateToRegion(
+        {
+          latitude,
+          longitude,
+          latitudeDelta: proportionalSize(delta),
+          longitudeDelta: proportionalSize(delta),
         },
-        [proportionalSize],
-    );
+        1000,
+      );
+    },
+    [proportionalSize],
+  );
 
-    const requestAndFocusOnUser = useCallback(async () => {
-        const { status } = await ExpoLocation.requestForegroundPermissionsAsync();
-        if (status !== 'granted') { console.log('Location permission denied'); return; }
-        try {
-            const pos = await ExpoLocation.getCurrentPositionAsync({ accuracy: ExpoLocation.Accuracy.High });
-            const { latitude, longitude } = pos.coords;
-            setUserLocation({ latitude, longitude });
-            animateToCoords(latitude, longitude, 0.015);
-        } catch (error) {
-            console.log('Error getting location on focus:', error);
-            Alert.alert('Location Error', 'Unable to get your current location. Please check your device settings.');
-        }
-    }, [setUserLocation, animateToCoords]);
-
-    useFocusEffect(
-        useCallback(() => {
-            reloadAllLocations();
-            requestAndFocusOnUser();
-        }, [reloadAllLocations, requestAndFocusOnUser]),
-    );
-
-    // Keep map centered on selected location
-    const prevSelectedId = useRef<string | null>(null);
-    if (selectedLocation && selectedLocation.id !== prevSelectedId.current) {
-        prevSelectedId.current = selectedLocation.id;
-        animateToCoords(selectedLocation.coordinates.latitude, selectedLocation.coordinates.longitude, 0.01);
+  const requestAndFocusOnUser = useCallback(async () => {
+    const { status } = await ExpoLocation.requestForegroundPermissionsAsync();
+    if (status !== 'granted') {
+      console.log('Location permission denied');
+      return;
     }
+    try {
+      const pos = await ExpoLocation.getCurrentPositionAsync({
+        accuracy: ExpoLocation.Accuracy.High,
+      });
+      const { latitude, longitude } = pos.coords;
+      setUserLocation({ latitude, longitude });
+      animateToCoords(latitude, longitude, 0.015);
+    } catch (error) {
+      console.log('Error getting location on focus:', error);
+      Alert.alert(
+        'Location Error',
+        'Unable to get your current location. Please check your device settings.',
+      );
+    }
+  }, [setUserLocation, animateToCoords]);
 
-    const handleCurrentLocation = useCallback(async () => {
-        const { status } = await ExpoLocation.requestForegroundPermissionsAsync();
-        if (status !== 'granted') return;
-        try {
-            const pos = await ExpoLocation.getCurrentPositionAsync({ accuracy: ExpoLocation.Accuracy.High });
-            const { latitude, longitude } = pos.coords;
-            setUserLocation({ latitude, longitude });
-            animateToCoords(latitude, longitude, 0.01);
-        } catch (error) {
-            Alert.alert('Location Error', 'Unable to get your current location. Please check your device settings.', [{ text: 'OK' }]);
-        }
-    }, [setUserLocation, animateToCoords]);
+  useFocusEffect(
+    useCallback(() => {
+      reloadAllLocations();
+      requestAndFocusOnUser();
+    }, [reloadAllLocations, requestAndFocusOnUser]),
+  );
 
-    const handleReload = useCallback(() => reloadAllLocations(), [reloadAllLocations]);
+  // Keep map centered on selected location
+  const prevSelectedId = useRef<string | null>(null);
+  if (selectedLocation && selectedLocation.id !== prevSelectedId.current) {
+    prevSelectedId.current = selectedLocation.id;
+    animateToCoords(
+      selectedLocation.coordinates.latitude,
+      selectedLocation.coordinates.longitude,
+      0.01,
+    );
+  }
 
-    const toggleLegend = useCallback(() => setShowLegend(prev => !prev), []);
+  const handleCurrentLocation = useCallback(async () => {
+    const { status } = await ExpoLocation.requestForegroundPermissionsAsync();
+    if (status !== 'granted') return;
+    try {
+      const pos = await ExpoLocation.getCurrentPositionAsync({
+        accuracy: ExpoLocation.Accuracy.High,
+      });
+      const { latitude, longitude } = pos.coords;
+      setUserLocation({ latitude, longitude });
+      animateToCoords(latitude, longitude, 0.01);
+    } catch {
+      Alert.alert(
+        'Location Error',
+        'Unable to get your current location. Please check your device settings.',
+        [{ text: 'OK' }],
+      );
+    }
+  }, [setUserLocation, animateToCoords]);
 
-    const handleMapPress = useCallback((event: any) => {
-        if (isPinPlacementMode) {
-            setNewPinnedLocation(event.nativeEvent.coordinate);
-            setIsPinPlacementMode(false);
-        }
-    }, [isPinPlacementMode, setNewPinnedLocation, setIsPinPlacementMode]);
+  const handleReload = useCallback(
+    () => reloadAllLocations(),
+    [reloadAllLocations],
+  );
 
-    const selectLocation = useCallback((location: any) => {
-        setSelectedLocation(location);
-        setShowDetailsPopup(true);
-    }, [setSelectedLocation, setShowDetailsPopup]);
+  const toggleLegend = useCallback(() => setShowLegend(prev => !prev), []);
 
-    const cancelPin = useCallback(() => {
+  const handleMapPress = useCallback(
+    (event: any) => {
+      if (isPinPlacementMode) {
+        setNewPinnedLocation(event.nativeEvent.coordinate);
         setIsPinPlacementMode(false);
-        setIsAddingLocation(false);
-    }, [setIsPinPlacementMode, setIsAddingLocation]);
+      }
+    },
+    [isPinPlacementMode, setNewPinnedLocation, setIsPinPlacementMode],
+  );
 
-    // The temp pin shown while adding a new location
-    const tempPin = isAddingLocation && selectedLocation?.id.startsWith('temp-')
-        ? selectedLocation.coordinates
-        : null;
+  const selectLocation = useCallback(
+    (location: any) => {
+      setSelectedLocation(location);
+      setShowDetailsPopup(true);
+    },
+    [setSelectedLocation, setShowDetailsPopup],
+  );
 
-    return {
-        mapRef,
-        filteredLocations,
-        selectedLocation,
-        isLoadingLocations,
-        isPinPlacementMode,
-        showLegend,
-        tempPin,
-        handleCurrentLocation,
-        handleReload,
-        toggleLegend,
-        handleMapPress,
-        selectLocation,
-        cancelPin,
-    };
+  const cancelPin = useCallback(() => {
+    setIsPinPlacementMode(false);
+    setIsAddingLocation(false);
+  }, [setIsPinPlacementMode, setIsAddingLocation]);
+
+  // The temp pin shown while adding a new location
+  const tempPin =
+    isAddingLocation && selectedLocation?.id.startsWith('temp-')
+      ? selectedLocation.coordinates
+      : null;
+
+  return {
+    mapRef,
+    filteredLocations,
+    selectedLocation,
+    isLoadingLocations,
+    isPinPlacementMode,
+    showLegend,
+    tempPin,
+    handleCurrentLocation,
+    handleReload,
+    toggleLegend,
+    handleMapPress,
+    selectLocation,
+    cancelPin,
+  };
 }

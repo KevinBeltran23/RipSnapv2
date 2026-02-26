@@ -7,28 +7,37 @@ import { Alert } from 'react-native';
 import * as ExpoLocation from 'expo-location';
 
 interface Coordinate {
-    latitude: number;
-    longitude: number;
+  latitude: number;
+  longitude: number;
 }
 
 export function useCurrentLocation() {
-    const requestPermission = useCallback(async (): Promise<boolean> => {
-        const { status } = await ExpoLocation.requestForegroundPermissionsAsync();
-        return status === 'granted';
-    }, []);
+  const requestPermission = useCallback(async (): Promise<boolean> => {
+    const { status } = await ExpoLocation.requestForegroundPermissionsAsync();
+    return status === 'granted';
+  }, []);
 
-    const getCurrentPosition = useCallback(async (): Promise<Coordinate | null> => {
-        const granted = await requestPermission();
-        if (!granted) return null;
-        try {
-            const pos = await ExpoLocation.getCurrentPositionAsync({ accuracy: ExpoLocation.Accuracy.High });
-            return { latitude: pos.coords.latitude, longitude: pos.coords.longitude };
-        } catch (error) {
-            console.error('Error getting location:', error);
-            Alert.alert('Location Error', 'Unable to get your current location. Please check device settings.');
-            return null;
-        }
+  const getCurrentPosition =
+    useCallback(async (): Promise<Coordinate | null> => {
+      const granted = await requestPermission();
+      if (!granted) return null;
+      try {
+        const pos = await ExpoLocation.getCurrentPositionAsync({
+          accuracy: ExpoLocation.Accuracy.High,
+        });
+        return {
+          latitude: pos.coords.latitude,
+          longitude: pos.coords.longitude,
+        };
+      } catch (error) {
+        console.error('Error getting location:', error);
+        Alert.alert(
+          'Location Error',
+          'Unable to get your current location. Please check device settings.',
+        );
+        return null;
+      }
     }, [requestPermission]);
 
-    return { requestPermission, getCurrentPosition };
+  return { requestPermission, getCurrentPosition };
 }

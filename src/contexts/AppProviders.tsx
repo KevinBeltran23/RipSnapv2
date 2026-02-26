@@ -14,13 +14,11 @@ import { MapUIProvider } from './MapUIContext';
  *         └─ AuthProvider (top, no deps)
  */
 export function AppProviders({ children }: { children: ReactNode }) {
-    return (
-        <AuthProvider>
-            <ThemeProvider>
-                <MapUIProvider>
-                    {children}
-                </MapUIProvider>
-            </ThemeProvider>
-        </AuthProvider>
-    );
+  return (
+    <AuthProvider>
+      <ThemeProvider>
+        <MapUIProvider>{children}</MapUIProvider>
+      </ThemeProvider>
+    </AuthProvider>
+  );
 }

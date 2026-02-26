@@ -3,16 +3,30 @@ import { View, StyleSheet } from 'react-native';
 import MapView, { PROVIDER_GOOGLE, Marker } from 'react-native-maps';
 import { INITIAL_REGION } from '../../config/constants';
 import { useColors } from '../../hooks/useColors';
-import { MapControls, LocationMarker, PinPlacementBanner, Legend } from '../../components/map';
+import {
+  MapControls,
+  LocationMarker,
+  PinPlacementBanner,
+  Legend,
+} from '../../components/map';
 import FilterSheet from '../../components/bottom-sheet/FilterSheet';
 import { useMapScreen } from './useMapScreen';
 
 const MapScreen = () => {
   const colors = useColors();
   const {
-    mapRef, filteredLocations, isLoadingLocations, isPinPlacementMode,
-    showLegend, tempPin, handleCurrentLocation, handleReload, toggleLegend,
-    handleMapPress, selectLocation, cancelPin,
+    mapRef,
+    filteredLocations,
+    isLoadingLocations,
+    isPinPlacementMode,
+    showLegend,
+    tempPin,
+    handleCurrentLocation,
+    handleReload,
+    toggleLegend,
+    handleMapPress,
+    selectLocation,
+    cancelPin,
   } = useMapScreen();
 
   return (
@@ -29,9 +43,18 @@ const MapScreen = () => {
         onPress={handleMapPress}
       >
         {filteredLocations
-          .filter(loc => loc.coordinates && !isNaN(loc.coordinates.latitude) && !isNaN(loc.coordinates.longitude))
+          .filter(
+            loc =>
+              loc.coordinates &&
+              !isNaN(loc.coordinates.latitude) &&
+              !isNaN(loc.coordinates.longitude),
+          )
           .map(loc => (
-            <LocationMarker key={loc.id} location={loc} onPress={selectLocation} />
+            <LocationMarker
+              key={loc.id}
+              location={loc}
+              onPress={selectLocation}
+            />
           ))}
 
         {tempPin && <Marker coordinate={tempPin} pinColor={colors.primary} />}

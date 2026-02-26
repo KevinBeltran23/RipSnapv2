@@ -4,19 +4,19 @@
  */
 
 export interface Media {
-    url: string;
-    path: string;
-    type: 'image' | 'pdf' | 'video';
-    name: string;
+  url: string;
+  path: string;
+  type: 'image' | 'pdf' | 'video';
+  name: string;
 }
 
 export interface AccessibilityLocation {
-    id?: string;
-    name: string;
-    latitude: number;
-    longitude: number;
-    description?: string;
-    categories?: Record<string, { severity?: string; details?: string }>;
-    images?: Media[];
-    createdAt?: number;
+  id?: string;
+  name: string;
+  latitude: number;
+  longitude: number;
+  description?: string;
+  categories?: Record<string, { severity?: string; details?: string }>;
+  images?: Media[];
+  createdAt?: number;
 }

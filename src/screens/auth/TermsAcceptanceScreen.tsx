@@ -144,7 +144,7 @@ function TermsAcceptanceScreen() {
           }}
           textStyle={dynamicStyles.checkboxText}
           text="I have read and agree to the Terms of Service"
-          onPress={(isChecked: boolean) => setIsChecked(isChecked)}
+          onPress={(checked: boolean) => setIsChecked(checked)}
           isChecked={isChecked}
         />
       </View>

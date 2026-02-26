@@ -18,11 +18,8 @@ import { SeverityLevel } from '../../types/severity';
 import { useResponsiveStyles } from '../../hooks/useResponsiveStyles';
 
 function FilterSheet() {
-  const {
-    selectedLocation,
-    setSelectedLocation,
-    clearLocationStates,
-  } = useMapUI();
+  const { selectedLocation, setSelectedLocation, clearLocationStates } =
+    useMapUI();
 
   const { filteredLocations } = useFilteredLocations();
 
