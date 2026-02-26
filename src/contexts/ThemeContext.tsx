@@ -1,8 +1,11 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { useAuth } from './AuthContext';
+import { createMMKV } from 'react-native-mmkv';
 
 export type ThemeMode = 'light' | 'dark';
 export type ColorBlindMode = 'none' | 'red-green';
+
+const themeStorage = createMMKV({ id: 'theme-preferences-cache' });
 
 interface ThemeContextType {
     themeMode: ThemeMode;
@@ -18,30 +21,48 @@ const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
     const { user, updateUser } = useAuth();
-    const [themeMode, setThemeModeState] = useState<ThemeMode>('light');
-    const [colorBlindMode, setColorBlindModeState] = useState<ColorBlindMode>('none');
-    const [highContrast, setHighContrastState] = useState(false);
+
+    // Synchronously read from MMKV on boot avoiding any flashes
+    const [themeMode, setThemeModeState] = useState<ThemeMode>(
+        (themeStorage.getString('themeMode') as ThemeMode) || 'light'
+    );
+    const [colorBlindMode, setColorBlindModeState] = useState<ColorBlindMode>(
+        (themeStorage.getString('colorBlindMode') as ColorBlindMode) || 'none'
+    );
+    const [highContrast, setHighContrastState] = useState(
+        themeStorage.getBoolean('highContrast') || false
+    );
 
     useEffect(() => {
         if (user) {
-            setThemeModeState(user.darkMode ? 'dark' : 'light');
+            const firebaseTheme = user.darkMode ? 'dark' : 'light';
+            setThemeModeState(firebaseTheme);
             setColorBlindModeState(user.colorBlindMode);
             setHighContrastState(user.highContrast);
+
+            // Sync Firebase's ground truth down into MMKV
+            themeStorage.set('themeMode', firebaseTheme);
+            themeStorage.set('colorBlindMode', user.colorBlindMode);
+            themeStorage.set('highContrast', user.highContrast);
         }
     }, [user]);
 
     const setThemeMode = (mode: ThemeMode) => {
         setThemeModeState(mode);
+        themeStorage.set('themeMode', mode);
         if (user) updateUser({ darkMode: mode === 'dark' });
     };
     const setColorBlindMode = (mode: ColorBlindMode) => {
         setColorBlindModeState(mode);
+        themeStorage.set('colorBlindMode', mode);
         if (user) updateUser({ colorBlindMode: mode });
     };
     const setHighContrast = (enabled: boolean) => {
         setHighContrastState(enabled);
+        themeStorage.set('highContrast', enabled);
         if (user) updateUser({ highContrast: enabled });
     };
+
     const getThemeClasses = (): string => {
         const classes: string[] = [];
         if (themeMode === 'dark') classes.push('dark');

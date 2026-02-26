@@ -9,8 +9,9 @@ import { LocationData } from '../../types/location';
 import { AccessibilityLocation, Media } from '../../types/media';
 import { useMapUI } from '../../contexts/MapUIContext';
 import { useAuth } from '../../contexts/AuthContext';
-import { useQueryClient } from '@tanstack/react-query';
+import { useQueryClient, useMutation } from '@tanstack/react-query';
 import { LOCATIONS_QUERY_KEY } from '../../services/store/locationQueries';
+import { useMediaByCategoryQuery, mediaQueryKey } from '../../services/store/mediaQueries';
 import {
     uploadMedia,
     getLocationMediaByCategory,
@@ -60,11 +61,15 @@ export function usePopupSheet({ mode, location, onClose, onChange }: UsePopupShe
     const [uploadedMedia, setUploadedMedia] = useState<
         Array<{ path: string; type: 'image' | 'pdf' | 'video' }>
     >([]);
-    const [locationMedia, setLocationMedia] = useState<Media[]>([]);
     const [isSubmitting, setIsSubmitting] = useState(false);
-    const [mediaCache, setMediaCache] = useState<{ [key: string]: Media[] }>({});
     const [visibleMediaCount, setVisibleMediaCount] = useState(4);
     const [modalMedia, setModalMedia] = useState<Media | null>(null);
+
+    const mappedCategoryName = CATEGORY_OPTIONS.find(c => c.id === selectedCategory)?.label || 'Unknown';
+    const { data: locationMedia = [], isLoading: isLoadingMedia } = useMediaByCategoryQuery(
+        mode === 'view' ? location?.id : undefined,
+        mode === 'view' ? mappedCategoryName : undefined
+    );
 
     const visibleMedia = locationMedia.slice(0, visibleMediaCount);
     const hasMoreMedia = locationMedia.length > visibleMediaCount;
@@ -88,21 +93,6 @@ export function usePopupSheet({ mode, location, onClose, onChange }: UsePopupShe
             if (location && contextSelectedLocation?.id !== location.id) setSelectedLocation(location);
         }
     }, [mode, categoryFilter, location, setSelectedLocation, setFirestoreLocationMetadata, contextSelectedLocation]);
-
-    useEffect(() => {
-        const fetchCategoryMedia = async () => {
-            if (mode !== 'view' || !location?.id || selectedCategory === null) return;
-            const categoryName = CATEGORY_OPTIONS.find(c => c.id === selectedCategory)?.label || 'Unknown';
-            const cacheKey = `${location.id}-${categoryName}`;
-            if (mediaCache[cacheKey]) { setLocationMedia(mediaCache[cacheKey]); return; }
-            try {
-                const media = await getLocationMediaByCategory(location.id, categoryName);
-                setLocationMedia(media);
-                setMediaCache(prev => ({ ...prev, [cacheKey]: media }));
-            } catch (error) { console.error('Error fetching category media:', error); }
-        };
-        fetchCategoryMedia();
-    }, [mode, location?.id, selectedCategory, mediaCache]);
 
     const handleSheetChanges = useCallback((newIndex: number) => onChange(newIndex), [onChange]);
     const handleMediaSelected = (media: { path: string; type: 'image' | 'pdf' | 'video' }) => setUploadedMedia(prev => [...prev, media]);
@@ -136,15 +126,8 @@ export function usePopupSheet({ mode, location, onClose, onChange }: UsePopupShe
         }
     }, [setFirestoreLocationMetadata, contextSelectedLocation, setSelectedLocation]);
 
-    const handleSubmit = useCallback(async () => {
-        if (isSubmitting) return;
-        if (!newLocationName.trim()) { Alert.alert('Error', 'Please enter a location name'); return; }
-        if (!firestoreLocationMetadata?.latitude || !firestoreLocationMetadata?.longitude) {
-            Alert.alert('Error', 'Please place a pin on the map to set location coordinates'); return;
-        }
-        if (uploadedMedia.length === 0) { Alert.alert('Error', 'Please upload at least one media file'); return; }
-        setIsSubmitting(true);
-        try {
+    const savePinMutation = useMutation({
+        mutationFn: async () => {
             let locationId: string;
             let existingCategories: LocationData['categories'] = {};
             if (contextSelectedLocation && !contextSelectedLocation.id.startsWith('temp-')) {
@@ -152,8 +135,8 @@ export function usePopupSheet({ mode, location, onClose, onChange }: UsePopupShe
                 existingCategories = contextSelectedLocation.categories || {};
             } else {
                 const newLocationData: Partial<AccessibilityLocation> = {
-                    name: newLocationName.trim(), latitude: firestoreLocationMetadata.latitude,
-                    longitude: firestoreLocationMetadata.longitude, createdAt: Date.now(), categories: {}, images: [],
+                    name: newLocationName.trim(), latitude: firestoreLocationMetadata!.latitude!,
+                    longitude: firestoreLocationMetadata!.longitude!, createdAt: Date.now(), categories: {}, images: [],
                 };
                 const savedLocation = await addLocation(newLocationData);
                 if (!savedLocation?.id) throw new Error('Failed to create location: No ID returned.');
@@ -166,16 +149,62 @@ export function usePopupSheet({ mode, location, onClose, onChange }: UsePopupShe
                 categories: { ...existingCategories, [categoryName]: { severity: 'unknown_accessibility' as SeverityLevel } },
                 images: arrayUnion(...newMediaEntries),
             });
-            Alert.alert('Success', 'Data saved successfully!');
-            const cacheKey = `${locationId}-${categoryName}`;
-            setMediaCache(prev => { const next = { ...prev }; delete next[cacheKey]; return next; });
-            setLocationMedia([]); setIsAddingLocation(false); setIsPinPlacementMode(false);
-            setNewLocationName(''); setUploadedMedia([]); onClose(); reloadAllLocations();
-        } catch (error) {
-            console.error('Error saving location and media:', error);
+            return { locationId, categoryName };
+        },
+        onMutate: async () => {
+            setIsSubmitting(true);
+            await queryClient.cancelQueries({ queryKey: LOCATIONS_QUERY_KEY });
+            const previousLocations = queryClient.getQueryData<LocationData[]>(LOCATIONS_QUERY_KEY);
+
+            // Optimistic Pin Injection
+            if (!contextSelectedLocation || contextSelectedLocation.id.startsWith('temp-')) {
+                const categoryName = CATEGORY_OPTIONS[uploadCategory].label;
+                const optimisticPin: LocationData = {
+                    id: `temp-${Date.now()}`,
+                    name: newLocationName.trim(),
+                    coordinates: {
+                        latitude: firestoreLocationMetadata!.latitude!,
+                        longitude: firestoreLocationMetadata!.longitude!,
+                    },
+                    severity: 'unknown_accessibility',
+                    severityColor: 'unknownAccessibility',
+                    categories: {
+                        [categoryName]: { severity: 'unknown_accessibility' as SeverityLevel, details: '' }
+                    },
+                    galleryImages: [],
+                };
+                queryClient.setQueryData<LocationData[]>(LOCATIONS_QUERY_KEY, old => old ? [...old, optimisticPin] : [optimisticPin]);
+            }
+            return { previousLocations };
+        },
+        onError: (err, newLocation, context) => {
+            console.error('Error saving location and media:', err);
             Alert.alert('Error', 'Failed to save location and media. Please try again.');
-        } finally { setIsSubmitting(false); }
-    }, [isSubmitting, newLocationName, firestoreLocationMetadata, uploadedMedia, uploadCategory, contextSelectedLocation, setIsAddingLocation, onClose, reloadAllLocations, setIsPinPlacementMode]);
+            if (context?.previousLocations) {
+                queryClient.setQueryData(LOCATIONS_QUERY_KEY, context.previousLocations);
+            }
+            setIsSubmitting(false);
+        },
+        onSuccess: ({ locationId, categoryName }) => {
+            Alert.alert('Success', 'Data saved successfully!');
+            queryClient.invalidateQueries({ queryKey: mediaQueryKey(locationId, categoryName) });
+            queryClient.invalidateQueries({ queryKey: LOCATIONS_QUERY_KEY });
+            setIsAddingLocation(false); setIsPinPlacementMode(false);
+            setNewLocationName(''); setUploadedMedia([]); onClose();
+            setIsSubmitting(false);
+        },
+    });
+
+    const handleSubmit = useCallback(() => {
+        if (isSubmitting) return;
+        if (!newLocationName.trim()) { Alert.alert('Error', 'Please enter a location name'); return; }
+        if (!firestoreLocationMetadata?.latitude || !firestoreLocationMetadata?.longitude) {
+            Alert.alert('Error', 'Please place a pin on the map to set location coordinates'); return;
+        }
+        if (uploadedMedia.length === 0) { Alert.alert('Error', 'Please upload at least one media file'); return; }
+
+        savePinMutation.mutate();
+    }, [isSubmitting, newLocationName, firestoreLocationMetadata, uploadedMedia, savePinMutation]);
 
     const openGoogleMaps = useCallback(() => { if (location?.googleMapsUrl) Linking.openURL(location.googleMapsUrl); }, [location?.googleMapsUrl]);
 
@@ -203,9 +232,8 @@ export function usePopupSheet({ mode, location, onClose, onChange }: UsePopupShe
                         Alert.alert('Success', 'Media deleted successfully.');
                         setModalMedia(null);
                         const categoryName = CATEGORY_OPTIONS.find(c => c.id === selectedCategory)?.label || 'Unknown';
-                        const cacheKey = `${location.id}-${categoryName}`;
-                        setMediaCache(prev => { const next = { ...prev }; delete next[cacheKey]; return next; });
-                        setLocationMedia([]); reloadAllLocations();
+                        queryClient.invalidateQueries({ queryKey: mediaQueryKey(location.id, categoryName) });
+                        reloadAllLocations();
                     } catch (error) { console.error('Error deleting media:', error); Alert.alert('Error', 'Failed to delete media. Please try again.'); }
                 }
             },
@@ -214,7 +242,7 @@ export function usePopupSheet({ mode, location, onClose, onChange }: UsePopupShe
 
     return {
         bottomSheetRef, newLocationName, selectedCategory, uploadCategory, uploadedMedia,
-        locationMedia, isSubmitting, visibleMedia, hasMoreMedia, modalMedia,
+        locationMedia, isLoadingMedia, isSubmitting, visibleMedia, hasMoreMedia, modalMedia,
         contextSelectedLocation, firestoreLocationMetadata, isPinPlacementMode, isAddingLocation, user,
         handleSheetChanges, handleMediaSelected, handleCategorySelect, handleUploadCategorySelect,
         handleSelectLocation, handlePlacePinOnMap, handleLocationNameChange, handleSubmit,

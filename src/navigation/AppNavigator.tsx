@@ -37,7 +37,7 @@ const AppNavigator = () => {
       <Stack.Screen name="TermsOfService" component={TermsOfServiceScreen} />
       <Stack.Screen name="About" component={AboutScreen} />
       {/* Authenticated main app */}
-      <Stack.Screen name="Main" component={() => <MainNavigator />} />
+      <Stack.Screen name="Main" component={MainNavigator} />
     </Stack.Navigator>
   );
 };
