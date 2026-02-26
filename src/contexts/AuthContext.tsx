@@ -18,6 +18,9 @@ import {
 } from '../services/firebase/users';
 import { getUserFacingMessage } from '../services/errorHandler';
 import { User } from '../types/user';
+import { createMMKV } from 'react-native-mmkv';
+
+const userStorage = createMMKV({ id: 'user-profile-cache' });
 
 interface AuthContextType {
     authUser: FirebaseAuthTypes.User | null;
@@ -45,8 +48,15 @@ const auth = getAuth();
 
 export function AuthProvider({ children }: AuthProviderProps) {
     const [authUser, setAuthUser] = useState<FirebaseAuthTypes.User | null>(null);
-    const [user, setUser] = useState<User | null>(null);
-    const [loading, setLoading] = useState(true);
+
+    // Attempt to load the user synchronously from MMKV on boot
+    const [user, setUser] = useState<User | null>(() => {
+        const cachedUserStr = userStorage.getString('cached-user');
+        return cachedUserStr ? JSON.parse(cachedUserStr) as User : null;
+    });
+
+    // Default loading to false if we successfully hydrated a cached user so the UI is instantly visible
+    const [loading, setLoading] = useState<boolean>(!userStorage.getString('cached-user'));
 
     const firestoreUnsubscribeRef = React.useRef<(() => void) | null>(null);
     const prevIsAdminRef = React.useRef<boolean | null>(null);
@@ -59,7 +69,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
                 firestoreUnsubscribeRef.current = null;
             }
             if (firebaseUser) {
-                setLoading(true);
+                // Only trigger the hard loading spinner on boot if we didn't have a cached profile ready
+                if (!userStorage.getString('cached-user')) {
+                    setLoading(true);
+                }
                 const userDocRef = getUserDocumentRef(firebaseUser.uid);
                 const firestoreUnsubscribe = onSnapshot(
                     userDocRef,
@@ -71,10 +84,12 @@ export function AuthProvider({ children }: AuthProviderProps) {
                             }
                             prevIsAdminRef.current = !!profile.isAdmin;
                             setUser(profile);
+                            userStorage.set('cached-user', JSON.stringify(profile));
                         } else {
                             console.log(`Profile not found for user ${firebaseUser.uid}. Creating one.`);
                             const newProfile = await createUserProfile(firebaseUser);
                             setUser(newProfile);
+                            userStorage.set('cached-user', JSON.stringify(newProfile));
                         }
                         setLoading(false);
                     },
@@ -84,12 +99,14 @@ export function AuthProvider({ children }: AuthProviderProps) {
                             Alert.alert('Profile Sync Error', getUserFacingMessage(error));
                         }
                         setUser(null);
+                        userStorage.remove('cached-user');
                         setLoading(false);
                     },
                 );
                 firestoreUnsubscribeRef.current = firestoreUnsubscribe;
             } else {
                 setUser(null);
+                userStorage.remove('cached-user');
                 setLoading(false);
             }
         });

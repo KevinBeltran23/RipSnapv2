@@ -2,9 +2,11 @@
 import { View, TextInput, TouchableOpacity, Text, StyleSheet, ScrollView } from 'react-native';
 import { LocationData } from '../../types/location';
 import { useMapUI } from '../../contexts/MapUIContext';
-import { searchLocationsByText, convertFirestoreToLocationData } from '../../services/firebase/locations';
+import { convertFirestoreToLocationData } from '../../services/firebase/locations';
 import { useColors } from '../../hooks/useColors';
 import { useResponsiveStyles } from '../../hooks/useResponsiveStyles';
+import { useSearchQuery } from '../../services/store/searchQueries';
+import { useDebounce } from '../../hooks/useDebounce';
 
 interface SearchBarProps {
     onSelectLocation?: (location: LocationData) => void;
@@ -16,19 +18,20 @@ interface SearchBarProps {
 
 function SearchBar({ onSelectLocation, placeholder = 'Search locations...', initialValue = '', showResults = true, onTextChange }: SearchBarProps) {
     const { categoryFilter } = useMapUI();
-    const searchLocations = async (query: string): Promise<LocationData[]> => {
-        if (!query.trim()) return [];
-        try {
-            const results = await searchLocationsByText(query);
-            return results.map(loc => convertFirestoreToLocationData(loc, categoryFilter));
-        } catch (error) {
-            console.error('Error searching locations:', error);
-            return [];
-        }
-    };
     const [searchQuery, setSearchQuery] = useState(initialValue);
-    const [searchResults, setSearchResults] = useState<LocationData[]>([]);
-    const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+    // Debounce the input before hitting our cache/store
+    const debouncedSearchTerm = useDebounce(searchQuery, 300);
+
+    // Call TanStack query using the debounced query
+    const { data: rawResults = [] } = useSearchQuery(debouncedSearchTerm);
+
+    // Map Firestore response cleanly into filtered UI data
+    const searchResults = React.useMemo(() => {
+        if (!debouncedSearchTerm.trim()) return [];
+        return rawResults.map(loc => convertFirestoreToLocationData(loc, categoryFilter));
+    }, [rawResults, categoryFilter, debouncedSearchTerm]);
+
     const colors = useColors();
     const { scaleHeight, proportionalSize, scaleFont } = useResponsiveStyles();
 
@@ -37,20 +40,10 @@ function SearchBar({ onSelectLocation, placeholder = 'Search locations...', init
     const handleSearch = (text: string) => {
         setSearchQuery(text);
         if (onTextChange) onTextChange(text);
-        if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
-        if (text.trim()) {
-            searchTimeoutRef.current = setTimeout(async () => {
-                try { setSearchResults(await searchLocations(text)); }
-                catch { setSearchResults([]); }
-            }, 300);
-        } else { setSearchResults([]); }
     };
-
-    useEffect(() => () => { if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current); }, []);
 
     const handleSelectLocation = (location: LocationData) => {
         setSearchQuery(location.name);
-        setSearchResults([]);
         if (onSelectLocation) onSelectLocation(location);
     };
 
