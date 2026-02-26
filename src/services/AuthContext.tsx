@@ -1,6 +1,15 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
 import { Alert } from 'react-native';
-import auth, { FirebaseAuthTypes } from '@react-native-firebase/auth';
+import {
+  getAuth,
+  onAuthStateChanged,
+  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
+  signOut as firebaseSignOut,
+  sendPasswordResetEmail,
+  FirebaseAuthTypes,
+} from '@react-native-firebase/auth';
+import { onSnapshot } from '@react-native-firebase/firestore';
 import * as GoogleAuth from './firebase/auth';
 import * as FirestoreService from './firebase/firestore';
 import { User } from '../types/user';
@@ -35,6 +44,9 @@ interface AuthProviderProps {
   children: React.ReactNode;
 }
 
+
+const auth = getAuth();
+
 export function AuthProvider({ children }: AuthProviderProps) {
   const [authUser, setAuthUser] = useState<FirebaseAuthTypes.User | null>(null);
   const [user, setUser] = useState<User | null>(null);
@@ -44,7 +56,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const firestoreUnsubscribeRef = React.useRef<(() => void) | null>(null);
 
   useEffect(() => {
-    const authUnsubscribe = auth().onAuthStateChanged(async firebaseUser => {
+    const authUnsubscribe = onAuthStateChanged(auth, async firebaseUser => {
       setAuthUser(firebaseUser);
 
       // Clean up previous Firestore listener if it exists
@@ -60,7 +72,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
         );
 
         // Set up a real-time listener for the user's Firestore profile
-        const firestoreUnsubscribe = userDocRef.onSnapshot(
+        const firestoreUnsubscribe = onSnapshot(
+          userDocRef,
           async docSnapshot => {
             if (docSnapshot.exists()) {
               const profile = docSnapshot.data() as User;
@@ -111,7 +124,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
   // Sign in with email and password
   const signIn = async (email: string, password: string) => {
     try {
-      await auth().signInWithEmailAndPassword(email, password);
+      await signInWithEmailAndPassword(auth, email, password);
     } catch (error) {
       console.error('Sign in error:', error);
       throw error;
@@ -125,7 +138,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
     displayName?: string,
   ) => {
     try {
-      const userCredential = await auth().createUserWithEmailAndPassword(
+      const userCredential = await createUserWithEmailAndPassword(
+        auth,
         email,
         password,
       );
@@ -158,7 +172,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       if (displayName !== undefined || photoURL !== undefined) {
         await authUser.updateProfile({ displayName, photoURL });
         await authUser.reload();
-        const firebaseUser = auth().currentUser;
+        const firebaseUser = auth.currentUser;
         if (firebaseUser) setAuthUser(firebaseUser);
       }
       // Firestore onSnapshot listener will automatically update the user state,
@@ -184,7 +198,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
   // Reset password
   const forgotPassword = async (email: string) => {
     try {
-      await auth().sendPasswordResetEmail(email);
+      await sendPasswordResetEmail(auth, email);
     } catch (error) {
       console.error('Forgot password error:', error);
       throw error;
