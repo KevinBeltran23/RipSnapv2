@@ -1,7 +1,8 @@
 ﻿import React, { useState, useEffect, useRef } from 'react';
 import { View, TextInput, TouchableOpacity, Text, StyleSheet, ScrollView } from 'react-native';
 import { LocationData } from '../../types/location';
-import { useLocationContext } from '../../contexts/LocationContext';
+import { useMapUI } from '../../contexts/MapUIContext';
+import { searchLocationsByText, convertFirestoreToLocationData } from '../../services/firebase/locations';
 import { useColors } from '../../hooks/useColors';
 import { useResponsiveStyles } from '../../hooks/useResponsiveStyles';
 
@@ -14,7 +15,17 @@ interface SearchBarProps {
 }
 
 function SearchBar({ onSelectLocation, placeholder = 'Search locations...', initialValue = '', showResults = true, onTextChange }: SearchBarProps) {
-    const { searchLocations } = useLocationContext();
+    const { categoryFilter } = useMapUI();
+    const searchLocations = async (query: string): Promise<LocationData[]> => {
+        if (!query.trim()) return [];
+        try {
+            const results = await searchLocationsByText(query);
+            return results.map(loc => convertFirestoreToLocationData(loc, categoryFilter));
+        } catch (error) {
+            console.error('Error searching locations:', error);
+            return [];
+        }
+    };
     const [searchQuery, setSearchQuery] = useState(initialValue);
     const [searchResults, setSearchResults] = useState<LocationData[]>([]);
     const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);

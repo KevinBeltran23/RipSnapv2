@@ -7,9 +7,10 @@ import { Alert, Linking } from 'react-native';
 import BottomSheet from '@gorhom/bottom-sheet';
 import { LocationData } from '../../types/location';
 import { AccessibilityLocation, Media } from '../../types/media';
-import { useLocationContext } from '../../contexts/LocationContext';
 import { useMapUI } from '../../contexts/MapUIContext';
 import { useAuth } from '../../contexts/AuthContext';
+import { useQueryClient } from '@tanstack/react-query';
+import { LOCATIONS_QUERY_KEY } from '../../services/store/locationQueries';
 import {
     uploadMedia,
     getLocationMediaByCategory,
@@ -37,10 +38,6 @@ export function usePopupSheet({ mode, location, onClose, onChange }: UsePopupShe
         setSelectedLocation,
         firestoreLocationMetadata,
         setFirestoreLocationMetadata,
-        reloadAllLocations,
-    } = useLocationContext();
-
-    const {
         setShowAddDataPopup,
         setIsAddingLocation,
         isAddingLocation,
@@ -48,6 +45,11 @@ export function usePopupSheet({ mode, location, onClose, onChange }: UsePopupShe
         setIsPinPlacementMode,
         categoryFilter,
     } = useMapUI();
+
+    const queryClient = useQueryClient();
+    const reloadAllLocations = useCallback(() => {
+        queryClient.invalidateQueries({ queryKey: LOCATIONS_QUERY_KEY });
+    }, [queryClient]);
 
     const { user } = useAuth();
     const bottomSheetRef = useRef<BottomSheet>(null);

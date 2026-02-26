@@ -2803,6 +2803,45 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@tanstack/query-core@npm:5.90.20":
+  version: 5.90.20
+  resolution: "@tanstack/query-core@npm:5.90.20"
+  checksum: 10c0/70637dfcecd5ed9d810629aa27f1632af8a4bcd083e75cf29408d058c32f8234704a3231ec280e2c4016ea0485b16124fdf70ab97793b5a7b670f43f7659e9fe
+  languageName: node
+  linkType: hard
+
+"@tanstack/query-persist-client-core@npm:5.91.19":
+  version: 5.91.19
+  resolution: "@tanstack/query-persist-client-core@npm:5.91.19"
+  dependencies:
+    "@tanstack/query-core": "npm:5.90.20"
+  checksum: 10c0/d11b85bb86276be6e291aa184365833d4074b8fac93ec70bf86984013c6e299957a31f83e14498777c59884a4939ce893dc61ed9d84b6519694d31c47016931a
+  languageName: node
+  linkType: hard
+
+"@tanstack/react-query-persist-client@npm:^5.90.22":
+  version: 5.90.22
+  resolution: "@tanstack/react-query-persist-client@npm:5.90.22"
+  dependencies:
+    "@tanstack/query-persist-client-core": "npm:5.91.19"
+  peerDependencies:
+    "@tanstack/react-query": ^5.90.20
+    react: ^18 || ^19
+  checksum: 10c0/11bd20c64d5fb0cf862b898b15b2f8872da90e02891ab1a9d3807459af40ff32f9e99f69a1e53d251cfe725a884b2459098f9fcd56f4a991970d58d0ce6b9cfe
+  languageName: node
+  linkType: hard
+
+"@tanstack/react-query@npm:^5.90.21":
+  version: 5.90.21
+  resolution: "@tanstack/react-query@npm:5.90.21"
+  dependencies:
+    "@tanstack/query-core": "npm:5.90.20"
+  peerDependencies:
+    react: ^18 || ^19
+  checksum: 10c0/e8994c57f6ceb2c886a4d6486a8c6a3f89bc6b1220de3e732448d7fcbeb386e9358f03c73804de72004c6ac2668d0bf1b44cedbb273d3e4b33afcbaee7b7d24d
+  languageName: node
+  linkType: hard
+
 "@types/babel__core@npm:^7.1.14":
   version: 7.20.5
   resolution: "@types/babel__core@npm:7.20.5"
@@ -5922,6 +5961,8 @@ __metadata:
     "@react-navigation/native": "npm:^7.1.28"
     "@react-navigation/native-stack": "npm:^7.13.0"
     "@shopify/react-native-skia": "npm:2.2.12"
+    "@tanstack/react-query": "npm:^5.90.21"
+    "@tanstack/react-query-persist-client": "npm:^5.90.22"
     "@types/md5": "npm:^2.3.6"
     "@types/react": "npm:~19.1.0"
     expo: "npm:~54.0.33"
@@ -5941,6 +5982,8 @@ __metadata:
     react-native-fast-tflite: "npm:^2.0.0"
     react-native-gesture-handler: "npm:~2.28.0"
     react-native-maps: "npm:1.20.1"
+    react-native-mmkv: "npm:^4.1.2"
+    react-native-nitro-modules: "npm:^0.33.9"
     react-native-pdf: "npm:^7.0.3"
     react-native-picker-select: "npm:^9.3.1"
     react-native-reanimated: "npm:~4.1.1"
@@ -6791,6 +6834,27 @@ __metadata:
     react-native-web:
       optional: true
   checksum: 10c0/59c8d5600feb907df179c675b7185ef3bf205bdc85391c7ef530bb17d56d44d03ffd9ab3ae08dcc00cfabe9b14e37041327c7446114104b141efb2c8d4c3e797
+  languageName: node
+  linkType: hard
+
+"react-native-mmkv@npm:^4.1.2":
+  version: 4.1.2
+  resolution: "react-native-mmkv@npm:4.1.2"
+  peerDependencies:
+    react: "*"
+    react-native: "*"
+    react-native-nitro-modules: "*"
+  checksum: 10c0/713f9c76e732fc010e53203f7dcb9fd571b1d89db13b8ea600ebc3b9505a3c8320e24acabdeb285e7bb0cc0c321d0374cf1a0cca9b211e0852555471aa90e396
+  languageName: node
+  linkType: hard
+
+"react-native-nitro-modules@npm:^0.33.9":
+  version: 0.33.9
+  resolution: "react-native-nitro-modules@npm:0.33.9"
+  peerDependencies:
+    react: "*"
+    react-native: "*"
+  checksum: 10c0/1784fb51abbca6f82d792134055352c42a3bafb3450fc326b04f3cea092126ab1c9ebf152fc0ca43130c46f1537996b06ff33e644a576b03eb97f4413f5c76c3
   languageName: node
   linkType: hard
 

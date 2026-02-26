@@ -8,20 +8,26 @@ import { Alert } from 'react-native';
 import MapView from 'react-native-maps';
 import * as ExpoLocation from 'expo-location';
 import { useFocusEffect } from '@react-navigation/native';
-import { useLocationContext } from '../../contexts/LocationContext';
+import { useFilteredLocations } from '../../hooks/useFilteredLocations';
+import { useQueryClient } from '@tanstack/react-query';
+import { LOCATIONS_QUERY_KEY } from '../../services/store/locationQueries';
 import { useMapUI } from '../../contexts/MapUIContext';
 import { useResponsiveStyles } from '../../hooks/useResponsiveStyles';
 
 export function useMapScreen() {
     const {
-        filteredLocations,
         selectedLocation,
         setSelectedLocation,
         setUserLocation,
-        reloadAllLocations,
-        isLoadingLocations,
         setNewPinnedLocation,
-    } = useLocationContext();
+    } = useMapUI();
+
+    const { filteredLocations, isLoading: isLoadingLocations } = useFilteredLocations();
+    const queryClient = useQueryClient();
+
+    const reloadAllLocations = useCallback(() => {
+        queryClient.invalidateQueries({ queryKey: LOCATIONS_QUERY_KEY });
+    }, [queryClient]);
 
     const {
         isAddingLocation,

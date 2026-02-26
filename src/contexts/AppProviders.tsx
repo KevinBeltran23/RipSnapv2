@@ -1,7 +1,6 @@
 import React, { ReactNode } from 'react';
 import { AuthProvider } from './AuthContext';
 import { ThemeProvider } from './ThemeContext';
-import { LocationProvider } from './LocationContext';
 import { MapUIProvider } from './MapUIContext';
 
 /**
@@ -19,9 +18,7 @@ export function AppProviders({ children }: { children: ReactNode }) {
         <AuthProvider>
             <ThemeProvider>
                 <MapUIProvider>
-                    <LocationProvider>
-                        {children}
-                    </LocationProvider>
+                    {children}
                 </MapUIProvider>
             </ThemeProvider>
         </AuthProvider>

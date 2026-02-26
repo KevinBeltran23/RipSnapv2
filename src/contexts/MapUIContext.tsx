@@ -1,5 +1,7 @@
-import React, { createContext, useContext, useState, ReactNode } from 'react';
+import React, { createContext, useContext, useState, ReactNode, useCallback } from 'react';
 import { SeverityLevel } from '../types/severity';
+import { LocationData } from '../types/location';
+import { AccessibilityLocation } from '../types/media';
 
 interface MapUIContextType {
     isAddingLocation: boolean;
@@ -15,6 +17,15 @@ interface MapUIContextType {
     severityFilter: SeverityLevel | null;
     setSeverityFilter: (level: SeverityLevel | null) => void;
     clearFilters: () => void;
+
+    selectedLocation: LocationData | null;
+    setSelectedLocation: (location: LocationData | null) => void;
+    userLocation: { latitude: number; longitude: number } | null;
+    setUserLocation: (location: { latitude: number; longitude: number } | null) => void;
+    firestoreLocationMetadata: Partial<AccessibilityLocation> | null;
+    setFirestoreLocationMetadata: (metadata: Partial<AccessibilityLocation> | null) => void;
+    clearLocationStates: () => void;
+    setNewPinnedLocation: (coordinate: { latitude: number; longitude: number } | null) => void;
 }
 
 const MapUIContext = createContext<MapUIContextType | null>(null);
@@ -35,7 +46,50 @@ export function MapUIProvider({ children }: MapUIProviderProps) {
     const [categoryFilter, setCategoryFilter] = useState<number>(0);
     const [severityFilter, setSeverityFilter] = useState<SeverityLevel | null>(null);
 
+    const [selectedLocation, setSelectedLocation] = useState<LocationData | null>(null);
+    const [userLocation, setUserLocation] = useState<{ latitude: number; longitude: number } | null>(null);
+    const [firestoreLocationMetadata, setFirestoreLocationMetadata] = useState<Partial<AccessibilityLocation> | null>(null);
+
     const clearFilters = () => { setCategoryFilter(0); setSeverityFilter(null); };
+
+    const setNewPinnedLocation = useCallback(
+        (coordinate: { latitude: number; longitude: number } | null) => {
+            if (!coordinate) {
+                if (selectedLocation?.id?.startsWith('temp-')) {
+                    setSelectedLocation(null);
+                    setFirestoreLocationMetadata(null);
+                }
+                return;
+            }
+            const preservedName = firestoreLocationMetadata?.name || '';
+            const preservedDescription = firestoreLocationMetadata?.description || '';
+            const preservedImages = firestoreLocationMetadata?.images || [];
+            setSelectedLocation({
+                id: `temp-${Date.now()}`,
+                name: preservedName,
+                severity: 'unknown_accessibility',
+                severityColor: 'unknownAccessibility',
+                accessibilityDetails: preservedDescription,
+                coordinates: coordinate,
+                galleryImages: preservedImages,
+                categories: {},
+            });
+            setFirestoreLocationMetadata({
+                name: preservedName,
+                latitude: coordinate.latitude,
+                longitude: coordinate.longitude,
+                description: preservedDescription,
+                images: preservedImages,
+            });
+        },
+        [selectedLocation, firestoreLocationMetadata],
+    );
+
+    const clearLocationStates = useCallback(() => {
+        setSelectedLocation(null);
+        setFirestoreLocationMetadata(null);
+        if (selectedLocation?.id?.startsWith('temp-')) setNewPinnedLocation(null);
+    }, [selectedLocation, setNewPinnedLocation]);
 
     return (
         <MapUIContext.Provider value={{
@@ -46,6 +100,11 @@ export function MapUIProvider({ children }: MapUIProviderProps) {
             categoryFilter, setCategoryFilter,
             severityFilter, setSeverityFilter,
             clearFilters,
+
+            selectedLocation, setSelectedLocation,
+            userLocation, setUserLocation,
+            firestoreLocationMetadata, setFirestoreLocationMetadata,
+            clearLocationStates, setNewPinnedLocation,
         }}>
             {children}
         </MapUIContext.Provider>

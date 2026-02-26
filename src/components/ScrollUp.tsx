@@ -1,7 +1,7 @@
 ﻿import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import BottomSheet, { BottomSheetScrollView } from '@gorhom/bottom-sheet';
-import { useLocationContext } from '../contexts/LocationContext';
+import { useFilteredLocations } from '../hooks/useFilteredLocations';
 import { useMapUI } from '../contexts/MapUIContext';
 import { LocationData } from '../types/location';
 import PopupSheet from './bottom-sheet/PopupSheet';
@@ -21,8 +21,9 @@ function ScrollUp() {
     selectedLocation,
     setSelectedLocation,
     clearLocationStates,
-    filteredLocations,
-  } = useLocationContext();
+  } = useMapUI();
+
+  const { filteredLocations } = useFilteredLocations();
 
   const {
     showDetailsPopup,

@@ -8,8 +8,9 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AuthProvider } from './src/contexts/AuthContext';
 import { ThemeProvider } from './src/contexts/ThemeContext';
 import { MapUIProvider } from './src/contexts/MapUIContext';
-import { LocationProvider } from './src/contexts/LocationContext';
 import AppNavigator from './src/navigation/AppNavigator';
+import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client';
+import { queryClient, clientPersister } from './src/services/store/queryClient';
 
 // Provider nesting order matters — inner providers can call hooks from outer ones:
 // AuthProvider   → must wrap ThemeProvider  (ThemeContext calls useAuth)
@@ -18,17 +19,17 @@ export default function App() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
-        <AuthProvider>
-          <ThemeProvider>
-            <MapUIProvider>
-              <LocationProvider>
+        <PersistQueryClientProvider client={queryClient} persistOptions={{ persister: clientPersister }}>
+          <AuthProvider>
+            <ThemeProvider>
+              <MapUIProvider>
                 <NavigationContainer>
                   <AppNavigator />
                 </NavigationContainer>
-              </LocationProvider>
-            </MapUIProvider>
-          </ThemeProvider>
-        </AuthProvider>
+              </MapUIProvider>
+            </ThemeProvider>
+          </AuthProvider>
+        </PersistQueryClientProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );
