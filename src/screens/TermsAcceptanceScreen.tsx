@@ -14,7 +14,7 @@ import { useColors } from '../hooks/useColors';
 import { useResponsiveStyles } from '../hooks/useResponsiveStyles';
 import { RootStackParamList } from '../types/navigation';
 import { useAuth } from '../services/AuthContext';
-import { updateUserTermsAcceptance } from '../services/firebase/firestore';
+import { updateUserTermsAcceptance } from '../services/firebase/users';
 
 type TermsAcceptanceScreenNavigationProp = NativeStackNavigationProp<
   RootStackParamList,

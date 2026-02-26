@@ -14,7 +14,7 @@ import {
   searchLocationsByText,
   convertFirestoreToLocationData,
   getLocations,
-} from '../services/firebase/firestore';
+} from '../services/firebase/locations';
 import { useMapUI } from './MapUIContext';
 import { CATEGORY_OPTIONS } from '../constants';
 

@@ -11,7 +11,11 @@ import {
 } from '@react-native-firebase/auth';
 import { onSnapshot } from '@react-native-firebase/firestore';
 import * as GoogleAuth from './firebase/auth';
-import * as FirestoreService from './firebase/firestore';
+import {
+  getUserDocumentRef,
+  createUserProfile,
+  updateUser as updateUserFirestore,
+} from './firebase/users';
 import { getUserFacingMessage } from './errorHandler';
 import { User } from '../types/user';
 
@@ -70,9 +74,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
       if (firebaseUser) {
         setLoading(true); // Set loading true while fetching user profile
-        const userDocRef = FirestoreService.getUserDocumentRef(
-          firebaseUser.uid,
-        );
+        const userDocRef = getUserDocumentRef(firebaseUser.uid);
 
         // Set up a real-time listener for the user's Firestore profile
         const firestoreUnsubscribe = onSnapshot(
@@ -98,8 +100,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
               console.log(
                 `Profile not found for user ${firebaseUser.uid}. Creating one.`,
               );
-              const newProfile =
-                await FirestoreService.createUserProfile(firebaseUser);
+              const newProfile = await createUserProfile(firebaseUser);
               setUser(newProfile);
             }
             setLoading(false);
@@ -190,7 +191,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       }
       // Firestore onSnapshot listener will automatically update the user state,
       // so no need for optimistic update here.
-      await FirestoreService.updateUser(authUser.uid, data);
+      await updateUserFirestore(authUser.uid, data);
     } catch (error) {
       console.error('Failed to update profile:', error);
       // No need to revert local state; onSnapshot will eventually correct it.
