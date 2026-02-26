@@ -1,4 +1,4 @@
-import React from 'react';
+﻿import React from 'react';
 import {
     View,
     Text,
@@ -9,14 +9,17 @@ import {
 } from 'react-native';
 import BottomSheet, { BottomSheetScrollView } from '@gorhom/bottom-sheet';
 import { LocationData } from '../../types/location';
-import SearchBar from '../SearchBar';
-import MediaUploader from '../MediaUploader';
-import MediaViewer from '../MediaViewer';
-import { BOTTOM_SHEET_SNAP_POINTS, CATEGORY_OPTIONS } from '../../constants';
-import GalleryGrid from '../GalleryGrid';
+import SearchBar from '../common/SearchBar';
+import MediaUploader from '../media/MediaUploader';
+import MediaViewer from '../common/MediaViewer';
+import {
+    BOTTOM_SHEET_SNAP_POINTS,
+    CATEGORY_OPTIONS,
+} from '../../config/constants';
+import GalleryGrid from '../common/GalleryGrid';
 import { useColors } from '../../hooks/useColors';
 import { useWindowDimensions } from 'react-native';
-import DropdownSelector from '../DropdownSelector';
+import DropdownSelector from '../common/DropdownSelector';
 import { useResponsiveStyles } from '../../hooks/useResponsiveStyles';
 import { usePopupSheet } from './usePopupSheet';
 

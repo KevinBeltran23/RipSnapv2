@@ -1,18 +1,18 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import BottomSheet, { BottomSheetScrollView } from '@gorhom/bottom-sheet';
-import { useLocationContext } from '../services/LocationContext';
-import { useMapUI } from '../services/MapUIContext';
+import { useLocationContext } from '../contexts/LocationContext';
+import { useMapUI } from '../contexts/MapUIContext';
 import { LocationData } from '../types/location';
-import PopupSheet from './PopupSheet';
-import SearchBar from './SearchBar';
+import PopupSheet from './bottom-sheet/PopupSheet';
+import SearchBar from './common/SearchBar';
 import {
   BOTTOM_SHEET_SNAP_POINTS,
   CATEGORY_OPTIONS,
   SEVERITY_OPTIONS,
-} from '../constants';
+} from '../config/constants';
 import { Colors, useColors } from '../hooks/useColors';
-import DropdownSelector from './DropdownSelector';
+import DropdownSelector from './common/DropdownSelector';
 import { SeverityLevel } from '../types/severity';
 import { useResponsiveStyles } from '../hooks/useResponsiveStyles';
 

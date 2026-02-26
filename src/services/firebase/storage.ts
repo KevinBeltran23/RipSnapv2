@@ -7,6 +7,7 @@ import {
   getMetadata,
 } from '@react-native-firebase/storage';
 import { Platform } from 'react-native';
+import { Media } from '../../types/media';
 
 const storage = getStorage();
 
@@ -82,9 +83,8 @@ export const getLocationMedia = async (locationId: string) => {
         const url = await getDownloadURL(item);
         const metadata = await getMetadata(item);
 
-        let type: 'image' | 'pdf' | 'video' | 'unknown' = 'unknown';
-        if (metadata.contentType?.includes('image')) type = 'image';
-        else if (metadata.contentType?.includes('pdf')) type = 'pdf';
+        let type: Media['type'] = 'image';
+        if (metadata.contentType?.includes('pdf')) type = 'pdf';
         else if (metadata.contentType?.includes('video')) type = 'video';
 
         return {
@@ -98,7 +98,7 @@ export const getLocationMedia = async (locationId: string) => {
       }),
     );
 
-    return mediaItems;
+    return mediaItems as Media[];
   } catch (error) {
     console.error('Error getting location media:', error);
     return [];
@@ -119,9 +119,8 @@ export const getLocationMediaByCategory = async (
         const url = await getDownloadURL(item);
         const metadata = await getMetadata(item);
 
-        let type: 'image' | 'pdf' | 'video' | 'unknown' = 'unknown';
-        if (metadata.contentType?.includes('image')) type = 'image';
-        else if (metadata.contentType?.includes('pdf')) type = 'pdf';
+        let type: Media['type'] = 'image';
+        if (metadata.contentType?.includes('pdf')) type = 'pdf';
         else if (metadata.contentType?.includes('video')) type = 'video';
 
         return {
@@ -135,7 +134,7 @@ export const getLocationMediaByCategory = async (
       }),
     );
 
-    return mediaItems;
+    return mediaItems as Media[];
   } catch (error) {
     console.error(`Error getting media for category ${categoryName}:`, error);
     return [];

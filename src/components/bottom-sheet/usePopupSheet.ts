@@ -1,4 +1,4 @@
-/**
+﻿/**
  * usePopupSheet — all state, effects, and handlers for PopupSheet.
  * Extracted from the component so PopupSheet.tsx is a pure render layer.
  */
@@ -7,9 +7,9 @@ import { Alert, Linking } from 'react-native';
 import BottomSheet from '@gorhom/bottom-sheet';
 import { LocationData } from '../../types/location';
 import { AccessibilityLocation, Media } from '../../types/media';
-import { useLocationContext } from '../../services/LocationContext';
-import { useMapUI } from '../../services/MapUIContext';
-import { useAuth } from '../../services/AuthContext';
+import { useLocationContext } from '../../contexts/LocationContext';
+import { useMapUI } from '../../contexts/MapUIContext';
+import { useAuth } from '../../contexts/AuthContext';
 import {
     uploadMedia,
     getLocationMediaByCategory,
@@ -22,7 +22,7 @@ import {
     removeMediaReferenceFromLocation,
 } from '../../services/firebase/locations';
 import { SeverityLevel } from '../../types/severity';
-import { CATEGORY_OPTIONS } from '../../constants';
+import { CATEGORY_OPTIONS } from '../../config/constants';
 
 export interface UsePopupSheetProps {
     mode: 'view' | 'add';

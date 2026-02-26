@@ -1,5 +1,5 @@
-import { useMemo } from 'react';
-import { useTheme } from '../services/ThemeContext';
+﻿import { useMemo } from 'react';
+import { useTheme } from '../contexts/ThemeContext';
 
 // Color interface that matches our CSS variables
 export interface Colors {

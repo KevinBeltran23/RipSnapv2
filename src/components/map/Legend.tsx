@@ -1,4 +1,4 @@
-import React from 'react';
+﻿import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { SEVERITY_OPTIONS } from '../../config/constants';
 import { useColors } from '../../hooks/useColors';

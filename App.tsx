@@ -5,10 +5,10 @@ import React from 'react';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { NavigationContainer } from '@react-navigation/native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { AuthProvider } from './src/services/AuthContext';
-import { ThemeProvider } from './src/services/ThemeContext';
-import { MapUIProvider } from './src/services/MapUIContext';
-import { LocationProvider } from './src/services/LocationContext';
+import { AuthProvider } from './src/contexts/AuthContext';
+import { ThemeProvider } from './src/contexts/ThemeContext';
+import { MapUIProvider } from './src/contexts/MapUIContext';
+import { LocationProvider } from './src/contexts/LocationContext';
 import AppNavigator from './src/navigation/AppNavigator';
 
 // Provider nesting order matters — inner providers can call hooks from outer ones:

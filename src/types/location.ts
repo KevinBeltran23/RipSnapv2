@@ -1,5 +1,5 @@
 import { Colors } from '../hooks/useColors';
-import { Media } from './accessibility'; // Import Media interface
+import { Media } from './media'; // Import Media interface
 import { SeverityLevel } from './severity';
 
 export interface CategoryData {

@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Location-related Firestore operations.
  */
 import {
@@ -18,9 +18,10 @@ import {
     arrayRemove,
     FirebaseFirestoreTypes,
 } from '@react-native-firebase/firestore';
-import { AccessibilityLocation, Media } from '../../types/accessibility';
-import { LocationData } from '../../types/location';
-import { CATEGORY_OPTIONS, SEVERITY_OPTIONS } from '../../constants';
+import { AccessibilityLocation, Media } from '../../types/media';
+import { LocationData, CategoryData } from '../../types/location';
+import { SeverityLevel } from '../../types/severity';
+import { CATEGORY_OPTIONS, SEVERITY_OPTIONS } from '../../config/constants';
 
 const db = getFirestore();
 
@@ -195,8 +196,8 @@ export function convertFirestoreToLocationData(
     return {
         id: firestoreLocation.id || '',
         name: firestoreLocation.name || 'Unknown Location',
-        categories: firestoreLocation.categories || {},
-        severity: severityLevel || 'unknown_accessibility',
+        categories: (firestoreLocation.categories || {}) as { [key: string]: CategoryData },
+        severity: (severityLevel || 'unknown_accessibility') as SeverityLevel,
         severityColor: severityOption.color,
         accessibilityDetails: details,
         coordinates: {
