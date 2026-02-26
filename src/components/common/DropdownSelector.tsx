@@ -19,6 +19,7 @@ interface DropdownSelectorProps {
     placeholder?: string;
     buttonBackgroundColor?: string;
     buttonTextColor?: string;
+    zIndex?: number;
 }
 
 function DropdownSelector({
@@ -29,6 +30,7 @@ function DropdownSelector({
     placeholder = 'Select an option...',
     buttonBackgroundColor,
     buttonTextColor,
+    zIndex = 100,
 }: DropdownSelectorProps) {
     const colors = useColors();
     const { scaleHeight, scaleWidth, proportionalSize, scaleFont } = useResponsiveStyles();
@@ -47,7 +49,7 @@ function DropdownSelector({
     };
 
     const s = StyleSheet.create({
-        container: { marginBottom: scaleHeight(16), zIndex: 100 },
+        container: { marginBottom: scaleHeight(16), zIndex },
         label: { fontSize: scaleFont(16), fontWeight: '600', marginBottom: scaleHeight(8), color: colors.textPrimary },
         button: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: proportionalSize(12), borderRadius: proportionalSize(8), backgroundColor: buttonBackgroundColor || colors.backgroundSecondary },
         buttonText: { fontSize: scaleFont(16), color: buttonTextColor || colors.textPrimary },

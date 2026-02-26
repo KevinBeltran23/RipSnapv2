@@ -208,6 +208,7 @@ function ScrollUp() {
           placeholder="Select a category..."
           buttonBackgroundColor={colors.primary}
           buttonTextColor={colors.textInverse}
+          zIndex={200}
         />
 
         <DropdownSelector
@@ -231,6 +232,7 @@ function ScrollUp() {
           placeholder="Select a severity..."
           buttonBackgroundColor={severityButtonBackgroundColor}
           buttonTextColor={colors.textInverse}
+          zIndex={100}
         />
 
         <Text style={dynamicStyles.sectionTitle}>Suggested</Text>
