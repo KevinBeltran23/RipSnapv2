@@ -4,7 +4,6 @@ import {
   View,
   Text,
   Switch,
-  TouchableOpacity,
   TextInput,
   Alert,
   Image,
@@ -18,6 +17,7 @@ import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../../navigation/types';
 import { useResponsiveStyles } from '../../hooks/useResponsiveStyles';
+import Button from '../../components/common/Button';
 
 interface ProfileSectionProps {
   user: User | null;
@@ -97,10 +97,8 @@ const ProfileSection: React.FC<ProfileSectionProps> = ({
       marginTop: scaleHeight(10),
     },
     saveButton: {
-      backgroundColor: colors.primary,
       paddingHorizontal: scaleWidth(20),
       paddingVertical: scaleHeight(10),
-      borderRadius: proportionalSize(10),
       marginRight: scaleWidth(10),
       shadowColor: colors.shadow,
       shadowOffset: { width: 0, height: scaleHeight(2) },
@@ -108,16 +106,10 @@ const ProfileSection: React.FC<ProfileSectionProps> = ({
       shadowRadius: proportionalSize(3),
       elevation: 3,
     },
-    saveButtonText: {
-      color: colors.textInverse,
-      fontWeight: 'bold',
-      fontSize: scaleFont(16),
-    },
     cancelButton: {
       backgroundColor: colors.gray300,
       paddingHorizontal: scaleWidth(20),
       paddingVertical: scaleHeight(10),
-      borderRadius: proportionalSize(10),
       shadowColor: colors.shadow,
       shadowOffset: { width: 0, height: scaleHeight(2) },
       shadowOpacity: 0.2,
@@ -126,8 +118,6 @@ const ProfileSection: React.FC<ProfileSectionProps> = ({
     },
     cancelButtonText: {
       color: colors.textPrimary,
-      fontWeight: 'bold',
-      fontSize: scaleFont(16),
     },
     displayNameText: {
       fontSize: scaleFont(20),
@@ -141,20 +131,13 @@ const ProfileSection: React.FC<ProfileSectionProps> = ({
     },
     editProfileButton: {
       marginTop: scaleHeight(15),
-      backgroundColor: colors.primary,
       paddingHorizontal: scaleWidth(18),
       paddingVertical: scaleHeight(8),
-      borderRadius: proportionalSize(10),
       shadowColor: colors.shadow,
       shadowOffset: { width: 0, height: scaleHeight(2) },
       shadowOpacity: 0.2,
       shadowRadius: proportionalSize(3),
       elevation: 3,
-    },
-    editProfileButtonText: {
-      color: colors.textInverse,
-      fontWeight: 'bold',
-      fontSize: scaleFont(15),
     },
   });
 
@@ -187,21 +170,22 @@ const ProfileSection: React.FC<ProfileSectionProps> = ({
             placeholder="Display Name"
           />
           <View style={dynamicStyles.buttonRow}>
-            <TouchableOpacity
-              style={dynamicStyles.saveButton}
+            <Button
+              variant="primary"
+              label="Save"
               onPress={handleUpdate}
-            >
-              <Text style={dynamicStyles.saveButtonText}>Save</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={dynamicStyles.cancelButton}
+              style={dynamicStyles.saveButton}
+            />
+            <Button
+              variant="secondary"
+              label="Cancel"
               onPress={() => {
                 setIsEditing(false);
                 setDisplayName(user?.displayName || '');
               }}
-            >
-              <Text style={dynamicStyles.cancelButtonText}>Cancel</Text>
-            </TouchableOpacity>
+              style={dynamicStyles.cancelButton}
+              textStyle={dynamicStyles.cancelButtonText}
+            />
           </View>
         </View>
       ) : (
@@ -210,14 +194,12 @@ const ProfileSection: React.FC<ProfileSectionProps> = ({
             {user?.displayName || 'User'}
           </Text>
           <Text style={dynamicStyles.emailText}>{user?.email}</Text>
-          <TouchableOpacity
-            style={dynamicStyles.editProfileButton}
+          <Button
+            variant="primary"
+            label="Edit Profile"
             onPress={() => setIsEditing(true)}
-          >
-            <Text style={dynamicStyles.editProfileButtonText}>
-              Edit Profile
-            </Text>
-          </TouchableOpacity>
+            style={dynamicStyles.editProfileButton}
+          />
         </>
       )}
     </View>
@@ -298,24 +280,18 @@ const SignOutButton = ({ onSignOut }: { onSignOut: () => void }) => {
 
   const dynamicStyles = StyleSheet.create({
     signOutButton: {
-      backgroundColor: colors.error,
-      padding: proportionalSize(16),
-      borderRadius: proportionalSize(8),
       marginBottom: scaleHeight(12),
       marginTop: scaleHeight(30),
-      alignItems: 'center',
-    },
-    signOutButtonText: {
-      color: colors.textInverse,
-      fontWeight: 'bold',
-      fontSize: scaleFont(16),
     },
   });
 
   return (
-    <TouchableOpacity style={dynamicStyles.signOutButton} onPress={onSignOut}>
-      <Text style={dynamicStyles.signOutButtonText}>Sign Out</Text>
-    </TouchableOpacity>
+    <Button
+      variant="danger"
+      label="Sign Out"
+      onPress={onSignOut}
+      style={dynamicStyles.signOutButton}
+    />
   );
 };
 

@@ -4,7 +4,7 @@ import MapView, { PROVIDER_GOOGLE, Marker } from 'react-native-maps';
 import { INITIAL_REGION } from '../../config/constants';
 import { useColors } from '../../hooks/useColors';
 import { MapControls, LocationMarker, PinPlacementBanner, Legend } from '../../components/map';
-import ScrollUp from '../../components/ScrollUp';
+import FilterSheet from '../../components/bottom-sheet/FilterSheet';
 import { useMapScreen } from './useMapScreen';
 
 const MapScreen = () => {
@@ -48,7 +48,7 @@ const MapScreen = () => {
 
       {isPinPlacementMode && <PinPlacementBanner onCancel={cancelPin} />}
 
-      <ScrollUp />
+      <FilterSheet />
     </View>
   );
 };

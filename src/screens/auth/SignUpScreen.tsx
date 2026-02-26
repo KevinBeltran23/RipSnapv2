@@ -6,7 +6,6 @@ import {
   TextInput,
   TouchableOpacity,
   Alert,
-  ActivityIndicator,
   StyleSheet,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
@@ -16,6 +15,7 @@ import { getUserFacingMessage } from '../../services/errorHandler';
 import { useColors } from '../../hooks/useColors';
 import { useResponsiveStyles } from '../../hooks/useResponsiveStyles';
 import { RootStackParamList } from '../../navigation/types'; // Import RootStackParamList
+import Button from '../../components/common/Button';
 
 interface SignUpFormProps {
   onSignUp: (email: any, password: any, displayName: any) => Promise<void>;
@@ -87,17 +87,7 @@ const SignUpForm: React.FC<SignUpFormProps> = ({
       fontSize: scaleFont(16),
     },
     signUpButton: {
-      backgroundColor: colors.primary,
-      padding: proportionalSize(16),
-      borderRadius: proportionalSize(8),
       marginBottom: scaleHeight(16),
-      alignItems: 'center',
-    },
-    signUpButtonText: {
-      color: colors.textInverse,
-      textAlign: 'center',
-      fontWeight: 'bold',
-      fontSize: scaleFont(16),
     },
     signInLink: {
       color: colors.primary,
@@ -147,20 +137,13 @@ const SignUpForm: React.FC<SignUpFormProps> = ({
         secureTextEntry
       />
 
-      <TouchableOpacity
-        style={dynamicStyles.signUpButton}
+      <Button
+        variant="primary"
+        label={isLoading ? 'Creating Account...' : 'Create Account'}
         onPress={handleSignUp}
         disabled={isLoading}
-      >
-        {isLoading ? (
-          <ActivityIndicator
-            color={colors.textInverse}
-            size={proportionalSize(24)}
-          />
-        ) : (
-          <Text style={dynamicStyles.signUpButtonText}>Create Account</Text>
-        )}
-      </TouchableOpacity>
+        style={dynamicStyles.signUpButton}
+      />
 
       <TouchableOpacity onPress={onNavigateBack}>
         <Text style={dynamicStyles.signInLink}>

@@ -15,6 +15,7 @@ import { useResponsiveStyles } from '../../hooks/useResponsiveStyles';
 import { RootStackParamList } from '../../navigation/types';
 import { useAuth } from '../../contexts/AuthContext';
 import { updateUserTermsAcceptance } from '../../services/firebase/users';
+import Button from '../../components/common/Button';
 
 type TermsAcceptanceScreenNavigationProp = NativeStackNavigationProp<
   RootStackParamList,
@@ -101,16 +102,7 @@ function TermsAcceptanceScreen() {
       color: colors.textPrimary,
     },
     button: {
-      backgroundColor: colors.primary,
-      padding: proportionalSize(16),
-      borderRadius: proportionalSize(8),
-      alignItems: 'center',
       width: '100%',
-    },
-    buttonText: {
-      color: colors.textInverse,
-      fontSize: scaleFont(18),
-      fontWeight: 'bold',
     },
   });
 
@@ -156,20 +148,13 @@ function TermsAcceptanceScreen() {
           isChecked={isChecked}
         />
       </View>
-      <TouchableOpacity
-        style={dynamicStyles.button}
+      <Button
+        variant="primary"
+        label={isUpdating ? 'Saving...' : 'Continue'}
         onPress={handleAcceptTerms}
         disabled={isUpdating || !isChecked}
-      >
-        {isUpdating ? (
-          <ActivityIndicator
-            color={colors.textInverse}
-            size={proportionalSize(24)}
-          />
-        ) : (
-          <Text style={dynamicStyles.buttonText}>Continue</Text>
-        )}
-      </TouchableOpacity>
+        style={dynamicStyles.button}
+      />
     </View>
   );
 }

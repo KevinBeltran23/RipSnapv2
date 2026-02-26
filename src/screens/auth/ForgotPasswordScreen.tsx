@@ -6,7 +6,6 @@ import {
   TextInput,
   TouchableOpacity,
   Alert,
-  ActivityIndicator,
   StyleSheet,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
@@ -16,6 +15,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { getUserFacingMessage } from '../../services/errorHandler';
 import { useColors } from '../../hooks/useColors';
 import { useResponsiveStyles } from '../../hooks/useResponsiveStyles'; // Import useResponsiveStyles
+import Button from '../../components/common/Button';
 
 type ForgotPasswordScreenNavigationProp =
   NativeStackNavigationProp<RootStackParamList>;
@@ -87,17 +87,7 @@ const ResetPasswordForm: React.FC<ResetPasswordFormProps> = ({
       fontSize: scaleFont(16),
     },
     resetButton: {
-      backgroundColor: colors.primary,
-      padding: proportionalSize(16),
-      borderRadius: proportionalSize(8),
       marginBottom: scaleHeight(16),
-      alignItems: 'center',
-    },
-    resetButtonText: {
-      color: colors.textInverse,
-      textAlign: 'center',
-      fontWeight: 'bold',
-      fontSize: scaleFont(16),
     },
     backToSignInLink: {
       color: colors.primary,
@@ -125,20 +115,13 @@ const ResetPasswordForm: React.FC<ResetPasswordFormProps> = ({
         autoCapitalize="none"
       />
 
-      <TouchableOpacity
-        style={dynamicStyles.resetButton}
+      <Button
+        variant="primary"
+        label={isLoading ? 'Sending...' : 'Send Reset Link'}
         onPress={handleResetPassword}
         disabled={isLoading}
-      >
-        {isLoading ? (
-          <ActivityIndicator
-            color={colors.textInverse}
-            size={proportionalSize(24)}
-          />
-        ) : (
-          <Text style={dynamicStyles.resetButtonText}>Send Reset Link</Text>
-        )}
-      </TouchableOpacity>
+        style={dynamicStyles.resetButton}
+      />
 
       <TouchableOpacity onPress={onNavigateBack}>
         <Text style={dynamicStyles.backToSignInLink}>Back to Sign In</Text>

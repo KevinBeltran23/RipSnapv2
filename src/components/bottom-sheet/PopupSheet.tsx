@@ -12,6 +12,7 @@ import { LocationData } from '../../types/location';
 import SearchBar from '../common/SearchBar';
 import MediaUploader from '../media/MediaUploader';
 import MediaViewer from '../common/MediaViewer';
+import Button from '../common/Button';
 import {
     BOTTOM_SHEET_SNAP_POINTS,
     CATEGORY_OPTIONS,
@@ -55,10 +56,8 @@ function PopupSheet({ mode, location, onClose, index, onChange }: PopupSheetProp
         headerButtons: { flexDirection: 'row', alignItems: 'center' },
         locationName: { fontSize: scaleFont(18), fontWeight: 'bold', flex: 1, marginRight: scaleWidth(8), color: colors.textPrimary },
         searchHeaderContainer: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-        addDataButton: { backgroundColor: colors.secondary, paddingVertical: scaleHeight(6), paddingHorizontal: scaleWidth(12), borderRadius: proportionalSize(8), marginRight: scaleWidth(8) },
-        addDataButtonText: { color: colors.textInverse, fontWeight: '600', fontSize: scaleFont(14) },
-        mapButton: { backgroundColor: colors.primary, paddingVertical: scaleHeight(6), paddingHorizontal: scaleWidth(12), borderRadius: proportionalSize(8), marginRight: scaleWidth(8) },
-        mapButtonText: { color: colors.textInverse, fontSize: scaleFont(14), fontWeight: 'bold' },
+        headerBtn: { paddingVertical: scaleHeight(6), paddingHorizontal: scaleWidth(10), marginRight: scaleWidth(6) },
+        headerBtnText: { fontSize: scaleFont(12) },
         content: { flex: 1 },
         accessibilityDetails: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: scaleHeight(8) },
         detailText: { fontSize: scaleFont(14), lineHeight: scaleFont(20), marginBottom: scaleHeight(4), flex: 1, paddingRight: scaleWidth(16), color: colors.textPrimary },
@@ -75,24 +74,15 @@ function PopupSheet({ mode, location, onClose, index, onChange }: PopupSheetProp
         mediaPreview: { width: '100%', height: scaleHeight(120), borderRadius: proportionalSize(8) },
         mediaName: { fontSize: scaleFont(12), color: colors.textPrimary, marginTop: scaleHeight(4), textAlign: 'center' },
         noMediaText: { color: colors.textPrimary, marginTop: scaleHeight(8), textAlign: 'center', fontStyle: 'italic', fontSize: scaleFont(14) },
-        loadMoreButton: { backgroundColor: colors.gray100, padding: proportionalSize(12), borderRadius: proportionalSize(8), alignItems: 'center', marginVertical: scaleHeight(16) },
-        loadMoreText: { color: colors.primary, fontWeight: '600', fontSize: scaleFont(16) },
-        submitButton: { padding: proportionalSize(12), borderRadius: proportionalSize(8), alignItems: 'center', justifyContent: 'center', marginTop: scaleHeight(16) },
-        submitButtonText: { color: colors.textInverse, fontWeight: '600', fontSize: scaleFont(16) },
+        loadMoreButton: { backgroundColor: colors.backgroundSecondary, marginVertical: scaleHeight(16) },
+        submitButton: { marginTop: scaleHeight(16) },
         sectionTitle: { fontSize: scaleFont(16), fontWeight: '600', marginTop: scaleHeight(16), marginBottom: scaleHeight(8), color: colors.textPrimary },
         modalContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.overlay },
         modalBackdrop: { ...StyleSheet.absoluteFillObject },
         modalContent: { backgroundColor: colors.background, padding: proportionalSize(20), borderRadius: proportionalSize(16), width: '90%', maxHeight: '80%', alignItems: 'center' },
         modalButtonsContainer: { flexDirection: 'row', marginTop: scaleHeight(20), justifyContent: 'space-between', width: '100%' },
-        commonModalButtonBase: { paddingVertical: scaleHeight(10), paddingHorizontal: scaleWidth(15), borderRadius: proportionalSize(8), alignItems: 'center', justifyContent: 'center', minWidth: scaleWidth(90), flexGrow: 1, marginHorizontal: scaleWidth(4) },
-        closeModalButton: { backgroundColor: colors.primary },
-        closeModalText: { color: colors.textInverse, fontWeight: '600', fontSize: scaleFont(16) },
-        downloadButton: { backgroundColor: colors.secondary },
-        downloadButtonText: { color: colors.textInverse, fontWeight: '600', fontSize: scaleFont(16) },
-        deleteModalButton: { backgroundColor: colors.error },
-        deleteModalText: { color: colors.textInverse, fontWeight: '600', fontSize: scaleFont(16) },
-        closeButton: { paddingVertical: scaleHeight(6), paddingHorizontal: scaleWidth(12), borderRadius: proportionalSize(10), backgroundColor: colors.error, justifyContent: 'center', alignItems: 'center' },
-        closeButtonText: { fontSize: scaleFont(14), fontWeight: 'bold', color: colors.textInverse },
+        commonModalButtonBase: { minWidth: scaleWidth(90), flexGrow: 1, marginHorizontal: scaleWidth(4) },
+        closeButton: { paddingVertical: scaleHeight(6), paddingHorizontal: scaleWidth(10) },
     });
 
     return (
@@ -113,9 +103,9 @@ function PopupSheet({ mode, location, onClose, index, onChange }: PopupSheetProp
                             {location?.name || 'Location'}
                         </Text>
                         <View style={s.headerButtons}>
-                            <TouchableOpacity style={s.addDataButton} onPress={handleAddDataPress}><Text style={s.addDataButtonText}>Add Data</Text></TouchableOpacity>
-                            <TouchableOpacity style={s.mapButton} onPress={openGoogleMaps}><Text style={s.mapButtonText}>Maps</Text></TouchableOpacity>
-                            <TouchableOpacity style={s.closeButton} onPress={handleClose}><Text style={s.closeButtonText}>Close</Text></TouchableOpacity>
+                            <Button variant="secondary" label="Add Data" onPress={handleAddDataPress} style={s.headerBtn} textStyle={s.headerBtnText} />
+                            <Button variant="primary" label="Maps" onPress={openGoogleMaps} style={s.headerBtn} textStyle={s.headerBtnText} />
+                            <Button variant="danger" label="Close" onPress={handleClose} style={s.closeButton} textStyle={s.headerBtnText} />
                         </View>
                     </View>
                 )}
@@ -125,7 +115,7 @@ function PopupSheet({ mode, location, onClose, index, onChange }: PopupSheetProp
                         <>
                             <View style={s.searchHeaderContainer}>
                                 <Text style={s.sectionTitle}>Location Name</Text>
-                                <TouchableOpacity style={s.closeButton} onPress={handleClose}><Text style={s.closeButtonText}>Close</Text></TouchableOpacity>
+                                <Button variant="danger" label="Close" onPress={handleClose} style={s.closeButton} textStyle={s.headerBtnText} />
                             </View>
                             <SearchBar onSelectLocation={handleSelectLocation} placeholder="Search for a location or enter new name" initialValue={newLocationName} showResults={true} onTextChange={handleLocationNameChange} />
                         </>
@@ -170,7 +160,7 @@ function PopupSheet({ mode, location, onClose, index, onChange }: PopupSheetProp
                         <>
                             <Text style={s.sectionTitle}>Media</Text>
                             <GalleryGrid media={visibleMedia.map(item => ({ url: item.url, type: item.type }))} onImagePress={handleImagePress} />
-                            {hasMoreMedia && <TouchableOpacity style={s.loadMoreButton} onPress={handleLoadMoreMedia}><Text style={s.loadMoreText}>Load More</Text></TouchableOpacity>}
+                            {hasMoreMedia && <Button variant="ghost" label="Load More" onPress={handleLoadMoreMedia} style={s.loadMoreButton} />}
                         </>
                     ) : (
                         mode === 'view' && (
@@ -193,9 +183,7 @@ function PopupSheet({ mode, location, onClose, index, onChange }: PopupSheetProp
                                     </View>
                                 ))}
                             </View>
-                            <TouchableOpacity style={[s.submitButton, { backgroundColor: isSubmitting ? colors.gray300 : colors.primary }]} onPress={handleSubmit} disabled={isSubmitting}>
-                                <Text style={s.submitButtonText}>{isSubmitting ? 'Saving...' : 'Submit'}</Text>
-                            </TouchableOpacity>
+                            <Button variant="primary" label={isSubmitting ? 'Saving...' : 'Submit'} onPress={handleSubmit} disabled={isSubmitting} style={s.submitButton} />
                         </>
                     )}
                 </View>
@@ -208,13 +196,11 @@ function PopupSheet({ mode, location, onClose, index, onChange }: PopupSheetProp
                         {modalMedia && <MediaViewer source={modalMedia.url} type={modalMedia.type} />}
                         <View style={s.modalButtonsContainer}>
                             {(modalMedia?.type === 'pdf' || modalMedia?.type === 'image' || modalMedia?.type === 'video') && (
-                                <TouchableOpacity style={[s.downloadButton, s.commonModalButtonBase]} onPress={() => Linking.openURL(modalMedia.url)}>
-                                    <Text style={s.downloadButtonText}>Download</Text>
-                                </TouchableOpacity>
+                                <Button variant="secondary" label="Download" onPress={() => Linking.openURL(modalMedia.url)} style={s.commonModalButtonBase} />
                             )}
-                            <TouchableOpacity style={[s.closeModalButton, s.commonModalButtonBase]} onPress={closeModal}><Text style={s.closeModalText}>Close</Text></TouchableOpacity>
+                            <Button variant="primary" label="Close" onPress={closeModal} style={s.commonModalButtonBase} />
                             {user?.isAdmin && modalMedia && (
-                                <TouchableOpacity style={[s.deleteModalButton, s.commonModalButtonBase]} onPress={handleDeleteMedia}><Text style={s.deleteModalText}>Delete</Text></TouchableOpacity>
+                                <Button variant="danger" label="Delete" onPress={handleDeleteMedia} style={s.commonModalButtonBase} />
                             )}
                         </View>
                     </View>

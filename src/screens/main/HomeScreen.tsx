@@ -1,10 +1,11 @@
 ﻿import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
 import { useColors } from '../../hooks/useColors';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../../navigation/types';
 import { useResponsiveStyles } from '../../hooks/useResponsiveStyles';
+import Button from '../../components/common/Button';
 
 // Define the navigation prop type
 type InfoLinksNavigationProp = NativeStackNavigationProp<RootStackParamList>;
@@ -20,39 +21,30 @@ const InfoLinks = () => {
       width: '85%',
     },
     infoLinkButton: {
-      backgroundColor: colors.primary,
-      padding: proportionalSize(16),
-      borderRadius: proportionalSize(8),
       marginBottom: scaleHeight(12),
-      alignItems: 'center',
-    },
-    infoLinkText: {
-      color: colors.textInverse,
-      fontSize: scaleFont(16),
-      fontWeight: 'bold',
     },
   });
 
   return (
     <View style={dynamicStyles.infoLinksContainer}>
-      <TouchableOpacity
+      <Button
+        variant="primary"
+        label="Privacy Policy"
         style={dynamicStyles.infoLinkButton}
         onPress={() => navigation.navigate('PrivacyPolicy')}
-      >
-        <Text style={dynamicStyles.infoLinkText}>Privacy Policy</Text>
-      </TouchableOpacity>
-      <TouchableOpacity
+      />
+      <Button
+        variant="primary"
+        label="Terms of Service"
         style={dynamicStyles.infoLinkButton}
         onPress={() => navigation.navigate('TermsOfService')}
-      >
-        <Text style={dynamicStyles.infoLinkText}>Terms of Service</Text>
-      </TouchableOpacity>
-      <TouchableOpacity
+      />
+      <Button
+        variant="primary"
+        label="About"
         style={dynamicStyles.infoLinkButton}
         onPress={() => navigation.navigate('About')}
-      >
-        <Text style={dynamicStyles.infoLinkText}>About</Text>
-      </TouchableOpacity>
+      />
     </View>
   );
 };

@@ -1,22 +1,23 @@
 ﻿import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import BottomSheet, { BottomSheetScrollView } from '@gorhom/bottom-sheet';
-import { useFilteredLocations } from '../hooks/useFilteredLocations';
-import { useMapUI } from '../contexts/MapUIContext';
-import { LocationData } from '../types/location';
-import PopupSheet from './bottom-sheet/PopupSheet';
-import SearchBar from './common/SearchBar';
+import { useFilteredLocations } from '../../hooks/useFilteredLocations';
+import { useMapUI } from '../../contexts/MapUIContext';
+import { LocationData } from '../../types/location';
+import PopupSheet from './PopupSheet';
+import SearchBar from '../common/SearchBar';
 import {
   BOTTOM_SHEET_SNAP_POINTS,
   CATEGORY_OPTIONS,
   SEVERITY_OPTIONS,
-} from '../config/constants';
-import { Colors, useColors } from '../hooks/useColors';
-import DropdownSelector from './common/DropdownSelector';
-import { SeverityLevel } from '../types/severity';
-import { useResponsiveStyles } from '../hooks/useResponsiveStyles';
+} from '../../config/constants';
+import { Colors, useColors } from '../../hooks/useColors';
+import DropdownSelector from '../common/DropdownSelector';
+import Button from '../common/Button';
+import { SeverityLevel } from '../../types/severity';
+import { useResponsiveStyles } from '../../hooks/useResponsiveStyles';
 
-function ScrollUp() {
+function FilterSheet() {
   const {
     selectedLocation,
     setSelectedLocation,
@@ -116,22 +117,9 @@ function ScrollUp() {
       fontSize: scaleFont(14),
     },
     addDataButton: {
-      backgroundColor: colors.secondary,
-      paddingVertical: scaleHeight(10),
-      paddingHorizontal: scaleWidth(15),
-      borderRadius: proportionalSize(8),
-      alignItems: 'center',
-      justifyContent: 'center',
-      minWidth: scaleWidth(90),
-      flexGrow: 1,
-      marginHorizontal: scaleWidth(4),
       marginTop: scaleHeight(16),
       marginBottom: scaleHeight(16),
-    },
-    addDataButtonText: {
-      color: colors.textInverse,
-      fontWeight: '600',
-      fontSize: scaleFont(16),
+      marginHorizontal: scaleWidth(4),
     },
   });
 
@@ -190,12 +178,12 @@ function ScrollUp() {
       >
         <SearchBar onSelectLocation={handleShowLocation} />
 
-        <TouchableOpacity
-          style={dynamicStyles.addDataButton}
+        <Button
+          variant="secondary"
+          label="Add Data"
           onPress={handleShowAddData}
-        >
-          <Text style={dynamicStyles.addDataButtonText}>Add Data</Text>
-        </TouchableOpacity>
+          style={dynamicStyles.addDataButton}
+        />
 
         <DropdownSelector
           title="Filter by Category"
@@ -258,4 +246,4 @@ function ScrollUp() {
   );
 }
 
-export default ScrollUp;
+export default FilterSheet;
