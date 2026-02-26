@@ -1,13 +1,13 @@
-name: EAS Build
+name: EAS Build / Update
 
 on:
   push:
     branches:
-      - main        # preview build on every main push
+      - main        # OTA update on every main push
   workflow_dispatch:
     inputs:
       profile:
-        description: Build profile
+        description: Build profile (full native rebuild)
         required: true
         default: development
         type: choice
@@ -17,8 +17,47 @@ on:
           - production
 
 jobs:
+  # ── OTA update (push to main) ───────────────────────────────────────────────
+  update:
+    name: EAS Update (OTA)
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Set up Yarn Berry
+        run: corepack enable && yarn --version
+
+      - name: Install dependencies
+        run: yarn install --immutable
+
+      - name: Set up EAS
+        uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Publish OTA update (preview + production)
+        run: |
+          eas update --branch preview \
+            --message "Auto update from ${{ github.sha }}" \
+            --non-interactive
+          eas update --branch production \
+            --message "Auto update from ${{ github.sha }}" \
+            --non-interactive
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+
+  # ── Full native build (manual dispatch only) ────────────────────────────────
   build:
-    name: EAS Android build
+    name: EAS Build (${{ github.event.inputs.profile }})
+    if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -43,7 +82,8 @@ jobs:
 
       - name: Trigger EAS build
         run: |
-          PROFILE="${{ github.event.inputs.profile || 'preview' }}"
-          eas build --profile "$PROFILE" --platform android --non-interactive
+          eas build --profile "${{ github.event.inputs.profile }}" \
+            --platform android \
+            --non-interactive
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}

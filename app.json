@@ -8,6 +8,14 @@
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "scheme": "surp",
+    "updates": {
+      "url": "https://u.expo.dev/c98bbdc4-6f9a-4726-8b06-ae8a221c65f0",
+      "enabled": true,
+      "fallbackToCacheTimeout": 3000
+    },
+    "runtimeVersion": {
+      "policy": "fingerprintRuntime"
+    },
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",

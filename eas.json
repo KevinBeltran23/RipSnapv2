@@ -6,17 +6,20 @@
         "development": {
             "developmentClient": true,
             "distribution": "internal",
+            "channel": "development",
             "env": {
                 "YARN_ENABLE_IMMUTABLE_INSTALLS": "false"
             }
         },
         "preview": {
             "distribution": "internal",
+            "channel": "preview",
             "env": {
                 "YARN_ENABLE_IMMUTABLE_INSTALLS": "false"
             }
         },
         "production": {
+            "channel": "production",
             "env": {
                 "YARN_ENABLE_IMMUTABLE_INSTALLS": "false"
             }
