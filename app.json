@@ -57,7 +57,18 @@
             "compileSdkVersion": 35
           },
           "ios": {
-            "deploymentTarget": "15.1"
+            "deploymentTarget": "15.1",
+            "useFrameworks": "static",
+            "forceStaticLinking": [
+              "react-native-maps",
+              "react-native-google-maps",
+              "GoogleMaps",
+              "Google-Maps-iOS-Utils",
+              "RNFBApp",
+              "RNFBAuth",
+              "RNFBFirestore",
+              "RNFBStorage"
+            ]
           }
         }
       ],
@@ -77,7 +88,12 @@
       "@react-native-firebase/app",
       "@react-native-firebase/auth",
       "react-native-vision-camera",
-      "react-native-fast-tflite",
+      [
+        "react-native-fast-tflite",
+        {
+          "enableCoreMLDelegate": true
+        }
+      ],
       "@react-native-google-signin/google-signin",
       "react-native-video"
     ],
