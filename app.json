@@ -23,10 +23,13 @@
     },
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "com.surp",
+      "bundleIdentifier": "com.kevinbeltran.accessibility",
       "infoPlist": {
-        "NSCameraUsageDescription": "Allow $(PRODUCT_NAME) to access your camera"
-      }
+        "NSCameraUsageDescription": "Allow $(PRODUCT_NAME) to access your camera",
+        "ITSAppUsesNonExemptEncryption": false
+      },
+      "googleServicesFile": "./GoogleService-Info.plist",
+      "config": {}
     },
     "android": {
       "adaptiveIcon": {

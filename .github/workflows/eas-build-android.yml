@@ -3,7 +3,7 @@ name: EAS Build / Update
 on:
   push:
     branches:
-      - main        # OTA update on every main push
+      - main # OTA update on every main push
   workflow_dispatch:
     inputs:
       profile:
@@ -15,6 +15,15 @@ on:
           - development
           - preview
           - production
+      platform:
+        description: Platform to build
+        required: true
+        default: all
+        type: choice
+        options:
+          - all
+          - android
+          - ios
 
 jobs:
   # ── OTA update (push to main) ───────────────────────────────────────────────
@@ -56,7 +65,7 @@ jobs:
 
   # ── Full native build (manual dispatch only) ────────────────────────────────
   build:
-    name: EAS Build (${{ github.event.inputs.profile }})
+    name: EAS Build (${{ github.event.inputs.profile }} / ${{ github.event.inputs.platform }})
     if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     steps:
@@ -80,10 +89,16 @@ jobs:
           eas-version: latest
           token: ${{ secrets.EXPO_TOKEN }}
 
-      - name: Trigger EAS build
+      - name: Trigger EAS build(s)
         run: |
-          eas build --profile "${{ github.event.inputs.profile }}" \
-            --platform android \
-            --non-interactive
+          PROFILE="${{ github.event.inputs.profile }}"
+          PLATFORM="${{ github.event.inputs.platform }}"
+
+          if [ "$PLATFORM" = "all" ]; then
+            eas build --profile "$PROFILE" --platform android --non-interactive
+            eas build --profile "$PROFILE" --platform ios --non-interactive
+          else
+            eas build --profile "$PROFILE" --platform "$PLATFORM" --non-interactive
+          fi
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
