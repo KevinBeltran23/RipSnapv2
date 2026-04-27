@@ -1,13 +1,13 @@
 {
   "expo": {
-    "name": "surp",
+    "name": "RipSnap",
     "slug": "ripfinderv2",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
-    "scheme": "surp",
+    "scheme": "ripsnapv2",
     "updates": {
       "url": "https://u.expo.dev/764f91d4-3fd6-4247-a41a-85f5da07f2aa",
       "enabled": true,
