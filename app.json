@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "surp",
-    "slug": "surp",
+    "slug": "ripfinderv2",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -9,7 +9,7 @@
     "newArchEnabled": true,
     "scheme": "surp",
     "updates": {
-      "url": "https://u.expo.dev/c98bbdc4-6f9a-4726-8b06-ae8a221c65f0",
+      "url": "https://u.expo.dev/764f91d4-3fd6-4247-a41a-85f5da07f2aa",
       "enabled": true,
       "fallbackToCacheTimeout": 3000
     },
@@ -23,7 +23,7 @@
     },
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "com.kevinbeltran.accessibility",
+      "bundleIdentifier": "com.ripsnapv2",
       "infoPlist": {
         "NSCameraUsageDescription": "Allow $(PRODUCT_NAME) to access your camera",
         "ITSAppUsesNonExemptEncryption": false
@@ -36,7 +36,7 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "package": "com.surp",
+      "package": "com.ripsnapv2",
       "edgeToEdgeEnabled": true,
       "permissions": [
         "android.permission.CAMERA",
@@ -99,7 +99,7 @@
     ],
     "extra": {
       "eas": {
-        "projectId": "c98bbdc4-6f9a-4726-8b06-ae8a221c65f0"
+        "projectId": "764f91d4-3fd6-4247-a41a-85f5da07f2aa"
       }
     },
     "owner": "kevinbeltran"
