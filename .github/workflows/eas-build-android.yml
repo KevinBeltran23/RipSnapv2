@@ -3,9 +3,17 @@ name: EAS Build / Update
 on:
   push:
     branches:
-      - main # OTA update on every main push
+      - main # OTA preview update on every main push
   workflow_dispatch:
     inputs:
+      action:
+        description: What to run manually
+        required: true
+        default: build
+        type: choice
+        options:
+          - build
+          - production-update
       profile:
         description: Build profile (full native rebuild)
         required: true
@@ -26,9 +34,9 @@ on:
           - ios
 
 jobs:
-  # ── OTA update (push to main) ───────────────────────────────────────────────
+  # OTA update (push to main)
   update:
-    name: EAS Update (OTA)
+    name: EAS Update (Preview OTA)
     if: github.event_name == 'push'
     runs-on: ubuntu-latest
     steps:
@@ -52,21 +60,54 @@ jobs:
           eas-version: latest
           token: ${{ secrets.EXPO_TOKEN }}
 
-      - name: Publish OTA update (preview + production)
+      - name: Publish OTA update (preview)
         run: |
           eas update --branch preview \
-            --message "Auto update from ${{ github.sha }}" \
-            --non-interactive
-          eas update --branch production \
-            --message "Auto update from ${{ github.sha }}" \
+            --environment preview \
+            --message "Auto preview update from ${{ github.sha }}" \
             --non-interactive
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
 
-  # ── Full native build (manual dispatch only) ────────────────────────────────
+  # Production OTA update (manual dispatch only)
+  production-update:
+    name: EAS Update (Production OTA)
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'production-update'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Set up Yarn Berry
+        run: corepack enable && yarn --version
+
+      - name: Install dependencies
+        run: yarn install --immutable
+
+      - name: Set up EAS
+        uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Publish OTA update (production)
+        run: |
+          eas update --branch production \
+            --environment production \
+            --message "Manual production update from ${{ github.sha }}" \
+            --non-interactive
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+
+  # Full native build (manual dispatch only)
   build:
     name: EAS Build (${{ github.event.inputs.profile }} / ${{ github.event.inputs.platform }})
-    if: github.event_name == 'workflow_dispatch'
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'build'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository

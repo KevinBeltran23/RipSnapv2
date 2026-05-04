@@ -13,8 +13,7 @@ import {
 
 // Must be called before any GoogleSignin methods
 GoogleSignin.configure({
-  webClientId:
-    '703962492488-q98nua8ure5o3h02fu78i8eh8d3g0okv.apps.googleusercontent.com',
+  webClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID,
 });
 
 const auth = getAuth();

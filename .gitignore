@@ -9,6 +9,10 @@ node_modules/
 google-services.json
 GoogleService-Info.plist
 
+# appel secrets
+secrets/
+*.p8
+
 # Expo
 .expo/
 dist/
