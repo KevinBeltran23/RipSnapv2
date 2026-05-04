@@ -90,8 +90,10 @@ function PrivacyPolicyScreen() {
       <ScrollView contentContainerStyle={dynamicStyles.container}>
         <Text style={dynamicStyles.sectionTitle}>1. Introduction</Text>
         <Text style={dynamicStyles.paragraph}>
-          This Privacy Policy describes how SURP collects, uses, and shares your
-          personal information when you use our mobile application.
+          This Privacy Policy describes how RipSnap collects, uses, and shares
+          your personal information when you use our mobile application. RipSnap
+          is developed by the Advanced Visualization and Interactive Systems
+          Group at the University of California Santa Cruz.
         </Text>
 
         <Text style={dynamicStyles.sectionTitle}>
@@ -99,9 +101,10 @@ function PrivacyPolicyScreen() {
         </Text>
         <Text style={dynamicStyles.paragraph}>
           We collect information you provide directly to us, such as when you
-          create an account (email, display name), upload media (images,
-          videos), or submit location data. We may also collect device
-          information and usage data.
+          create an account (email, display name), capture and upload media
+          (photos, videos of coastal areas), submit detection metadata
+          (bounding box data, timestamps), or provide location information. We
+          may also collect device information and usage data.
         </Text>
 
         <Text style={dynamicStyles.sectionTitle}>
@@ -109,46 +112,61 @@ function PrivacyPolicyScreen() {
         </Text>
         <Text style={dynamicStyles.paragraph}>
           We use the information collected to provide, maintain, and improve our
-          services, personalize your experience, and for security purposes. This
-          includes displaying accessibility information, managing user accounts,
-          and facilitating media uploads.
+          rip current detection and research services. This includes running
+          machine learning models on your device, storing captured media and
+          detection data for research purposes, managing user accounts, and
+          advancing coastal safety research.
         </Text>
 
         <Text style={dynamicStyles.sectionTitle}>
-          4. Sharing of Information
+          4. Research Use
+        </Text>
+        <Text style={dynamicStyles.paragraph}>
+          Data uploaded through RipSnap may be used for academic research on rip
+          current detection and coastal safety. Uploaded media and detection
+          metadata contribute to improving machine learning models and
+          understanding rip current patterns. Your contributions help advance
+          public safety research.
+        </Text>
+
+        <Text style={dynamicStyles.sectionTitle}>
+          5. Sharing of Information
         </Text>
         <Text style={dynamicStyles.paragraph}>
           We do not share your personal information with third parties except as
           necessary to provide our services (e.g., Firebase for authentication
-          and storage), or as required by law.
+          and storage), for academic research purposes in anonymized form, or as
+          required by law.
         </Text>
 
-        <Text style={dynamicStyles.sectionTitle}>5. Data Security</Text>
+        <Text style={dynamicStyles.sectionTitle}>6. Data Security</Text>
         <Text style={dynamicStyles.paragraph}>
           We take reasonable measures to protect your personal information from
-          unauthorized access, alteration, disclosure, or destruction. However,
-          no internet transmission is entirely secure.
+          unauthorized access, alteration, disclosure, or destruction. All data
+          is stored securely using Firebase infrastructure. However, no internet
+          transmission is entirely secure.
         </Text>
 
-        <Text style={dynamicStyles.sectionTitle}>6. Your Choices</Text>
+        <Text style={dynamicStyles.sectionTitle}>7. Your Choices</Text>
         <Text style={dynamicStyles.paragraph}>
           You can update your profile information through the app settings. You
-          may also be able to disable certain data collection features in your
-          device settings.
+          choose when to capture and upload data. All machine learning
+          processing happens on your device — raw camera frames are never
+          transmitted.
         </Text>
 
         <Text style={dynamicStyles.sectionTitle}>
-          7. Changes to This Policy
+          8. Changes to This Policy
         </Text>
         <Text style={dynamicStyles.paragraph}>
           We may update this Privacy Policy from time to time. We will notify
           you of any changes by posting the new policy within the application.
         </Text>
 
-        <Text style={dynamicStyles.sectionTitle}>8. Contact Us</Text>
+        <Text style={dynamicStyles.sectionTitle}>9. Contact Us</Text>
         <Text style={dynamicStyles.paragraph}>
           If you have any questions about this Privacy Policy, please contact us
-          at support@surp.com.
+          at fkhan4@ucsc.edu.
         </Text>
 
         <View style={dynamicStyles.endIndicator} />

@@ -89,69 +89,78 @@ function TermsOfServiceScreen() {
       <ScrollView contentContainerStyle={dynamicStyles.container}>
         <Text style={dynamicStyles.sectionTitle}>1. Acceptance of Terms</Text>
         <Text style={dynamicStyles.paragraph}>
-          By accessing or using the SURP mobile application (the "Service"), you
-          agree to be bound by these Terms of Service ("Terms"). If you disagree
-          with any part of the terms, then you may not access the Service.
+          By accessing or using the RipSnap mobile application (the "Service"),
+          you agree to be bound by these Terms of Service ("Terms"). If you
+          disagree with any part of the terms, then you may not access the
+          Service.
         </Text>
 
         <Text style={dynamicStyles.sectionTitle}>2. Use of Service</Text>
         <Text style={dynamicStyles.paragraph}>
-          You agree to use the Service only for lawful purposes and in a way
-          that does not infringe the rights of, restrict or inhibit anyone
-          else's use and enjoyment of the Service. Prohibited behavior includes
-          harassing or causing distress or inconvenience to any other user,
-          transmitting obscene or offensive content, or disrupting the normal
-          flow of dialogue within the Service.
+          RipSnap is a citizen science tool for rip current detection and
+          research. You agree to use the Service only for lawful purposes and in
+          a way that does not infringe the rights of others. The Service is
+          intended for coastal observation and research contribution.
         </Text>
 
         <Text style={dynamicStyles.sectionTitle}>3. User Content</Text>
         <Text style={dynamicStyles.paragraph}>
-          You are solely responsible for any content you upload, post, or
-          otherwise make available through the Service. By posting content, you
-          grant SURP a non-exclusive, royalty-free, perpetual, transferable, and
-          sublicensable worldwide license to use, modify, reproduce, distribute,
-          display, and publish such content in connection with the Service.
+          You are solely responsible for any content you capture, upload, or
+          otherwise make available through the Service. By uploading content,
+          you grant the University of California Santa Cruz a non-exclusive,
+          royalty-free license to use such content for research purposes,
+          including improving rip current detection models and advancing coastal
+          safety research.
         </Text>
 
-        <Text style={dynamicStyles.sectionTitle}>4. Intellectual Property</Text>
+        <Text style={dynamicStyles.sectionTitle}>4. Safety Disclaimer</Text>
+        <Text style={dynamicStyles.paragraph}>
+          RipSnap is a research tool and should not be used as the sole basis
+          for water safety decisions. Always follow posted beach warnings,
+          lifeguard instructions, and official safety guidelines. The machine
+          learning model may produce inaccurate detections. Never enter
+          dangerous water conditions based on app output alone.
+        </Text>
+
+        <Text style={dynamicStyles.sectionTitle}>5. Intellectual Property</Text>
         <Text style={dynamicStyles.paragraph}>
           The Service and its original content, features, and functionality are
-          and will remain the exclusive property of SURP and its licensors. The
-          Service is protected by copyright, trademark, and other laws of both
-          the United States and foreign countries.
+          the property of the University of California Santa Cruz. The software
+          is provided under the UC Santa Cruz Noncommercial License. Any
+          noncommercial purpose is a permitted purpose. Contact Innovation
+          Transfer, UC Santa Cruz (innovation@ucsc.edu) for any commercial use.
         </Text>
 
-        <Text style={dynamicStyles.sectionTitle}>5. Disclaimers</Text>
+        <Text style={dynamicStyles.sectionTitle}>6. Disclaimers</Text>
         <Text style={dynamicStyles.paragraph}>
-          The Service is provided on an "AS IS" and "AS AVAILABLE" basis. SURP
-          makes no warranties, expressed or implied, regarding the operation or
-          availability of the Service or the information, content, materials, or
-          products included on the Service.
+          The Service is provided on an "AS IS" and "AS AVAILABLE" basis. The
+          University of California makes no warranties, expressed or implied,
+          regarding the accuracy of rip current detections, the operation or
+          availability of the Service, or the information, content, materials,
+          or products included on the Service.
         </Text>
 
         <Text style={dynamicStyles.sectionTitle}>
-          6. Limitation of Liability
+          7. Limitation of Liability
         </Text>
         <Text style={dynamicStyles.paragraph}>
-          In no event shall SURP, nor its directors, employees, partners,
-          agents, suppliers, or affiliates, be liable for any indirect,
-          incidental, special, consequential or punitive damages, including
-          without limitation, loss of profits, data, use, goodwill, or other
-          intangible losses, resulting from your access to or use of or
-          inability to access or use the Service.
+          As far as the law allows, the software comes as is, without any
+          warranty or condition, and the licensor will not be liable to you for
+          any damages arising out of these terms or the use or nature of the
+          software, under any kind of legal claim.
         </Text>
 
-        <Text style={dynamicStyles.sectionTitle}>7. Changes to Terms</Text>
+        <Text style={dynamicStyles.sectionTitle}>8. Changes to Terms</Text>
         <Text style={dynamicStyles.paragraph}>
-          We reserve the right, at our sole discretion, to modify or replace
-          these Terms at any time. If a revision is material, we will try to
-          provide at least 30 days' notice prior to any new terms taking effect.
+          We reserve the right to modify or replace these Terms at any time. If
+          a revision is material, we will try to provide notice prior to any new
+          terms taking effect.
         </Text>
 
-        <Text style={dynamicStyles.sectionTitle}>8. Contact Us</Text>
+        <Text style={dynamicStyles.sectionTitle}>9. Contact Us</Text>
         <Text style={dynamicStyles.paragraph}>
           If you have any questions about these Terms, please contact us at
-          support@surp.com.
+          fkhan4@ucsc.edu.
         </Text>
 
         <View style={dynamicStyles.endIndicator} />

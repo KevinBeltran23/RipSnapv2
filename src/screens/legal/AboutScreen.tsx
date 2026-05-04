@@ -5,6 +5,8 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
+  Linking,
+  Image,
 } from 'react-native';
 import { useColors } from '../../hooks/useColors';
 import { useNavigation } from '@react-navigation/native';
@@ -50,6 +52,13 @@ function AboutScreen() {
       paddingBottom: scaleHeight(50),
       paddingHorizontal: scaleWidth(20),
     },
+    logo: {
+      width: proportionalSize(80),
+      height: proportionalSize(80),
+      borderRadius: proportionalSize(16),
+      marginBottom: scaleHeight(16),
+      marginTop: scaleHeight(10),
+    },
     paragraph: {
       fontSize: scaleFont(16),
       color: colors.textSecondary,
@@ -57,6 +66,19 @@ function AboutScreen() {
       lineHeight: scaleFont(24),
       textAlign: 'center',
       paddingHorizontal: scaleWidth(10),
+    },
+    link: {
+      fontSize: scaleFont(16),
+      color: colors.primary,
+      marginBottom: scaleHeight(12),
+      textDecorationLine: 'underline',
+    },
+    sectionTitle: {
+      fontSize: scaleFont(18),
+      fontWeight: 'bold',
+      color: colors.textPrimary,
+      marginTop: scaleHeight(20),
+      marginBottom: scaleHeight(8),
     },
     versionText: {
       fontSize: scaleFont(14),
@@ -89,28 +111,53 @@ function AboutScreen() {
         </TouchableOpacity>
       </View>
       <ScrollView contentContainerStyle={dynamicStyles.container}>
+        <Image
+          source={require('../../../assets/ripsnap-logo.png')}
+          style={dynamicStyles.logo}
+        />
         <Text style={dynamicStyles.paragraph}>
-          SURP Accessibility Tracker is a mobile application designed to empower
-          users to easily discover, share, and manage accessibility information
-          for various locations. Our goal is to foster a more inclusive
-          environment by providing a comprehensive platform for crowd-sourced
-          accessibility data.
+          RipSnap is a citizen science mobile app designed to help users detect
+          and learn about various types of rip currents. Rip currents are
+          detected using a machine learning model running directly on your
+          phone.
         </Text>
         <Text style={dynamicStyles.paragraph}>
-          Whether you are looking for wheelchair-accessible ramps,
-          sensory-friendly environments, or other specific accessibility
-          features, SURP aims to be your go-to resource. We believe that
-          everyone deserves equal access, and by collaborating as a community,
-          we can make the world a more navigable place for all.
+          The app also provides the ability to record and upload rip current
+          videos and photos along with detection metadata, contributing to
+          ongoing rip current research and coastal safety efforts.
         </Text>
+
+        <Text style={dynamicStyles.sectionTitle}>Research</Text>
         <Text style={dynamicStyles.paragraph}>
-          This application is continuously being improved with new features and
-          enhancements based on user feedback and evolving accessibility
-          standards. Thank you for being a part of the SURP community and
-          contributing to a more accessible future!
+          RipSnap is developed by the Advanced Visualization and Interactive
+          Systems Group at the University of California Santa Cruz.
         </Text>
+        <Text
+          style={dynamicStyles.link}
+          onPress={() =>
+            Linking.openURL('https://doi.org/10.1145/3462204.3481743')
+          }
+        >
+          Research Paper (ACM)
+        </Text>
+        <Text
+          style={dynamicStyles.link}
+          onPress={() =>
+            Linking.openURL('https://sites.google.com/ucsc.edu/ripsnap')
+          }
+        >
+          Project Website
+        </Text>
+
+        <Text style={dynamicStyles.sectionTitle}>Contact</Text>
+        <Text style={dynamicStyles.paragraph}>
+          Email: fkhan4@ucsc.edu
+        </Text>
+
         <Text style={dynamicStyles.versionText}>Version 1.0.0</Text>
-        <Text style={dynamicStyles.versionText}>Â© 2024 SURP Team</Text>
+        <Text style={dynamicStyles.versionText}>
+          © 2025 UC Santa Cruz — AVIS Group
+        </Text>
 
         <View style={dynamicStyles.endIndicator} />
       </ScrollView>

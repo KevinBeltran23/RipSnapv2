@@ -1,5 +1,5 @@
 ﻿import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, Image } from 'react-native';
 import { useColors } from '../../hooks/useColors';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -7,7 +7,6 @@ import { RootStackParamList } from '../../navigation/types';
 import { useResponsiveStyles } from '../../hooks/useResponsiveStyles';
 import Button from '../../components/common/Button';
 
-// Define the navigation prop type
 type InfoLinksNavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
 const InfoLinks = () => {
@@ -60,6 +59,12 @@ function HomeScreen() {
       backgroundColor: colors.background,
       padding: proportionalSize(20),
     },
+    logo: {
+      width: proportionalSize(100),
+      height: proportionalSize(100),
+      borderRadius: proportionalSize(20),
+      marginBottom: scaleHeight(20),
+    },
     title: {
       fontSize: scaleFont(30),
       fontWeight: 'bold',
@@ -70,21 +75,35 @@ function HomeScreen() {
     description: {
       fontSize: scaleFont(17),
       color: colors.textSecondary,
-      marginBottom: scaleHeight(40),
+      marginBottom: scaleHeight(10),
       textAlign: 'center',
       paddingHorizontal: proportionalSize(15),
+      lineHeight: scaleFont(24),
+    },
+    subdescription: {
+      fontSize: scaleFont(14),
+      color: colors.textTertiary,
+      textAlign: 'center',
+      paddingHorizontal: proportionalSize(20),
+      lineHeight: scaleFont(20),
     },
   });
 
   return (
     <View style={dynamicStyles.container}>
-      <Text style={dynamicStyles.title}>
-        Welcome to SURP Accessibility Tracker!
-      </Text>
+      <Image
+        source={require('../../../assets/ripsnap-logo.png')}
+        style={dynamicStyles.logo}
+      />
+      <Text style={dynamicStyles.title}>Welcome to RipSnap</Text>
       <Text style={dynamicStyles.description}>
-        Your essential tool for discovering and sharing accessibility
-        information for locations around you. Empowering a more accessible
-        world, one place at a time.
+        A citizen science app for detecting and documenting rip currents using
+        real-time machine learning. Help advance coastal safety research by
+        capturing and sharing rip current observations.
+      </Text>
+      <Text style={dynamicStyles.subdescription}>
+        Developed by the Advanced Visualization and Interactive Systems Group,
+        University of California Santa Cruz.
       </Text>
       <InfoLinks />
     </View>
