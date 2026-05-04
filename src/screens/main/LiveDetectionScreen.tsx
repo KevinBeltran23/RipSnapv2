@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useState, useMemo, useCallback } from 'react';
+﻿import React, { useEffect, useState, useMemo, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -92,8 +92,20 @@ function LiveDetectionScreen() {
     [inputWidth, inputHeight],
   );
 
+  const diagRef = useRef(0);
   const updateDetections = useCallback((newDetections: Detection[]) => {
-    console.log('Update Detections (iOS):', newDetections.length);
+    // Log every 30th update to avoid spam but still see what's happening
+    diagRef.current++;
+    if (diagRef.current % 30 === 1) {
+      if (newDetections.length > 0) {
+        const d = newDetections[0];
+        console.log(
+          `[DET] count=${newDetections.length} top: ${d.className} conf=${d.confidence.toFixed(3)} bbox=[${d.bbox.map(v => v.toFixed(1)).join(',')}]`
+        );
+      } else {
+        console.log('[DET] count=0');
+      }
+    }
     setLatestDetections(newDetections);
   }, []);
 

@@ -1,6 +1,14 @@
 /**
  * YOLO detection utilities: bounding-box NMS + output parsing.
  * These functions run inside Vision Camera worklets.
+ *
+ * Model output for best_yolov8n (320x320, 10 classes):
+ *   Shape: [1, 14, 2100] — channels-first
+ *   Row 0: cx values (pixel coords, 0–320)
+ *   Row 1: cy values
+ *   Row 2: w values
+ *   Row 3: h values
+ *   Row 4–13: class scores (already post-sigmoid, do NOT apply sigmoid again)
  */
 import { YOLO_CLASSES, YOLO_CONFIG } from '../config/yolo';
 
@@ -22,7 +30,7 @@ const calculateIoU = (
     Math.max(0, Math.min(x1 + w1, x2 + w2) - Math.max(x1, x2)) *
     Math.max(0, Math.min(y1 + h1, y2 + h2) - Math.max(y1, y2));
   const unionArea = w1 * h1 + w2 * h2 - intersectionArea;
-  return intersectionArea / unionArea;
+  return unionArea > 0 ? intersectionArea / unionArea : 0;
 };
 
 const nms = (detections: Detection[], iouThreshold: number): Detection[] => {
@@ -55,59 +63,33 @@ export const processYoloOutput = (
   'worklet';
   const detections: Detection[] = [];
   const numClasses = YOLO_CLASSES.length;
-  const sigmoid = (x: number) => 1 / (1 + Math.exp(-x));
 
-  let channelsFirst = false;
-  let numDetections: number;
-  let numChannels: number;
-
-  if (outputShape && outputShape.length >= 3) {
-    const c1 = outputShape[1];
-    const c2 = outputShape[2];
-    if (c1 === 4 + numClasses || c1 === 5 + numClasses) {
-      channelsFirst = true;
-      numChannels = c1;
-      numDetections = c2;
-    } else if (c2 === 4 + numClasses || c2 === 5 + numClasses) {
-      channelsFirst = false;
-      numChannels = c2;
-      numDetections = outputShape[1];
-    } else {
-      numChannels = 4 + numClasses;
-      numDetections = Math.floor(output.length / numChannels);
-    }
-  } else {
-    numChannels = 4 + numClasses;
-    numDetections = Math.floor(output.length / numChannels);
-  }
-
-  const hasObj = numChannels === 5 + numClasses;
-  const getVal = (i: number, k: number) =>
-    channelsFirst ? output[k * numDetections + i] : output[i * numChannels + k];
+  // Layout: channels-first [1, 14, 2100]
+  // Access: output[channel * numDetections + detectionIndex]
+  const numDetections = outputShape && outputShape.length >= 3
+    ? outputShape[2]
+    : Math.floor(output.length / (4 + numClasses));
 
   for (let i = 0; i < numDetections; i++) {
-    const obj = hasObj ? sigmoid(getVal(i, 4)) : 1;
+    // Class scores are ALREADY post-sigmoid from the TFLite export.
+    // Do NOT apply sigmoid again — that was the original bug causing inaccuracy.
     let maxScore = 0;
     let bestClass = 0;
     for (let j = 0; j < numClasses; j++) {
-      const score = sigmoid(getVal(i, (hasObj ? 5 : 4) + j)) * obj;
+      const score = output[(4 + j) * numDetections + i];
       if (score > maxScore) {
         maxScore = score;
         bestClass = j;
       }
     }
+
     if (maxScore > YOLO_CONFIG.CONFIDENCE_THRESHOLD) {
-      const [cxRaw, cyRaw, wRaw, hRaw] = [
-        getVal(i, 0),
-        getVal(i, 1),
-        getVal(i, 2),
-        getVal(i, 3),
-      ];
-      const norm = cxRaw > 1 || cyRaw > 1 || wRaw > 1 || hRaw > 1;
-      const cx = norm ? cxRaw / modelInputSize : cxRaw;
-      const cy = norm ? cyRaw / modelInputSize : cyRaw;
-      const w = norm ? wRaw / modelInputSize : wRaw;
-      const h = norm ? hRaw / modelInputSize : hRaw;
+      // Bbox: cx, cy, w, h — normalized (0-1)
+      const cx = output[0 * numDetections + i];
+      const cy = output[1 * numDetections + i];
+      const w = output[2 * numDetections + i];
+      const h = output[3 * numDetections + i];
+
       detections.push({
         bbox: [
           Math.max(0, (cx - w / 2) * imageWidth),

@@ -6,8 +6,8 @@ export const YOLO_CLASSES = [
   'elevator',
   'exit_sign',
   'green_pedestrian_light',
-  'red_pedestrian_light',
   'ramp',
+  'red_pedestrian_light',
   'restroom_sign',
   'stairs',
   'water_fountain',
@@ -98,7 +98,7 @@ export const COCO_YOLO_CLASSES = [
 
 export const YOLO_CONFIG = {
   INPUT_SIZE: 320,
-  CONFIDENCE_THRESHOLD: 0.55,
-  IOU_THRESHOLD: 0.5,
-  MAX_DETECTIONS: 5,
+  CONFIDENCE_THRESHOLD: 0.25,
+  IOU_THRESHOLD: 0.45,
+  MAX_DETECTIONS: 10,
 };
