@@ -123,7 +123,7 @@ function TermsAcceptanceScreen() {
     <View style={dynamicStyles.container}>
       <Text style={dynamicStyles.title}>Terms of Service</Text>
       <Text style={dynamicStyles.paragraph}>
-        To continue using the app, you must read and accept our Terms of
+        To continue using RipSnap, you must read and accept our Terms of
         Service.
       </Text>
       <TouchableOpacity onPress={() => navigation.navigate('TermsOfService')}>

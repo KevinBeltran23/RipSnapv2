@@ -121,7 +121,7 @@ const LoginForm: React.FC<LoginFormProps> = ({
 
   return (
     <View style={dynamicStyles.container}>
-      <Text style={dynamicStyles.title}>Accessibility Tracker</Text>
+      <Text style={dynamicStyles.title}>RipSnap</Text>
       <Text style={dynamicStyles.subtitle}>Sign in to continue</Text>
 
       <TextInput

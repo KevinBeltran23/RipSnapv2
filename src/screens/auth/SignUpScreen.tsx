@@ -99,7 +99,7 @@ const SignUpForm: React.FC<SignUpFormProps> = ({
 
   return (
     <View style={dynamicStyles.container}>
-      <Text style={dynamicStyles.title}>Create Account</Text>
+      <Text style={dynamicStyles.title}>Create RipSnap Account</Text>
 
       <TextInput
         style={dynamicStyles.textInput}
