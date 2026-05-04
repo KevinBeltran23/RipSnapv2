@@ -3,7 +3,7 @@
     "name": "RipSnap",
     "slug": "ripfinderv2",
     "version": "1.0.0",
-    "orientation": "portrait",
+    "orientation": "default",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
@@ -95,7 +95,8 @@
         }
       ],
       "@react-native-google-signin/google-signin",
-      "react-native-video"
+      "react-native-video",
+      "expo-screen-orientation"
     ],
     "extra": {
       "eas": {
