@@ -5,9 +5,11 @@ import {
   StyleSheet,
   Platform,
   StatusBar,
+  TouchableOpacity,
   useWindowDimensions,
 } from 'react-native';
 import { useIsFocused } from '@react-navigation/native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTensorflowModel } from 'react-native-fast-tflite';
 import { useResizePlugin } from 'vision-camera-resize-plugin';
 import {
@@ -24,6 +26,7 @@ import {
 } from '@shopify/react-native-skia';
 import { useSharedValue } from 'react-native-reanimated';
 import * as ScreenOrientation from 'expo-screen-orientation';
+import Icon from '@expo/vector-icons/MaterialCommunityIcons';
 import { getBestFormat } from '../../utils/camera';
 import { processYoloOutput, Detection } from '../../utils';
 import { YOLO_CONFIG } from '../../config/yolo';
@@ -37,6 +40,7 @@ import CaptureReviewScreen from './CaptureReviewScreen';
 
 function LiveDetectionScreen() {
   const isFocused = useIsFocused();
+  const insets = useSafeAreaInsets();
   const { hasPermission, requestPermission } = useCameraPermission();
   const [cameraPosition, setCameraPosition] = useState<'back' | 'front'>(
     'back',
@@ -50,8 +54,6 @@ function LiveDetectionScreen() {
   const processingFrame = useSharedValue(false);
 
   const [latestDetections, setLatestDetections] = useState<Detection[]>([]);
-
-  // Review screen state — when set, shows review instead of camera
   const [reviewResult, setReviewResult] = useState<CaptureResult | null>(null);
 
   const [orientation, setOrientation] = useState<ScreenOrientation.Orientation>(
@@ -71,7 +73,6 @@ function LiveDetectionScreen() {
 
   const pixelFormat = Platform.OS === 'ios' ? 'rgb' : 'yuv';
 
-  // Capture hook
   const {
     captureMode,
     isProcessing,
@@ -86,7 +87,6 @@ function LiveDetectionScreen() {
 
   const isRecording = captureMode === 'recording';
 
-  // When video recording finishes, navigate to review
   useEffect(() => {
     if (lastVideoResult) {
       setReviewResult(lastVideoResult);
@@ -244,6 +244,9 @@ function LiveDetectionScreen() {
     14,
   );
 
+  // Offset bounding boxes and HUD below the safe area (notch/dynamic island)
+  const safeTop = insets.top;
+
   const boundingBoxes = useMemo(() => {
     if (!font) return [];
     return latestDetections.slice(0, 15).map((detection, index) => ({
@@ -281,8 +284,6 @@ function LiveDetectionScreen() {
     setReviewResult(null);
   }, []);
 
-  /* ── If reviewing a capture, show the review screen ────────────────── */
-
   if (reviewResult) {
     return (
       <CaptureReviewScreen
@@ -292,8 +293,6 @@ function LiveDetectionScreen() {
       />
     );
   }
-
-  /* ── Normal camera view ────────────────────────────────────────────── */
 
   if (!hasPermission) {
     return (
@@ -338,6 +337,7 @@ function LiveDetectionScreen() {
         audio={false}
       />
 
+      {/* Detection overlay */}
       <Canvas style={StyleSheet.absoluteFill} pointerEvents="none">
         {boundingBoxes.map(box => (
           <React.Fragment key={box.id}>
@@ -368,31 +368,41 @@ function LiveDetectionScreen() {
             />
           </React.Fragment>
         ))}
-
-        <Rect
-          rect={{ x: 10, y: 10, width: 150, height: 25 }}
-          color="rgba(0, 0, 0, 0.7)"
-        />
-        <SkiaText
-          text={`Objects: ${detectionCount}`}
-          x={14}
-          y={28}
-          color="white"
-          font={font}
-        />
       </Canvas>
 
-      <View style={styles.switchWrap} pointerEvents="box-none">
-        <Text
-          style={styles.switchBtn}
+      {/* Top HUD — positioned below the notch/dynamic island */}
+      <View
+        style={[styles.topBar, { paddingTop: safeTop + 8 }]}
+        pointerEvents="box-none"
+      >
+        {/* Detection count pill */}
+        <View style={styles.hudPill}>
+          <Icon name="eye-outline" size={16} color="#fff" />
+          <Text style={styles.hudText}>
+            {detectionCount} detection{detectionCount !== 1 ? 's' : ''}
+          </Text>
+        </View>
+
+        {/* Camera switch button */}
+        <TouchableOpacity
+          style={styles.iconBtn}
           onPress={toggleCamera}
+          disabled={captureMode !== 'idle'}
           accessibilityLabel="Switch camera"
           accessibilityRole="button"
         >
-          ⟲
-        </Text>
+          <Icon name="camera-flip-outline" size={22} color="#fff" />
+        </TouchableOpacity>
       </View>
 
+      {/* Model loading indicator */}
+      {yoloModel.model == null && (
+        <View style={[styles.loadingPill, { top: safeTop + 52 }]}>
+          <Text style={styles.loadingText}>Loading model...</Text>
+        </View>
+      )}
+
+      {/* Capture controls */}
       <CaptureControls
         captureMode={captureMode}
         isProcessing={isProcessing}
@@ -416,21 +426,51 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 100,
   },
-  switchWrap: {
+  topBar: {
     position: 'absolute',
-    top: 60,
-    right: 16,
+    top: 0,
+    left: 0,
+    right: 0,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingBottom: 8,
   },
-  switchBtn: {
-    color: 'white',
-    fontSize: 26,
-    backgroundColor: 'rgba(0,0,0,0.5)',
+  hudPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 20,
+  },
+  hudText: {
+    color: '#fff',
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  iconBtn: {
     width: 44,
     height: 44,
-    lineHeight: 42,
-    textAlign: 'center',
     borderRadius: 22,
-    overflow: 'hidden',
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  loadingPill: {
+    position: 'absolute',
+    alignSelf: 'center',
+    backgroundColor: 'rgba(255, 149, 0, 0.85)',
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    borderRadius: 16,
+  },
+  loadingText: {
+    color: '#fff',
+    fontSize: 13,
+    fontWeight: '600',
   },
 });
 
