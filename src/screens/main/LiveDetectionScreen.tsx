@@ -4,8 +4,8 @@ import {
   Text,
   StyleSheet,
   Platform,
-  Dimensions,
   StatusBar,
+  useWindowDimensions,
 } from 'react-native';
 import { useIsFocused } from '@react-navigation/native';
 import { useTensorflowModel } from 'react-native-fast-tflite';
@@ -23,6 +23,7 @@ import {
   useFont,
 } from '@shopify/react-native-skia';
 import { useSharedValue } from 'react-native-reanimated';
+import * as ScreenOrientation from 'expo-screen-orientation';
 import { getBestFormat } from '../../utils/camera';
 import { processYoloOutput, Detection } from '../../utils';
 import { YOLO_CONFIG } from '../../config/yolo';
@@ -43,6 +44,11 @@ function LiveDetectionScreen() {
 
   const [latestDetections, setLatestDetections] = useState<Detection[]>([]);
 
+  // Track current orientation for resize rotation
+  const [orientation, setOrientation] = useState<ScreenOrientation.Orientation>(
+    ScreenOrientation.Orientation.PORTRAIT_UP,
+  );
+
   const delegate = Platform.OS === 'ios' ? 'core-ml' : undefined;
   const yoloModel = useTensorflowModel(
     require('../../assets/models/best_yolov8n_float32.tflite'),
@@ -60,6 +66,25 @@ function LiveDetectionScreen() {
     if (!hasPermission) requestPermission();
   }, [hasPermission, requestPermission]);
 
+  // Unlock orientation on mount, lock back to portrait on unmount
+  useEffect(() => {
+    ScreenOrientation.unlockAsync();
+
+    const sub = ScreenOrientation.addOrientationChangeListener(event => {
+      setOrientation(event.orientationInfo.orientation);
+    });
+
+    // Get initial orientation
+    ScreenOrientation.getOrientationAsync().then(setOrientation);
+
+    return () => {
+      ScreenOrientation.removeOrientationChangeListener(sub);
+      ScreenOrientation.lockAsync(
+        ScreenOrientation.OrientationLock.PORTRAIT_UP,
+      );
+    };
+  }, []);
+
   useEffect(() => {
     const model = yoloModel.model;
     if (model == null) return;
@@ -72,8 +97,26 @@ function LiveDetectionScreen() {
   const inputWidth = inputTensor?.shape[2] ?? YOLO_CONFIG.INPUT_SIZE;
   const inputHeight = inputTensor?.shape[1] ?? YOLO_CONFIG.INPUT_SIZE;
 
-  // View dimensions — updates on orientation change
-  const { width: viewWidth, height: viewHeight } = Dimensions.get('window');
+  // useWindowDimensions updates reactively on orientation change
+  const { width: viewWidth, height: viewHeight } = useWindowDimensions();
+
+  // Determine the rotation to apply to the camera frame before feeding the model.
+  // iOS camera sensor is landscape-right. We need to rotate the frame so the model
+  // sees an upright image matching the current device orientation.
+  const resizeRotation = useMemo((): '0deg' | '90deg' | '180deg' | '270deg' => {
+    switch (orientation) {
+      case ScreenOrientation.Orientation.PORTRAIT_UP:
+        return '90deg';
+      case ScreenOrientation.Orientation.LANDSCAPE_LEFT:
+        return '0deg';
+      case ScreenOrientation.Orientation.PORTRAIT_DOWN:
+        return '270deg';
+      case ScreenOrientation.Orientation.LANDSCAPE_RIGHT:
+        return '180deg';
+      default:
+        return '90deg';
+    }
+  }, [orientation]);
 
   const diagRef = useRef(0);
   const updateDetections = useCallback((newDetections: Detection[]) => {
@@ -119,10 +162,6 @@ function LiveDetectionScreen() {
       processingFrame.value = true;
 
       try {
-        // The camera sensor is landscape but the app is portrait.
-        // frame.orientation tells us how the frame is oriented.
-        // We pass '90deg' rotation to the resize plugin so the model
-        // sees an upright (portrait) image in its square input.
         const resizedFrame = resize(frame, {
           scale: {
             width: inputWidth,
@@ -130,7 +169,7 @@ function LiveDetectionScreen() {
           },
           pixelFormat: 'rgb',
           dataType: 'float32',
-          rotation: '90deg',
+          rotation: resizeRotation,
         });
 
         const outputs = yoloModel.model.runSync([resizedFrame]);
@@ -141,8 +180,7 @@ function LiveDetectionScreen() {
             ? output
             : new Float32Array(output.buffer || output);
 
-        // processYoloOutput returns bboxes in model input space (0-320).
-        // We pass 1.0 as imageWidth/Height so it outputs normalized 0-1 coords.
+        // Get normalized 0-1 bboxes from the model
         const processedDetections = processYoloOutput(
           outputArray,
           1.0,
@@ -151,18 +189,7 @@ function LiveDetectionScreen() {
           yoloModel.model?.outputs[0]?.shape,
         );
 
-        // Map normalized model coords → screen coords.
-        // The camera preview fills the screen (StyleSheet.absoluteFill).
-        // The model saw a square crop of the frame, but the preview shows
-        // the full frame which has a different aspect ratio.
-        //
-        // Camera preview in portrait: the preview is "cover" mode by default,
-        // meaning it fills the view and crops the excess. The model's square
-        // input corresponds to a center-crop of the preview.
-        //
-        // For simplicity and because the model input is square (320x320),
-        // we map the model's normalized coords directly to the view dimensions.
-        // This works well when the preview fills the screen.
+        // Map normalized coords → screen coords
         const mirror = cameraPosition === 'front';
 
         const mapped: Detection[] = [];
@@ -205,6 +232,7 @@ function LiveDetectionScreen() {
       viewWidth,
       viewHeight,
       cameraPosition,
+      resizeRotation,
       updateDetectionsOnJS,
       logErrorOnJS,
     ],
