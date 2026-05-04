@@ -28,8 +28,6 @@ import { processYoloOutput, Detection } from '../../utils';
 import { YOLO_CONFIG } from '../../config/yolo';
 import { useRunOnJS } from 'react-native-worklets-core';
 
-// const VIEW_WIDTH = Dimensions.get('screen').width;
-
 function LiveDetectionScreen() {
   const isFocused = useIsFocused();
   const { hasPermission, requestPermission } = useCameraPermission();
@@ -39,12 +37,10 @@ function LiveDetectionScreen() {
   const device = useCameraDevice(cameraPosition);
   const { resize } = useResizePlugin();
 
-  // Use shared values for performance
   const detectionsShared = useSharedValue<Detection[]>([]);
   const frameSkipCounter = useSharedValue(0);
   const processingFrame = useSharedValue(false);
 
-  // Keep React state for triggering re-renders
   const [latestDetections, setLatestDetections] = useState<Detection[]>([]);
 
   const delegate = Platform.OS === 'ios' ? 'core-ml' : undefined;
@@ -67,40 +63,26 @@ function LiveDetectionScreen() {
   useEffect(() => {
     const model = yoloModel.model;
     if (model == null) return;
-
     console.log('YOLO Model loaded successfully');
     console.log(`Input shape: ${model.inputs[0]?.shape}`);
     console.log(`Output shape: ${model.outputs[0]?.shape}`);
   }, [yoloModel]);
 
   const inputTensor = yoloModel.model?.inputs[0];
-  const inputWidth = inputTensor?.shape[1] ?? YOLO_CONFIG.INPUT_SIZE;
-  const inputHeight = inputTensor?.shape[2] ?? YOLO_CONFIG.INPUT_SIZE;
+  const inputWidth = inputTensor?.shape[2] ?? YOLO_CONFIG.INPUT_SIZE;
+  const inputHeight = inputTensor?.shape[1] ?? YOLO_CONFIG.INPUT_SIZE;
 
-  const rotation = '0deg';
-
-  // View dimensions (screen dp) â€” must match the Canvas overlay coordinate space
+  // View dimensions — updates on orientation change
   const { width: viewWidth, height: viewHeight } = Dimensions.get('window');
-
-  // Memoize static values for performance
-  const scaleFactors = useMemo(
-    () => ({
-      inputWidth,
-      inputHeight,
-      rotation,
-    }),
-    [inputWidth, inputHeight],
-  );
 
   const diagRef = useRef(0);
   const updateDetections = useCallback((newDetections: Detection[]) => {
-    // Log every 30th update to avoid spam but still see what's happening
     diagRef.current++;
     if (diagRef.current % 30 === 1) {
       if (newDetections.length > 0) {
         const d = newDetections[0];
         console.log(
-          `[DET] count=${newDetections.length} top: ${d.className} conf=${d.confidence.toFixed(3)} bbox=[${d.bbox.map(v => v.toFixed(1)).join(',')}]`
+          `[DET] count=${newDetections.length} top: ${d.className} conf=${d.confidence.toFixed(3)} bbox=[${d.bbox.map(v => v.toFixed(1)).join(',')}]`,
         );
       } else {
         console.log('[DET] count=0');
@@ -129,7 +111,6 @@ function LiveDetectionScreen() {
 
       if (yoloModel.model == null) return;
 
-      // Frame skipping for performance - process every 3rd frame
       frameSkipCounter.value = (frameSkipCounter.value + 1) % 3;
       if (frameSkipCounter.value !== 0 || processingFrame.value) {
         return;
@@ -138,14 +119,18 @@ function LiveDetectionScreen() {
       processingFrame.value = true;
 
       try {
+        // The camera sensor is landscape but the app is portrait.
+        // frame.orientation tells us how the frame is oriented.
+        // We pass '90deg' rotation to the resize plugin so the model
+        // sees an upright (portrait) image in its square input.
         const resizedFrame = resize(frame, {
           scale: {
-            width: scaleFactors.inputWidth,
-            height: scaleFactors.inputHeight,
+            width: inputWidth,
+            height: inputHeight,
           },
           pixelFormat: 'rgb',
           dataType: 'float32',
-          rotation: rotation as '0deg' | '90deg' | '180deg' | '270deg',
+          rotation: '90deg',
         });
 
         const outputs = yoloModel.model.runSync([resizedFrame]);
@@ -156,31 +141,40 @@ function LiveDetectionScreen() {
             ? output
             : new Float32Array(output.buffer || output);
 
+        // processYoloOutput returns bboxes in model input space (0-320).
+        // We pass 1.0 as imageWidth/Height so it outputs normalized 0-1 coords.
         const processedDetections = processYoloOutput(
           outputArray,
-          scaleFactors.inputWidth,
-          scaleFactors.inputHeight,
-          scaleFactors.inputWidth,
+          1.0,
+          1.0,
+          inputWidth,
           yoloModel.model?.outputs[0]?.shape,
         );
 
-        // Scale detections from model input space â†’ screen dp (view space)
-        // Canvas overlay covers the full view, so we use view dp dimensions, not frame pixels
-        const scaleX = viewWidth / scaleFactors.inputWidth;
-        const scaleY = viewHeight / scaleFactors.inputHeight;
+        // Map normalized model coords → screen coords.
+        // The camera preview fills the screen (StyleSheet.absoluteFill).
+        // The model saw a square crop of the frame, but the preview shows
+        // the full frame which has a different aspect ratio.
+        //
+        // Camera preview in portrait: the preview is "cover" mode by default,
+        // meaning it fills the view and crops the excess. The model's square
+        // input corresponds to a center-crop of the preview.
+        //
+        // For simplicity and because the model input is square (320x320),
+        // we map the model's normalized coords directly to the view dimensions.
+        // This works well when the preview fills the screen.
         const mirror = cameraPosition === 'front';
 
-        // Optimized coordinate transformation
         const mapped: Detection[] = [];
         for (let i = 0; i < processedDetections.length; i++) {
           const d = processedDetections[i];
-          let x = d.bbox[0] * scaleX;
-          const y = d.bbox[1] * scaleY;
-          const w = d.bbox[2] * scaleX;
-          const h = d.bbox[3] * scaleY;
+          let x = d.bbox[0] * viewWidth;
+          const y = d.bbox[1] * viewHeight;
+          const w = d.bbox[2] * viewWidth;
+          const h = d.bbox[3] * viewHeight;
 
           if (mirror) {
-            x = frame.width - (x + w);
+            x = viewWidth - x - w;
           }
 
           mapped.push({
@@ -189,10 +183,7 @@ function LiveDetectionScreen() {
           });
         }
 
-        // Update shared value for worklet thread performance
         detectionsShared.value = mapped;
-
-        // Update React state for UI re-renders (throttled by frame skipping)
         updateDetectionsOnJS(mapped);
       } catch (error) {
         logErrorOnJS(
@@ -209,7 +200,10 @@ function LiveDetectionScreen() {
     },
     [
       yoloModel,
-      scaleFactors,
+      inputWidth,
+      inputHeight,
+      viewWidth,
+      viewHeight,
       cameraPosition,
       updateDetectionsOnJS,
       logErrorOnJS,
@@ -221,7 +215,6 @@ function LiveDetectionScreen() {
     14,
   );
 
-  // Fallback React state for UI rendering (when shared values don't trigger re-renders)
   const boundingBoxes = useMemo(() => {
     if (!font) return [];
     return latestDetections.slice(0, 15).map((detection, index) => ({
@@ -276,22 +269,22 @@ function LiveDetectionScreen() {
         device={device}
         isActive={isFocused}
         frameProcessor={frameProcessor}
-        fps={30} // Higher FPS since we're skipping frames
+        fps={30}
         format={format}
         pixelFormat={pixelFormat}
+        outputOrientation="device"
         photo={false}
         video={false}
         audio={false}
       />
 
       <Canvas style={StyleSheet.absoluteFill}>
-        {/* Use React state for reliable rendering */}
         {boundingBoxes.map(box => (
           <React.Fragment key={box.id}>
             <Rect
               rect={box.rect}
               style="stroke"
-              strokeWidth={3} // Reduced for performance
+              strokeWidth={3}
               color="#FF00FF"
             />
             <Rect
@@ -331,7 +324,7 @@ function LiveDetectionScreen() {
 
       <View style={styles.instructionsContainer}>
         <Text style={styles.instructionsText}>
-          Tap to switch camera â€¢ YOLO Object Detection
+          Tap to switch camera • YOLO Object Detection
         </Text>
       </View>
     </View>

@@ -5396,6 +5396,16 @@ __metadata:
   languageName: node
   linkType: hard
 
+"expo-screen-orientation@npm:^55.0.13":
+  version: 55.0.13
+  resolution: "expo-screen-orientation@npm:55.0.13"
+  peerDependencies:
+    expo: "*"
+    react-native: "*"
+  checksum: 10c0/56fffdf738cb5fd47e3dccfe127289d32520ac1b2a99eb8144e1215ff0688a9d4266c971cc915af85e9e3c591aafbed5c5e0aa4f4457a54b0a1ae09c73939cfe
+  languageName: node
+  linkType: hard
+
 "expo-server@npm:^1.0.5":
   version: 1.0.5
   resolution: "expo-server@npm:1.0.5"
@@ -7748,6 +7758,7 @@ __metadata:
     expo-file-system: "npm:~19.0.21"
     expo-image-picker: "npm:~17.0.10"
     expo-location: "npm:~19.0.8"
+    expo-screen-orientation: "npm:^55.0.13"
     expo-status-bar: "npm:~3.0.9"
     expo-updates: "npm:~29.0.16"
     husky: "npm:^9.1.7"
