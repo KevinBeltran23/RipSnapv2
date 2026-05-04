@@ -1,8 +1,8 @@
 /**
  * useDetectionCapture — photo/video capture with detection metadata.
  *
- * Records detection data per-frame during video capture so bounding boxes
- * can be associated with the video in post-processing.
+ * After capture completes, returns session data so the caller can
+ * navigate to a review screen instead of showing an alert.
  */
 import { useCallback, useRef, useState } from 'react';
 import { Alert, Dimensions } from 'react-native';
@@ -12,8 +12,6 @@ import {
   generateSessionId,
   saveMediaFile,
   saveMetadataFile,
-  shareFile,
-  shareSession,
 } from '../utils/capture';
 import { YOLO_CONFIG } from '../config/yolo';
 
@@ -29,16 +27,26 @@ interface FrameRecord {
   }[];
 }
 
+/** Data returned after a successful capture. */
+export interface CaptureResult {
+  sessionId: string;
+  captureType: 'photo' | 'video';
+  mediaUri: string;
+  metadataUri: string;
+  metadata: object;
+}
+
 interface UseCaptureReturn {
-  /** 'idle' | 'photo' | 'recording' */
   captureMode: string;
   isProcessing: boolean;
   recordingSeconds: number;
-  takePhoto: (currentDetections: Detection[]) => Promise<void>;
+  takePhoto: (currentDetections: Detection[]) => Promise<CaptureResult | null>;
   startRecording: () => void;
   stopRecording: () => Promise<void>;
-  /** Call from the detection callback while recording to log frame data. */
   logFrame: (detections: Detection[]) => void;
+  /** Set externally when video recording finishes (via callback). */
+  lastVideoResult: CaptureResult | null;
+  clearLastVideoResult: () => void;
 }
 
 export function useDetectionCapture(
@@ -48,6 +56,7 @@ export function useDetectionCapture(
   const [captureMode, setCaptureMode] = useState('idle');
   const [isProcessing, setIsProcessing] = useState(false);
   const [recordingSeconds, setRecordingSeconds] = useState(0);
+  const [lastVideoResult, setLastVideoResult] = useState<CaptureResult | null>(null);
 
   const sessionIdRef = useRef<string | null>(null);
   const startTimeRef = useRef(0);
@@ -58,9 +67,9 @@ export function useDetectionCapture(
   /* ── Photo ─────────────────────────────────────────────────────────── */
 
   const takePhoto = useCallback(
-    async (currentDetections: Detection[]) => {
+    async (currentDetections: Detection[]): Promise<CaptureResult | null> => {
       const cam = cameraRef.current;
-      if (!cam || captureMode === 'recording') return;
+      if (!cam || captureMode === 'recording') return null;
 
       setCaptureMode('photo');
       setIsProcessing(true);
@@ -74,7 +83,7 @@ export function useDetectionCapture(
 
         const metadata = {
           sessionId,
-          captureType: 'photo',
+          captureType: 'photo' as const,
           timestamp: new Date().toISOString(),
           modelName: 'best_yolov8n_float32',
           modelInputSize: YOLO_CONFIG.INPUT_SIZE,
@@ -96,19 +105,13 @@ export function useDetectionCapture(
           ],
         };
 
-        const metaUri = await saveMetadataFile(sessionId, metadata);
+        const metadataUri = await saveMetadataFile(sessionId, metadata);
 
-        Alert.alert(
-          'Photo Captured',
-          `${currentDetections.length} detection(s) saved.`,
-          [
-            { text: 'OK' },
-            { text: 'Share', onPress: () => shareSession(mediaUri, metaUri) },
-          ],
-        );
+        return { sessionId, captureType: 'photo', mediaUri, metadataUri, metadata };
       } catch (e: any) {
         console.error('Photo capture failed:', e);
         Alert.alert('Capture Failed', e?.message ?? 'Could not take photo.');
+        return null;
       } finally {
         setIsProcessing(false);
         setCaptureMode('idle');
@@ -131,6 +134,7 @@ export function useDetectionCapture(
 
     setCaptureMode('recording');
     setRecordingSeconds(0);
+    setLastVideoResult(null);
 
     timerRef.current = setInterval(() => {
       setRecordingSeconds(Math.floor((Date.now() - startTimeRef.current) / 1000));
@@ -146,7 +150,7 @@ export function useDetectionCapture(
 
           const metadata = {
             sessionId,
-            captureType: 'video',
+            captureType: 'video' as const,
             startTime: new Date(startTimeRef.current).toISOString(),
             endTime: new Date().toISOString(),
             durationMs: Date.now() - startTimeRef.current,
@@ -159,17 +163,15 @@ export function useDetectionCapture(
             frames: framesRef.current,
           };
 
-          const metaUri = await saveMetadataFile(sessionId, metadata);
+          const metadataUri = await saveMetadataFile(sessionId, metadata);
 
-          Alert.alert(
-            'Video Saved',
-            `${Math.floor((metadata.durationMs) / 1000)}s · ${metadata.totalFrames} annotated frames`,
-            [
-              { text: 'OK' },
-              { text: 'Share Video', onPress: () => shareFile(mediaUri) },
-              { text: 'Share Metadata', onPress: () => shareFile(metaUri) },
-            ],
-          );
+          setLastVideoResult({
+            sessionId,
+            captureType: 'video',
+            mediaUri,
+            metadataUri,
+            metadata,
+          });
         } catch (e: any) {
           console.error('Video save failed:', e);
           Alert.alert('Save Failed', e?.message ?? 'Could not save video.');
@@ -197,7 +199,7 @@ export function useDetectionCapture(
     }
   }, [cameraRef, captureMode]);
 
-  /* ── Frame logging (call from detection callback while recording) ─── */
+  /* ── Frame logging ─────────────────────────────────────────────────── */
 
   const logFrame = useCallback((detections: Detection[]) => {
     if (!sessionIdRef.current) return;
@@ -215,6 +217,10 @@ export function useDetectionCapture(
     });
   }, []);
 
+  const clearLastVideoResult = useCallback(() => {
+    setLastVideoResult(null);
+  }, []);
+
   return {
     captureMode,
     isProcessing,
@@ -223,5 +229,7 @@ export function useDetectionCapture(
     startRecording,
     stopRecording,
     logFrame,
+    lastVideoResult,
+    clearLastVideoResult,
   };
 }

@@ -28,8 +28,12 @@ import { getBestFormat } from '../../utils/camera';
 import { processYoloOutput, Detection } from '../../utils';
 import { YOLO_CONFIG } from '../../config/yolo';
 import { useRunOnJS } from 'react-native-worklets-core';
-import { useDetectionCapture } from '../../hooks/useDetectionCapture';
+import {
+  useDetectionCapture,
+  CaptureResult,
+} from '../../hooks/useDetectionCapture';
 import CaptureControls from '../../components/detection/CaptureControls';
+import CaptureReviewScreen from './CaptureReviewScreen';
 
 function LiveDetectionScreen() {
   const isFocused = useIsFocused();
@@ -46,6 +50,9 @@ function LiveDetectionScreen() {
   const processingFrame = useSharedValue(false);
 
   const [latestDetections, setLatestDetections] = useState<Detection[]>([]);
+
+  // Review screen state — when set, shows review instead of camera
+  const [reviewResult, setReviewResult] = useState<CaptureResult | null>(null);
 
   const [orientation, setOrientation] = useState<ScreenOrientation.Orientation>(
     ScreenOrientation.Orientation.PORTRAIT_UP,
@@ -73,9 +80,19 @@ function LiveDetectionScreen() {
     startRecording,
     stopRecording,
     logFrame,
+    lastVideoResult,
+    clearLastVideoResult,
   } = useDetectionCapture(cameraRef, cameraPosition);
 
   const isRecording = captureMode === 'recording';
+
+  // When video recording finishes, navigate to review
+  useEffect(() => {
+    if (lastVideoResult) {
+      setReviewResult(lastVideoResult);
+      clearLastVideoResult();
+    }
+  }, [lastVideoResult, clearLastVideoResult]);
 
   useEffect(() => {
     if (!hasPermission) requestPermission();
@@ -122,12 +139,9 @@ function LiveDetectionScreen() {
     }
   }, [orientation]);
 
-  // Detection callback — also logs frames during recording
   const updateDetections = useCallback(
     (newDetections: Detection[]) => {
       setLatestDetections(newDetections);
-
-      // Log frame detections while recording video
       if (isRecording) {
         logFrame(newDetections);
       }
@@ -252,9 +266,34 @@ function LiveDetectionScreen() {
     setCameraPosition(prev => (prev === 'back' ? 'front' : 'back'));
   }, [captureMode]);
 
-  const handlePhoto = useCallback(() => {
-    takePhoto(latestDetections);
+  const handlePhoto = useCallback(async () => {
+    const result = await takePhoto(latestDetections);
+    if (result) {
+      setReviewResult(result);
+    }
   }, [takePhoto, latestDetections]);
+
+  const handleBackFromReview = useCallback(() => {
+    setReviewResult(null);
+  }, []);
+
+  const handleRecapture = useCallback(() => {
+    setReviewResult(null);
+  }, []);
+
+  /* ── If reviewing a capture, show the review screen ────────────────── */
+
+  if (reviewResult) {
+    return (
+      <CaptureReviewScreen
+        captureResult={reviewResult}
+        onBack={handleBackFromReview}
+        onRecapture={handleRecapture}
+      />
+    );
+  }
+
+  /* ── Normal camera view ────────────────────────────────────────────── */
 
   if (!hasPermission) {
     return (
@@ -288,7 +327,7 @@ function LiveDetectionScreen() {
         ref={cameraRef}
         style={StyleSheet.absoluteFill}
         device={device}
-        isActive={isFocused}
+        isActive={isFocused && !reviewResult}
         frameProcessor={frameProcessor}
         fps={30}
         format={format}
@@ -343,7 +382,6 @@ function LiveDetectionScreen() {
         />
       </Canvas>
 
-      {/* Camera switch — top right */}
       <View style={styles.switchWrap} pointerEvents="box-none">
         <Text
           style={styles.switchBtn}
@@ -355,7 +393,6 @@ function LiveDetectionScreen() {
         </Text>
       </View>
 
-      {/* Capture controls — bottom */}
       <CaptureControls
         captureMode={captureMode}
         isProcessing={isProcessing}

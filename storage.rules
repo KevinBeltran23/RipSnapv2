@@ -1,12 +1,22 @@
 rules_version = '2';
 
-// Craft rules based on data in your Firestore database
-// allow write: if firestore.get(
-//    /databases/(default)/documents/users/$(request.auth.uid)).data.isAdmin;
 service firebase.storage {
   match /b/{bucket}/o {
+    // Legacy paths — keep locked down
     match /{allPaths=**} {
       allow read, write: if false;
+    }
+
+    // Legacy location media — authenticated users can read/write
+    match /locations/{locationId}/{allPaths=**} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null;
+    }
+
+    // RipSnap captures — authenticated users can write to their own folder
+    match /ripsnap_captures/{userId}/{allPaths=**} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && request.auth.uid == userId;
     }
   }
 }
