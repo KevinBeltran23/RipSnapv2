@@ -43,7 +43,6 @@ export async function createUserProfile(user: {
     colorBlindMode: 'none',
     highContrast: false,
     defaultDisabilityCategory: null,
-    isAdmin: false,
     hasAcceptedTerms: false,
   };
 

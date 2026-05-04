@@ -56,7 +56,6 @@ function PopupSheet({
     contextSelectedLocation,
     firestoreLocationMetadata,
     isPinPlacementMode,
-    user,
     handleSheetChanges,
     handleMediaSelected,
     handleCategorySelect,
@@ -474,7 +473,7 @@ function PopupSheet({
                 onPress={closeModal}
                 style={s.commonModalButtonBase}
               />
-              {user?.isAdmin && modalMedia && (
+              {modalMedia && (
                 <Button
                   variant="danger"
                   label="Delete"

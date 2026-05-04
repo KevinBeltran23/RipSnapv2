@@ -9,6 +9,5 @@ export interface User {
   colorBlindMode: 'none' | 'red-green';
   highContrast: boolean;
   defaultDisabilityCategory: number | null;
-  isAdmin?: boolean;
   hasAcceptedTerms?: boolean;
 }

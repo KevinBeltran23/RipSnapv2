@@ -66,7 +66,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
   );
 
   const firestoreUnsubscribeRef = React.useRef<(() => void) | null>(null);
-  const prevIsAdminRef = React.useRef<boolean | null>(null);
 
   useEffect(() => {
     const authUnsubscribe = onAuthStateChanged(auth, async firebaseUser => {
@@ -86,18 +85,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
           async docSnapshot => {
             if (docSnapshot.exists()) {
               const profile = docSnapshot.data() as User;
-              if (
-                prevIsAdminRef.current !== null &&
-                prevIsAdminRef.current !== profile.isAdmin &&
-                firebaseUser
-              ) {
-                firebaseUser
-                  .getIdToken(true)
-                  .catch(e =>
-                    console.warn('Token refresh after admin change failed:', e),
-                  );
-              }
-              prevIsAdminRef.current = !!profile.isAdmin;
               setUser(profile);
               userStorage.set('cached-user', JSON.stringify(profile));
             } else {

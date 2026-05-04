@@ -361,8 +361,7 @@ export function usePopupSheet({
   const closeModal = () => setModalMedia(null);
 
   const handleDeleteMedia = async () => {
-    if (!modalMedia || !location || !user?.isAdmin) {
-      Alert.alert('Permission Denied', 'You must be an admin to delete media.');
+    if (!modalMedia || !location) {
       return;
     }
     Alert.alert(

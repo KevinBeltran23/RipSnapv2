@@ -4,41 +4,19 @@ service cloud.firestore {
     // Location metadata
     match /locations/{locationId} {
       allow read: if request.auth != null;
-      // Allow any authenticated user to create or update a location
       allow create, update: if request.auth != null;
-      // Allow only authenticated admin users to delete locations
-      allow delete: if request.auth != null && request.auth.token.isAdmin == true;
+      allow delete: if request.auth != null;
     }
 
     // User settings and profiles - users can only access their own data
     match /users/{userId} {
-      // Users can read their own profile
       allow read: if request.auth != null && request.auth.uid == userId;
-
-      // Allow creation of new user profiles
-      // New profiles must have isAdmin set to false at creation time.
-      allow create: if request.auth != null
-                    && request.auth.uid == userId
-                    && request.resource.data.isAdmin == false;
-
-      // Allow authenticated users to update their OWN document.
-      // IMPORTANT: They cannot modify the 'isAdmin' field to a different value.
-      // If 'isAdmin' is included in the update request, its new value must match its old value.
-      // The Cloud Function (running with Admin SDK privileges) bypasses these rules.
-      allow update: if request.auth != null
-                    && request.auth.uid == userId
-                    // This condition ensures that:
-                    // 1. If 'isAdmin' is NOT in the request data, the update is allowed (for other fields).
-                    // 2. If 'isAdmin' IS in the request data, its new value MUST be equal to its current value.
-                    // The Cloud Function (running with Admin SDK privileges) bypasses these rules.
-                    && (!("isAdmin" in request.resource.data) || request.resource.data.isAdmin == resource.data.isAdmin);
-
-      // Deny users from deleting their own profile documents from the frontend
+      allow create: if request.auth != null && request.auth.uid == userId;
+      allow update: if request.auth != null && request.auth.uid == userId;
       allow delete: if false;
     }
 
-    // RipSnap detection captures — authenticated users can create,
-    // and read their own captures
+    // RipSnap detection captures
     match /ripsnap_captures/{captureId} {
       allow create: if request.auth != null;
       allow read: if request.auth != null
