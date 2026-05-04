@@ -28,6 +28,8 @@ import { getBestFormat } from '../../utils/camera';
 import { processYoloOutput, Detection } from '../../utils';
 import { YOLO_CONFIG } from '../../config/yolo';
 import { useRunOnJS } from 'react-native-worklets-core';
+import { useDetectionCapture } from '../../hooks/useDetectionCapture';
+import CaptureControls from '../../components/detection/CaptureControls';
 
 function LiveDetectionScreen() {
   const isFocused = useIsFocused();
@@ -37,6 +39,7 @@ function LiveDetectionScreen() {
   );
   const device = useCameraDevice(cameraPosition);
   const { resize } = useResizePlugin();
+  const cameraRef = useRef<Camera>(null);
 
   const detectionsShared = useSharedValue<Detection[]>([]);
   const frameSkipCounter = useSharedValue(0);
@@ -44,7 +47,6 @@ function LiveDetectionScreen() {
 
   const [latestDetections, setLatestDetections] = useState<Detection[]>([]);
 
-  // Track current orientation for resize rotation
   const [orientation, setOrientation] = useState<ScreenOrientation.Orientation>(
     ScreenOrientation.Orientation.PORTRAIT_UP,
   );
@@ -62,26 +64,32 @@ function LiveDetectionScreen() {
 
   const pixelFormat = Platform.OS === 'ios' ? 'rgb' : 'yuv';
 
+  // Capture hook
+  const {
+    captureMode,
+    isProcessing,
+    recordingSeconds,
+    takePhoto,
+    startRecording,
+    stopRecording,
+    logFrame,
+  } = useDetectionCapture(cameraRef, cameraPosition);
+
+  const isRecording = captureMode === 'recording';
+
   useEffect(() => {
     if (!hasPermission) requestPermission();
   }, [hasPermission, requestPermission]);
 
-  // Unlock orientation on mount, lock back to portrait on unmount
   useEffect(() => {
     ScreenOrientation.unlockAsync();
-
     const sub = ScreenOrientation.addOrientationChangeListener(event => {
       setOrientation(event.orientationInfo.orientation);
     });
-
-    // Get initial orientation
     ScreenOrientation.getOrientationAsync().then(setOrientation);
-
     return () => {
       ScreenOrientation.removeOrientationChangeListener(sub);
-      ScreenOrientation.lockAsync(
-        ScreenOrientation.OrientationLock.PORTRAIT_UP,
-      );
+      ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP);
     };
   }, []);
 
@@ -97,12 +105,8 @@ function LiveDetectionScreen() {
   const inputWidth = inputTensor?.shape[2] ?? YOLO_CONFIG.INPUT_SIZE;
   const inputHeight = inputTensor?.shape[1] ?? YOLO_CONFIG.INPUT_SIZE;
 
-  // useWindowDimensions updates reactively on orientation change
   const { width: viewWidth, height: viewHeight } = useWindowDimensions();
 
-  // Determine the rotation to apply to the camera frame before feeding the model.
-  // iOS camera sensor is landscape-right. We need to rotate the frame so the model
-  // sees an upright image matching the current device orientation.
   const resizeRotation = useMemo((): '0deg' | '90deg' | '180deg' | '270deg' => {
     switch (orientation) {
       case ScreenOrientation.Orientation.PORTRAIT_UP:
@@ -118,32 +122,24 @@ function LiveDetectionScreen() {
     }
   }, [orientation]);
 
-  const diagRef = useRef(0);
-  const updateDetections = useCallback((newDetections: Detection[]) => {
-    diagRef.current++;
-    if (diagRef.current % 30 === 1) {
-      if (newDetections.length > 0) {
-        const d = newDetections[0];
-        console.log(
-          `[DET] count=${newDetections.length} top: ${d.className} conf=${d.confidence.toFixed(3)} bbox=[${d.bbox.map(v => v.toFixed(1)).join(',')}]`,
-        );
-      } else {
-        console.log('[DET] count=0');
+  // Detection callback — also logs frames during recording
+  const updateDetections = useCallback(
+    (newDetections: Detection[]) => {
+      setLatestDetections(newDetections);
+
+      // Log frame detections while recording video
+      if (isRecording) {
+        logFrame(newDetections);
       }
-    }
-    setLatestDetections(newDetections);
-  }, []);
+    },
+    [isRecording, logFrame],
+  );
 
   const updateDetectionsOnJS = useRunOnJS(updateDetections, [updateDetections]);
 
   const logErrorOnJS = useRunOnJS(
-    (
-      message: string,
-      error: unknown,
-      errorMessage?: string,
-      errorStack?: string,
-    ) => {
-      console.error(message, error, errorMessage, errorStack);
+    (message: string, error: unknown, errorMessage?: string) => {
+      console.error(message, error, errorMessage);
     },
     [],
   );
@@ -163,10 +159,7 @@ function LiveDetectionScreen() {
 
       try {
         const resizedFrame = resize(frame, {
-          scale: {
-            width: inputWidth,
-            height: inputHeight,
-          },
+          scale: { width: inputWidth, height: inputHeight },
           pixelFormat: 'rgb',
           dataType: 'float32',
           rotation: resizeRotation,
@@ -174,13 +167,11 @@ function LiveDetectionScreen() {
 
         const outputs = yoloModel.model.runSync([resizedFrame]);
         const output = outputs[0];
-
         const outputArray =
           output instanceof Float32Array
             ? output
             : new Float32Array(output.buffer || output);
 
-        // Get normalized 0-1 bboxes from the model
         const processedDetections = processYoloOutput(
           outputArray,
           1.0,
@@ -189,9 +180,7 @@ function LiveDetectionScreen() {
           yoloModel.model?.outputs[0]?.shape,
         );
 
-        // Map normalized coords → screen coords
         const mirror = cameraPosition === 'front';
-
         const mapped: Detection[] = [];
         for (let i = 0; i < processedDetections.length; i++) {
           const d = processedDetections[i];
@@ -218,8 +207,6 @@ function LiveDetectionScreen() {
           error,
           // @ts-ignore
           error?.message,
-          // @ts-ignore
-          error?.stack,
         );
       } finally {
         processingFrame.value = false;
@@ -261,8 +248,13 @@ function LiveDetectionScreen() {
   const detectionCount = latestDetections.length;
 
   const toggleCamera = useCallback(() => {
+    if (captureMode !== 'idle') return;
     setCameraPosition(prev => (prev === 'back' ? 'front' : 'back'));
-  }, []);
+  }, [captureMode]);
+
+  const handlePhoto = useCallback(() => {
+    takePhoto(latestDetections);
+  }, [takePhoto, latestDetections]);
 
   if (!hasPermission) {
     return (
@@ -289,10 +281,11 @@ function LiveDetectionScreen() {
   }
 
   return (
-    <View style={styles.container} onTouchEnd={toggleCamera}>
+    <View style={styles.container}>
       <StatusBar barStyle="light-content" />
 
       <Camera
+        ref={cameraRef}
         style={StyleSheet.absoluteFill}
         device={device}
         isActive={isFocused}
@@ -301,12 +294,12 @@ function LiveDetectionScreen() {
         format={format}
         pixelFormat={pixelFormat}
         outputOrientation="device"
-        photo={false}
-        video={false}
+        photo={true}
+        video={true}
         audio={false}
       />
 
-      <Canvas style={StyleSheet.absoluteFill}>
+      <Canvas style={StyleSheet.absoluteFill} pointerEvents="none">
         {boundingBoxes.map(box => (
           <React.Fragment key={box.id}>
             <Rect
@@ -350,11 +343,27 @@ function LiveDetectionScreen() {
         />
       </Canvas>
 
-      <View style={styles.instructionsContainer}>
-        <Text style={styles.instructionsText}>
-          Tap to switch camera • YOLO Object Detection
+      {/* Camera switch — top right */}
+      <View style={styles.switchWrap} pointerEvents="box-none">
+        <Text
+          style={styles.switchBtn}
+          onPress={toggleCamera}
+          accessibilityLabel="Switch camera"
+          accessibilityRole="button"
+        >
+          ⟲
         </Text>
       </View>
+
+      {/* Capture controls — bottom */}
+      <CaptureControls
+        captureMode={captureMode}
+        isProcessing={isProcessing}
+        recordingSeconds={recordingSeconds}
+        onPhoto={handlePhoto}
+        onRecordStart={startRecording}
+        onRecordStop={stopRecording}
+      />
     </View>
   );
 }
@@ -368,21 +377,23 @@ const styles = StyleSheet.create({
     color: 'white',
     fontSize: 18,
     textAlign: 'center',
+    marginTop: 100,
   },
-  instructionsContainer: {
+  switchWrap: {
     position: 'absolute',
-    bottom: 50,
-    left: 0,
-    right: 0,
-    alignItems: 'center',
+    top: 60,
+    right: 16,
   },
-  instructionsText: {
+  switchBtn: {
     color: 'white',
-    fontSize: 14,
-    backgroundColor: 'rgba(0, 0, 0, 0.6)',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 8,
+    fontSize: 26,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    width: 44,
+    height: 44,
+    lineHeight: 42,
+    textAlign: 'center',
+    borderRadius: 22,
+    overflow: 'hidden',
   },
 });
 
