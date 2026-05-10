@@ -35,7 +35,11 @@ import * as ScreenOrientation from 'expo-screen-orientation';
 import Icon from '@expo/vector-icons/MaterialCommunityIcons';
 import { getBestFormat } from '../../utils/camera';
 import { processObjectDetectionOutputs, Detection } from '../../utils';
-import { DETECTION_CONFIG, RIP_CURRENT_MODEL } from '../../config/detection';
+import {
+  DETECTION_CONFIG,
+  RIP_CURRENT_MODEL,
+  RIP_CURRENT_MODELS,
+} from '../../config/detection';
 import { useRunOnJS } from 'react-native-worklets-core';
 import {
   useDetectionCapture,
@@ -65,8 +69,18 @@ function LiveDetectionScreen() {
   const [orientation, setOrientation] = useState<ScreenOrientation.Orientation>(
     ScreenOrientation.Orientation.PORTRAIT_UP,
   );
+  const [selectedModelName, setSelectedModelName] = useState<string>(
+    RIP_CURRENT_MODEL.name,
+  );
+  const [isModelMenuOpen, setIsModelMenuOpen] = useState(false);
 
-  const ripCurrentModel = useTensorflowModel(RIP_CURRENT_MODEL.asset);
+  const selectedModel = useMemo(
+    () =>
+      RIP_CURRENT_MODELS.find(model => model.name === selectedModelName) ??
+      RIP_CURRENT_MODEL,
+    [selectedModelName],
+  );
+  const ripCurrentModel = useTensorflowModel(selectedModel.asset);
 
   const format = useMemo(
     () => (device != null ? getBestFormat(device, 720, 1280) : undefined),
@@ -85,7 +99,7 @@ function LiveDetectionScreen() {
     logFrame,
     lastVideoResult,
     clearLastVideoResult,
-  } = useDetectionCapture(cameraRef, cameraPosition);
+  } = useDetectionCapture(cameraRef, cameraPosition, selectedModel);
 
   const isRecording = captureMode === 'recording';
 
@@ -117,10 +131,17 @@ function LiveDetectionScreen() {
   useEffect(() => {
     const model = ripCurrentModel.model;
     if (model == null) return;
-    console.log(`${RIP_CURRENT_MODEL.displayName} loaded successfully`);
+    console.log(`${selectedModel.displayName} loaded successfully`);
     console.log(`Input shape: ${model.inputs[0]?.shape}`);
     console.log(`Output shape: ${model.outputs[0]?.shape}`);
-  }, [ripCurrentModel]);
+  }, [ripCurrentModel, selectedModel]);
+
+  useEffect(() => {
+    setLatestDetections([]);
+    detectionsShared.value = [];
+    frameSkipCounter.value = 0;
+    processingFrame.value = false;
+  }, [selectedModelName, detectionsShared, frameSkipCounter, processingFrame]);
 
   const inputTensor = ripCurrentModel.model?.inputs[0];
   const inputWidth =
@@ -271,6 +292,20 @@ function LiveDetectionScreen() {
     setCameraPosition(prev => (prev === 'back' ? 'front' : 'back'));
   }, [captureMode]);
 
+  const toggleModelMenu = useCallback(() => {
+    if (captureMode !== 'idle') return;
+    setIsModelMenuOpen(prev => !prev);
+  }, [captureMode]);
+
+  const selectModel = useCallback(
+    (modelName: string) => {
+      if (captureMode !== 'idle') return;
+      setSelectedModelName(modelName);
+      setIsModelMenuOpen(false);
+    },
+    [captureMode],
+  );
+
   const handlePhoto = useCallback(async () => {
     const result = await takePhoto(latestDetections);
     if (result) {
@@ -385,9 +420,32 @@ function LiveDetectionScreen() {
           </Text>
         </View>
 
+        {/* Model selector */}
+        <TouchableOpacity
+          style={[
+            styles.modelBtn,
+            captureMode !== 'idle' && styles.disabledControl,
+          ]}
+          onPress={toggleModelMenu}
+          disabled={captureMode !== 'idle'}
+          accessibilityLabel="Select detection model"
+          accessibilityRole="button"
+        >
+          <Icon name="chip" size={16} color="#fff" />
+          <Text style={styles.modelBtnText}>{selectedModel.shortName}</Text>
+          <Icon
+            name={isModelMenuOpen ? 'chevron-up' : 'chevron-down'}
+            size={16}
+            color="#fff"
+          />
+        </TouchableOpacity>
+
         {/* Camera switch button */}
         <TouchableOpacity
-          style={styles.iconBtn}
+          style={[
+            styles.iconBtn,
+            captureMode !== 'idle' && styles.disabledControl,
+          ]}
           onPress={toggleCamera}
           disabled={captureMode !== 'idle'}
           accessibilityLabel="Switch camera"
@@ -396,6 +454,34 @@ function LiveDetectionScreen() {
           <Icon name="camera-flip-outline" size={22} color="#fff" />
         </TouchableOpacity>
       </View>
+
+      {isModelMenuOpen && captureMode === 'idle' && (
+        <View style={[styles.modelMenu, { top: safeTop + 60 }]}>
+          {RIP_CURRENT_MODELS.map(model => {
+            const selected = model.name === selectedModel.name;
+            return (
+              <TouchableOpacity
+                key={model.name}
+                style={[
+                  styles.modelOption,
+                  selected && styles.modelOptionSelected,
+                ]}
+                onPress={() => selectModel(model.name)}
+                accessibilityLabel={`Use ${model.displayName}`}
+                accessibilityRole="button"
+              >
+                <View>
+                  <Text style={styles.modelOptionTitle}>{model.shortName}</Text>
+                  <Text style={styles.modelOptionSubtitle}>
+                    {model.inputSize}x{model.inputSize}
+                  </Text>
+                </View>
+                {selected && <Icon name="check" size={18} color="#fff" />}
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+      )}
 
       {/* Model loading indicator */}
       {ripCurrentModel.model == null && (
@@ -460,6 +546,52 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0, 0, 0, 0.6)',
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  modelBtn: {
+    height: 36,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    paddingHorizontal: 10,
+    borderRadius: 18,
+  },
+  modelBtnText: {
+    color: '#fff',
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  disabledControl: {
+    opacity: 0.45,
+  },
+  modelMenu: {
+    position: 'absolute',
+    right: 16,
+    width: 190,
+    backgroundColor: 'rgba(0, 0, 0, 0.82)',
+    borderRadius: 8,
+    overflow: 'hidden',
+  },
+  modelOption: {
+    minHeight: 52,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  modelOptionSelected: {
+    backgroundColor: 'rgba(255, 255, 255, 0.16)',
+  },
+  modelOptionTitle: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  modelOptionSubtitle: {
+    color: 'rgba(255, 255, 255, 0.72)',
+    fontSize: 12,
+    marginTop: 2,
   },
   loadingPill: {
     position: 'absolute',

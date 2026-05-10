@@ -10,25 +10,25 @@ src/config/detection.ts
 
 This config points at the rip-current TFLite models in this folder.
 
-## Current Model
+## Model Selection
 
-The app is currently configured to use:
+The live feed has an in-app model selector in the top HUD. Switching is disabled
+while recording so one video capture does not mix detections from multiple
+models.
+
+The default model is:
 
 ```text
 efficientdet_lite0.tflite
 ```
 
-The model is loaded from `src/config/detection.ts`:
+The selectable models are registered in `src/config/detection.ts`:
 
 ```ts
-export const RIP_CURRENT_MODEL = {
-  name: 'efficientdet_lite0',
-  displayName: 'EfficientDet Lite0 Rip Current',
-  architecture: 'tflite_object_detection',
-  asset: require('../../ripsnap_models/efficientdet_lite0.tflite'),
-  inputSize: 320,
-  labels: RIP_CURRENT_CLASSES,
-} as const;
+export const RIP_CURRENT_MODELS = [
+  // efficientdet_lite0, efficientdet_lite1, efficientdet_lite2,
+  // and ssd_mobilenet_v1
+];
 ```
 
 ## Available Models
@@ -83,47 +83,53 @@ current TFLite files in this folder do not include label metadata. If a future
 model is trained with multiple classes, update `RIP_CURRENT_CLASSES` in
 `src/config/detection.ts` to match the model's class order exactly.
 
-## Switching Models
+## Changing the Default Model
 
-To switch models, edit `RIP_CURRENT_MODEL` in `src/config/detection.ts`.
+To change the startup default, reorder `RIP_CURRENT_MODELS` in
+`src/config/detection.ts` or update the exported `RIP_CURRENT_MODEL`.
+
+The app already includes selectable entries for all bundled TFLite models.
 
 Example for `efficientdet_lite1.tflite`:
 
 ```ts
-export const RIP_CURRENT_MODEL = {
+{
   name: 'efficientdet_lite1',
   displayName: 'EfficientDet Lite1 Rip Current',
+  shortName: 'Lite1',
   architecture: 'tflite_object_detection',
   asset: require('../../ripsnap_models/efficientdet_lite1.tflite'),
   inputSize: 384,
   labels: RIP_CURRENT_CLASSES,
-} as const;
+}
 ```
 
 Example for `efficientdet_lite2.tflite`:
 
 ```ts
-export const RIP_CURRENT_MODEL = {
+{
   name: 'efficientdet_lite2',
   displayName: 'EfficientDet Lite2 Rip Current',
+  shortName: 'Lite2',
   architecture: 'tflite_object_detection',
   asset: require('../../ripsnap_models/efficientdet_lite2.tflite'),
   inputSize: 448,
   labels: RIP_CURRENT_CLASSES,
-} as const;
+}
 ```
 
 Example for `ssd_mobilenet_v1.tflite`:
 
 ```ts
-export const RIP_CURRENT_MODEL = {
+{
   name: 'ssd_mobilenet_v1',
   displayName: 'SSD MobileNet V1 Rip Current',
+  shortName: 'SSD',
   architecture: 'tflite_object_detection',
   asset: require('../../ripsnap_models/ssd_mobilenet_v1.tflite'),
   inputSize: 300,
   labels: RIP_CURRENT_CLASSES,
-} as const;
+}
 ```
 
-After switching, restart Metro so the new asset is bundled.
+Restart Metro after adding a new model file so the asset is bundled.

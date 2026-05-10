@@ -13,7 +13,7 @@ import {
   saveMediaFile,
   saveMetadataFile,
 } from '../utils/capture';
-import { RIP_CURRENT_MODEL } from '../config/detection';
+import type { RipCurrentModelConfig } from '../config/detection';
 
 interface FrameRecord {
   timestamp: string;
@@ -52,6 +52,7 @@ interface UseCaptureReturn {
 export function useDetectionCapture(
   cameraRef: React.RefObject<Camera | null>,
   cameraPosition: 'front' | 'back',
+  modelConfig: Pick<RipCurrentModelConfig, 'name' | 'inputSize'>,
 ): UseCaptureReturn {
   const [captureMode, setCaptureMode] = useState('idle');
   const [isProcessing, setIsProcessing] = useState(false);
@@ -91,8 +92,8 @@ export function useDetectionCapture(
           sessionId,
           captureType: 'photo' as const,
           timestamp: new Date().toISOString(),
-          modelName: RIP_CURRENT_MODEL.name,
-          modelInputSize: RIP_CURRENT_MODEL.inputSize,
+          modelName: modelConfig.name,
+          modelInputSize: modelConfig.inputSize,
           screenWidth: width,
           screenHeight: height,
           cameraPosition,
@@ -129,7 +130,7 @@ export function useDetectionCapture(
         setCaptureMode('idle');
       }
     },
-    [cameraRef, cameraPosition, captureMode],
+    [cameraRef, cameraPosition, captureMode, modelConfig],
   );
 
   /* ── Video ─────────────────────────────────────────────────────────── */
@@ -172,8 +173,8 @@ export function useDetectionCapture(
             startTime: new Date(startTimeRef.current).toISOString(),
             endTime: new Date().toISOString(),
             durationMs: Date.now() - startTimeRef.current,
-            modelName: RIP_CURRENT_MODEL.name,
-            modelInputSize: RIP_CURRENT_MODEL.inputSize,
+            modelName: modelConfig.name,
+            modelInputSize: modelConfig.inputSize,
             screenWidth: width,
             screenHeight: height,
             cameraPosition,
@@ -204,7 +205,7 @@ export function useDetectionCapture(
         Alert.alert('Recording Error', error.message);
       },
     });
-  }, [cameraRef, cameraPosition, captureMode]);
+  }, [cameraRef, cameraPosition, captureMode, modelConfig]);
 
   const stopRecording = useCallback(async () => {
     if (timerRef.current) {
