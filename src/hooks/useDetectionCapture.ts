@@ -13,7 +13,7 @@ import {
   saveMediaFile,
   saveMetadataFile,
 } from '../utils/capture';
-import { RIP_CURRENT_MODEL } from '../config/yolo';
+import { RIP_CURRENT_MODEL } from '../config/detection';
 
 interface FrameRecord {
   timestamp: string;

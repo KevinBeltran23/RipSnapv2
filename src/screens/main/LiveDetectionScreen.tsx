@@ -35,7 +35,7 @@ import * as ScreenOrientation from 'expo-screen-orientation';
 import Icon from '@expo/vector-icons/MaterialCommunityIcons';
 import { getBestFormat } from '../../utils/camera';
 import { processObjectDetectionOutputs, Detection } from '../../utils';
-import { DETECTION_CONFIG, RIP_CURRENT_MODEL } from '../../config/yolo';
+import { DETECTION_CONFIG, RIP_CURRENT_MODEL } from '../../config/detection';
 import { useRunOnJS } from 'react-native-worklets-core';
 import {
   useDetectionCapture,

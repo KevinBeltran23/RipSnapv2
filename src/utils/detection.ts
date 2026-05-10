@@ -4,7 +4,7 @@
  * The ripsnap_models exports use the TensorFlow object-detection postprocess
  * shape: boxes, classes, scores, and detection count.
  */
-import { DETECTION_CONFIG, RIP_CURRENT_CLASSES } from '../config/yolo';
+import { DETECTION_CONFIG, RIP_CURRENT_CLASSES } from '../config/detection';
 
 export interface Detection {
   bbox: [number, number, number, number]; // [x, y, width, height]

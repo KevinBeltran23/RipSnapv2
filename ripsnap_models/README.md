@@ -5,11 +5,10 @@ These are the rip-current detection models used by the React Native app.
 The live camera feed is configured in:
 
 ```text
-src/config/yolo.ts
+src/config/detection.ts
 ```
 
-Despite the old file name, this config now points at the rip-current TFLite
-models in this folder, not the old accessibility YOLO models.
+This config points at the rip-current TFLite models in this folder.
 
 ## Current Model
 
@@ -19,7 +18,7 @@ The app is currently configured to use:
 efficientdet_lite0.tflite
 ```
 
-The model is loaded from `src/config/yolo.ts`:
+The model is loaded from `src/config/detection.ts`:
 
 ```ts
 export const RIP_CURRENT_MODEL = {
@@ -49,8 +48,8 @@ is used for saved capture metadata and as a fallback.
 
 ## Output Parsing
 
-These models use TensorFlow object-detection postprocess outputs, not YOLO
-channels-first output.
+These models use TensorFlow object-detection postprocess outputs, not a
+single channels-first output tensor.
 
 The parser in `src/utils/detection.ts` expects four outputs:
 
@@ -82,11 +81,11 @@ That came from the legacy Swift `RipSnap` label maps. The legacy repo also had
 older label variants such as `sediment_rip` and `rip_current_T1`, but the
 current TFLite files in this folder do not include label metadata. If a future
 model is trained with multiple classes, update `RIP_CURRENT_CLASSES` in
-`src/config/yolo.ts` to match the model's class order exactly.
+`src/config/detection.ts` to match the model's class order exactly.
 
 ## Switching Models
 
-To switch models, edit `RIP_CURRENT_MODEL` in `src/config/yolo.ts`.
+To switch models, edit `RIP_CURRENT_MODEL` in `src/config/detection.ts`.
 
 Example for `efficientdet_lite1.tflite`:
 
