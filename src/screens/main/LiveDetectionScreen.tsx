@@ -1,4 +1,10 @@
-﻿import React, { useEffect, useState, useMemo, useCallback, useRef } from 'react';
+﻿import React, {
+  useEffect,
+  useState,
+  useMemo,
+  useCallback,
+  useRef,
+} from 'react';
 import {
   View,
   Text,
@@ -28,8 +34,12 @@ import { useSharedValue } from 'react-native-reanimated';
 import * as ScreenOrientation from 'expo-screen-orientation';
 import Icon from '@expo/vector-icons/MaterialCommunityIcons';
 import { getBestFormat } from '../../utils/camera';
-import { processYoloOutput, Detection } from '../../utils';
-import { YOLO_CONFIG } from '../../config/yolo';
+import { processObjectDetectionOutputs, Detection } from '../../utils';
+import {
+  DETECTION_CONFIG,
+  RIP_CURRENT_MODEL,
+  RIP_CURRENT_MODELS,
+} from '../../config/detection';
 import { useRunOnJS } from 'react-native-worklets-core';
 import {
   useDetectionCapture,
@@ -56,15 +66,18 @@ function LiveDetectionScreen() {
   const [latestDetections, setLatestDetections] = useState<Detection[]>([]);
   const [reviewResult, setReviewResult] = useState<CaptureResult | null>(null);
 
-  const [orientation, setOrientation] = useState<ScreenOrientation.Orientation>(
-    ScreenOrientation.Orientation.PORTRAIT_UP,
+  const [selectedModelName, setSelectedModelName] = useState<string>(
+    RIP_CURRENT_MODEL.name,
   );
+  const [isModelMenuOpen, setIsModelMenuOpen] = useState(false);
 
-  const delegate = Platform.OS === 'ios' ? 'core-ml' : undefined;
-  const yoloModel = useTensorflowModel(
-    require('../../assets/models/best_yolov8n_float32.tflite'),
-    delegate,
+  const selectedModel = useMemo(
+    () =>
+      RIP_CURRENT_MODELS.find(model => model.name === selectedModelName) ??
+      RIP_CURRENT_MODEL,
+    [selectedModelName],
   );
+  const ripCurrentModel = useTensorflowModel(selectedModel.asset);
 
   const format = useMemo(
     () => (device != null ? getBestFormat(device, 720, 1280) : undefined),
@@ -83,7 +96,7 @@ function LiveDetectionScreen() {
     logFrame,
     lastVideoResult,
     clearLastVideoResult,
-  } = useDetectionCapture(cameraRef, cameraPosition);
+  } = useDetectionCapture(cameraRef, cameraPosition, selectedModel);
 
   const isRecording = captureMode === 'recording';
 
@@ -100,44 +113,47 @@ function LiveDetectionScreen() {
 
   useEffect(() => {
     ScreenOrientation.unlockAsync();
-    const sub = ScreenOrientation.addOrientationChangeListener(event => {
-      setOrientation(event.orientationInfo.orientation);
-    });
-    ScreenOrientation.getOrientationAsync().then(setOrientation);
     return () => {
-      ScreenOrientation.removeOrientationChangeListener(sub);
-      ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP);
+      ScreenOrientation.lockAsync(
+        ScreenOrientation.OrientationLock.PORTRAIT_UP,
+      );
     };
   }, []);
 
   useEffect(() => {
-    const model = yoloModel.model;
+    if (reviewResult) {
+      ScreenOrientation.lockAsync(
+        ScreenOrientation.OrientationLock.PORTRAIT_UP,
+      );
+    } else {
+      ScreenOrientation.unlockAsync();
+    }
+  }, [reviewResult]);
+
+  useEffect(() => {
+    const model = ripCurrentModel.model;
     if (model == null) return;
-    console.log('YOLO Model loaded successfully');
+    console.log(`${selectedModel.displayName} loaded successfully`);
     console.log(`Input shape: ${model.inputs[0]?.shape}`);
     console.log(`Output shape: ${model.outputs[0]?.shape}`);
-  }, [yoloModel]);
+  }, [ripCurrentModel, selectedModel]);
 
-  const inputTensor = yoloModel.model?.inputs[0];
-  const inputWidth = inputTensor?.shape[2] ?? YOLO_CONFIG.INPUT_SIZE;
-  const inputHeight = inputTensor?.shape[1] ?? YOLO_CONFIG.INPUT_SIZE;
+  useEffect(() => {
+    setLatestDetections([]);
+    detectionsShared.value = [];
+    frameSkipCounter.value = 0;
+    processingFrame.value = false;
+  }, [selectedModelName, detectionsShared, frameSkipCounter, processingFrame]);
+
+  const inputTensor = ripCurrentModel.model?.inputs[0];
+  const inputWidth =
+    inputTensor?.shape[2] ?? DETECTION_CONFIG.DEFAULT_INPUT_SIZE;
+  const inputHeight =
+    inputTensor?.shape[1] ?? DETECTION_CONFIG.DEFAULT_INPUT_SIZE;
+  const inputDataType = inputTensor?.dataType === 'uint8' ? 'uint8' : 'float32';
 
   const { width: viewWidth, height: viewHeight } = useWindowDimensions();
-
-  const resizeRotation = useMemo((): '0deg' | '90deg' | '180deg' | '270deg' => {
-    switch (orientation) {
-      case ScreenOrientation.Orientation.PORTRAIT_UP:
-        return '90deg';
-      case ScreenOrientation.Orientation.LANDSCAPE_LEFT:
-        return '0deg';
-      case ScreenOrientation.Orientation.PORTRAIT_DOWN:
-        return '270deg';
-      case ScreenOrientation.Orientation.LANDSCAPE_RIGHT:
-        return '180deg';
-      default:
-        return '90deg';
-    }
-  }, [orientation]);
+  const isLandscape = viewWidth > viewHeight;
 
   const updateDetections = useCallback(
     (newDetections: Detection[]) => {
@@ -162,7 +178,7 @@ function LiveDetectionScreen() {
     frame => {
       'worklet';
 
-      if (yoloModel.model == null) return;
+      if (ripCurrentModel.model == null) return;
 
       frameSkipCounter.value = (frameSkipCounter.value + 1) % 3;
       if (frameSkipCounter.value !== 0 || processingFrame.value) {
@@ -172,26 +188,36 @@ function LiveDetectionScreen() {
       processingFrame.value = true;
 
       try {
+        let resizeRotation: '0deg' | '90deg' | '180deg' | '270deg' = '0deg';
+        switch (frame.orientation) {
+          case 'portrait':
+            resizeRotation = '0deg';
+            break;
+          case 'landscape-left':
+            resizeRotation = '270deg';
+            break;
+          case 'portrait-upside-down':
+            resizeRotation = '180deg';
+            break;
+          case 'landscape-right':
+            resizeRotation = '90deg';
+            break;
+        }
+
         const resizedFrame = resize(frame, {
           scale: { width: inputWidth, height: inputHeight },
           pixelFormat: 'rgb',
-          dataType: 'float32',
+          dataType: inputDataType,
           rotation: resizeRotation,
         });
 
-        const outputs = yoloModel.model.runSync([resizedFrame]);
-        const output = outputs[0];
-        const outputArray =
-          output instanceof Float32Array
-            ? output
-            : new Float32Array(output.buffer || output);
-
-        const processedDetections = processYoloOutput(
-          outputArray,
+        const outputs = ripCurrentModel.model.runSync([resizedFrame]);
+        const processedDetections = processObjectDetectionOutputs(
+          outputs as Parameters<typeof processObjectDetectionOutputs>[0],
           1.0,
           1.0,
           inputWidth,
-          yoloModel.model?.outputs[0]?.shape,
+          inputHeight,
         );
 
         const mirror = cameraPosition === 'front';
@@ -217,7 +243,7 @@ function LiveDetectionScreen() {
         updateDetectionsOnJS(mapped);
       } catch (error) {
         logErrorOnJS(
-          'YOLO processing error:',
+          'Rip-current detection processing error:',
           error,
           // @ts-ignore
           error?.message,
@@ -227,13 +253,13 @@ function LiveDetectionScreen() {
       }
     },
     [
-      yoloModel,
+      ripCurrentModel,
       inputWidth,
       inputHeight,
+      inputDataType,
       viewWidth,
       viewHeight,
       cameraPosition,
-      resizeRotation,
       updateDetectionsOnJS,
       logErrorOnJS,
     ],
@@ -268,6 +294,20 @@ function LiveDetectionScreen() {
     if (captureMode !== 'idle') return;
     setCameraPosition(prev => (prev === 'back' ? 'front' : 'back'));
   }, [captureMode]);
+
+  const toggleModelMenu = useCallback(() => {
+    if (captureMode !== 'idle') return;
+    setIsModelMenuOpen(prev => !prev);
+  }, [captureMode]);
+
+  const selectModel = useCallback(
+    (modelName: string) => {
+      if (captureMode !== 'idle') return;
+      setSelectedModelName(modelName);
+      setIsModelMenuOpen(false);
+    },
+    [captureMode],
+  );
 
   const handlePhoto = useCallback(async () => {
     const result = await takePhoto(latestDetections);
@@ -372,31 +412,94 @@ function LiveDetectionScreen() {
 
       {/* Top HUD — positioned below the notch/dynamic island */}
       <View
-        style={[styles.topBar, { paddingTop: safeTop + 8 }]}
+        style={[
+          styles.topBar,
+          isLandscape && styles.topBarLandscape,
+          { paddingTop: safeTop + 8 },
+        ]}
         pointerEvents="box-none"
       >
         {/* Detection count pill */}
-        <View style={styles.hudPill}>
+        <View style={[styles.hudPill, isLandscape && styles.hudPillLandscape]}>
           <Icon name="eye-outline" size={16} color="#fff" />
           <Text style={styles.hudText}>
             {detectionCount} detection{detectionCount !== 1 ? 's' : ''}
           </Text>
         </View>
 
-        {/* Camera switch button */}
-        <TouchableOpacity
-          style={styles.iconBtn}
-          onPress={toggleCamera}
-          disabled={captureMode !== 'idle'}
-          accessibilityLabel="Switch camera"
-          accessibilityRole="button"
-        >
-          <Icon name="camera-flip-outline" size={22} color="#fff" />
-        </TouchableOpacity>
+        <View style={styles.topControls}>
+          {/* Model selector */}
+          <TouchableOpacity
+            style={[
+              styles.modelBtn,
+              captureMode !== 'idle' && styles.disabledControl,
+            ]}
+            onPress={toggleModelMenu}
+            disabled={captureMode !== 'idle'}
+            accessibilityLabel="Select detection model"
+            accessibilityRole="button"
+          >
+            <Icon name="chip" size={16} color="#fff" />
+            <Text style={styles.modelBtnText}>{selectedModel.shortName}</Text>
+            <Icon
+              name={isModelMenuOpen ? 'chevron-up' : 'chevron-down'}
+              size={16}
+              color="#fff"
+            />
+          </TouchableOpacity>
+
+          {/* Camera switch button */}
+          <TouchableOpacity
+            style={[
+              styles.iconBtn,
+              captureMode !== 'idle' && styles.disabledControl,
+            ]}
+            onPress={toggleCamera}
+            disabled={captureMode !== 'idle'}
+            accessibilityLabel="Switch camera"
+            accessibilityRole="button"
+          >
+            <Icon name="camera-flip-outline" size={22} color="#fff" />
+          </TouchableOpacity>
+        </View>
       </View>
 
+      {isModelMenuOpen && captureMode === 'idle' && (
+        <View
+          style={[
+            styles.modelMenu,
+            isLandscape ? styles.modelMenuLandscape : styles.modelMenuPortrait,
+            { top: safeTop + 52 },
+          ]}
+        >
+          {RIP_CURRENT_MODELS.map(model => {
+            const selected = model.name === selectedModel.name;
+            return (
+              <TouchableOpacity
+                key={model.name}
+                style={[
+                  styles.modelOption,
+                  selected && styles.modelOptionSelected,
+                ]}
+                onPress={() => selectModel(model.name)}
+                accessibilityLabel={`Use ${model.displayName}`}
+                accessibilityRole="button"
+              >
+                <View>
+                  <Text style={styles.modelOptionTitle}>{model.shortName}</Text>
+                  <Text style={styles.modelOptionSubtitle}>
+                    {model.inputSize}x{model.inputSize}
+                  </Text>
+                </View>
+                {selected && <Icon name="check" size={18} color="#fff" />}
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+      )}
+
       {/* Model loading indicator */}
-      {yoloModel.model == null && (
+      {ripCurrentModel.model == null && (
         <View style={[styles.loadingPill, { top: safeTop + 52 }]}>
           <Text style={styles.loadingText}>Loading model...</Text>
         </View>
@@ -437,6 +540,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingBottom: 8,
   },
+  topBarLandscape: {
+    justifyContent: 'center',
+  },
   hudPill: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -446,18 +552,80 @@ const styles = StyleSheet.create({
     paddingVertical: 7,
     borderRadius: 20,
   },
+  hudPillLandscape: {
+    position: 'absolute',
+    left: 16,
+    bottom: 8,
+  },
   hudText: {
     color: '#fff',
     fontSize: 13,
     fontWeight: '600',
   },
   iconBtn: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     backgroundColor: 'rgba(0, 0, 0, 0.6)',
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  topControls: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  modelBtn: {
+    height: 36,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    paddingHorizontal: 10,
+    borderRadius: 18,
+  },
+  modelBtnText: {
+    color: '#fff',
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  disabledControl: {
+    opacity: 0.45,
+  },
+  modelMenu: {
+    position: 'absolute',
+    width: 190,
+    backgroundColor: 'rgba(0, 0, 0, 0.82)',
+    borderRadius: 8,
+    overflow: 'hidden',
+  },
+  modelMenuPortrait: {
+    right: 60,
+  },
+  modelMenuLandscape: {
+    left: '50%',
+    transform: [{ translateX: -95 }],
+  },
+  modelOption: {
+    minHeight: 52,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  modelOptionSelected: {
+    backgroundColor: 'rgba(255, 255, 255, 0.16)',
+  },
+  modelOptionTitle: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  modelOptionSubtitle: {
+    color: 'rgba(255, 255, 255, 0.72)',
+    fontSize: 12,
+    marginTop: 2,
   },
   loadingPill: {
     position: 'absolute',

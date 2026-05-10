@@ -1,6 +1,6 @@
 /**
  * App-wide UI constants (map regions, snap points, categories, severity levels).
- * YOLO/detection constants live in config/yolo.ts.
+ * Detection constants live in config/detection.ts.
  */
 import { Colors } from '../hooks/useColors';
 

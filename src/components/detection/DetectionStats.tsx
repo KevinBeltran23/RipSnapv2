@@ -9,7 +9,7 @@ interface DetectionStatsProps {
 function DetectionStats({ count }: DetectionStatsProps) {
   return (
     <View style={s.container}>
-      <Text style={s.text}>Tap to switch camera • YOLO Object Detection</Text>
+      <Text style={s.text}>Tap to switch camera • Rip Current Detection</Text>
       <Text style={s.count}>Objects: {count}</Text>
     </View>
   );

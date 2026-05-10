@@ -13,7 +13,7 @@ import {
   saveMediaFile,
   saveMetadataFile,
 } from '../utils/capture';
-import { YOLO_CONFIG } from '../config/yolo';
+import type { RipCurrentModelConfig } from '../config/detection';
 
 interface FrameRecord {
   timestamp: string;
@@ -52,11 +52,14 @@ interface UseCaptureReturn {
 export function useDetectionCapture(
   cameraRef: React.RefObject<Camera | null>,
   cameraPosition: 'front' | 'back',
+  modelConfig: Pick<RipCurrentModelConfig, 'name' | 'inputSize'>,
 ): UseCaptureReturn {
   const [captureMode, setCaptureMode] = useState('idle');
   const [isProcessing, setIsProcessing] = useState(false);
   const [recordingSeconds, setRecordingSeconds] = useState(0);
-  const [lastVideoResult, setLastVideoResult] = useState<CaptureResult | null>(null);
+  const [lastVideoResult, setLastVideoResult] = useState<CaptureResult | null>(
+    null,
+  );
 
   const sessionIdRef = useRef<string | null>(null);
   const startTimeRef = useRef(0);
@@ -79,14 +82,18 @@ export function useDetectionCapture(
         const sessionId = generateSessionId();
         const { width, height } = Dimensions.get('window');
 
-        const mediaUri = await saveMediaFile(photo.path, sessionId, 'photo.jpg');
+        const mediaUri = await saveMediaFile(
+          photo.path,
+          sessionId,
+          'photo.jpg',
+        );
 
         const metadata = {
           sessionId,
           captureType: 'photo' as const,
           timestamp: new Date().toISOString(),
-          modelName: 'best_yolov8n_float32',
-          modelInputSize: YOLO_CONFIG.INPUT_SIZE,
+          modelName: modelConfig.name,
+          modelInputSize: modelConfig.inputSize,
           screenWidth: width,
           screenHeight: height,
           cameraPosition,
@@ -107,7 +114,13 @@ export function useDetectionCapture(
 
         const metadataUri = await saveMetadataFile(sessionId, metadata);
 
-        return { sessionId, captureType: 'photo', mediaUri, metadataUri, metadata };
+        return {
+          sessionId,
+          captureType: 'photo',
+          mediaUri,
+          metadataUri,
+          metadata,
+        };
       } catch (e: any) {
         console.error('Photo capture failed:', e);
         Alert.alert('Capture Failed', e?.message ?? 'Could not take photo.');
@@ -117,7 +130,7 @@ export function useDetectionCapture(
         setCaptureMode('idle');
       }
     },
-    [cameraRef, cameraPosition, captureMode],
+    [cameraRef, cameraPosition, captureMode, modelConfig],
   );
 
   /* ── Video ─────────────────────────────────────────────────────────── */
@@ -137,7 +150,9 @@ export function useDetectionCapture(
     setLastVideoResult(null);
 
     timerRef.current = setInterval(() => {
-      setRecordingSeconds(Math.floor((Date.now() - startTimeRef.current) / 1000));
+      setRecordingSeconds(
+        Math.floor((Date.now() - startTimeRef.current) / 1000),
+      );
     }, 1000);
 
     cam.startRecording({
@@ -146,7 +161,11 @@ export function useDetectionCapture(
         setIsProcessing(true);
         try {
           const { width, height } = Dimensions.get('window');
-          const mediaUri = await saveMediaFile(video.path, sessionId, 'video.mp4');
+          const mediaUri = await saveMediaFile(
+            video.path,
+            sessionId,
+            'video.mp4',
+          );
 
           const metadata = {
             sessionId,
@@ -154,8 +173,8 @@ export function useDetectionCapture(
             startTime: new Date(startTimeRef.current).toISOString(),
             endTime: new Date().toISOString(),
             durationMs: Date.now() - startTimeRef.current,
-            modelName: 'best_yolov8n_float32',
-            modelInputSize: YOLO_CONFIG.INPUT_SIZE,
+            modelName: modelConfig.name,
+            modelInputSize: modelConfig.inputSize,
             screenWidth: width,
             screenHeight: height,
             cameraPosition,
@@ -186,7 +205,7 @@ export function useDetectionCapture(
         Alert.alert('Recording Error', error.message);
       },
     });
-  }, [cameraRef, cameraPosition, captureMode]);
+  }, [cameraRef, cameraPosition, captureMode, modelConfig]);
 
   const stopRecording = useCallback(async () => {
     if (timerRef.current) {

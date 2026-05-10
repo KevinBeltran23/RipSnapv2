@@ -1,16 +1,10 @@
 /**
- * YOLO detection utilities: bounding-box NMS + output parsing.
- * These functions run inside Vision Camera worklets.
+ * TFLite detection utilities for RipSnap models.
  *
- * Model output for best_yolov8n (320x320, 10 classes):
- *   Shape: [1, 14, 2100] — channels-first
- *   Row 0: cx values (pixel coords, 0–320)
- *   Row 1: cy values
- *   Row 2: w values
- *   Row 3: h values
- *   Row 4–13: class scores (already post-sigmoid, do NOT apply sigmoid again)
+ * The ripsnap_models exports use the TensorFlow object-detection postprocess
+ * shape: boxes, classes, scores, and detection count.
  */
-import { YOLO_CLASSES, YOLO_CONFIG } from '../config/yolo';
+import { DETECTION_CONFIG, RIP_CURRENT_CLASSES } from '../config/detection';
 
 export interface Detection {
   bbox: [number, number, number, number]; // [x, y, width, height]
@@ -18,6 +12,16 @@ export interface Detection {
   className: string;
   confidence: number;
 }
+
+type DetectionTensor =
+  | Float32Array
+  | Float64Array
+  | Int8Array
+  | Int16Array
+  | Int32Array
+  | Uint8Array
+  | Uint16Array
+  | Uint32Array;
 
 const calculateIoU = (
   box1: [number, number, number, number],
@@ -38,9 +42,11 @@ const nms = (detections: Detection[], iouThreshold: number): Detection[] => {
   detections.sort((a, b) => b.confidence - a.confidence);
   const keep: Detection[] = [];
   const suppressed = new Set<number>();
+
   for (let i = 0; i < detections.length; i++) {
     if (suppressed.has(i)) continue;
     keep.push(detections[i]);
+
     for (let j = i + 1; j < detections.length; j++) {
       if (
         !suppressed.has(j) &&
@@ -50,61 +56,171 @@ const nms = (detections: Detection[], iouThreshold: number): Detection[] => {
       }
     }
   }
+
   return keep;
 };
 
-export const processYoloOutput = (
-  output: Float32Array,
-  imageWidth: number,
-  imageHeight: number,
-  modelInputSize: number = YOLO_CONFIG.INPUT_SIZE,
-  outputShape?: readonly number[],
-): Detection[] => {
+const clamp = (value: number, min: number, max: number): number => {
   'worklet';
-  const detections: Detection[] = [];
-  const numClasses = YOLO_CLASSES.length;
+  return Math.min(max, Math.max(min, value));
+};
 
-  // Layout: channels-first [1, 14, 2100]
-  // Access: output[channel * numDetections + detectionIndex]
-  const numDetections = outputShape && outputShape.length >= 3
-    ? outputShape[2]
-    : Math.floor(output.length / (4 + numClasses));
+const looksLikeClassTensor = (tensor: DetectionTensor): boolean => {
+  'worklet';
+  const sampleCount = Math.min(tensor.length, 20);
+  let integerLike = 0;
 
-  for (let i = 0; i < numDetections; i++) {
-    // Class scores are ALREADY post-sigmoid from the TFLite export.
-    // Do NOT apply sigmoid again — that was the original bug causing inaccuracy.
-    let maxScore = 0;
-    let bestClass = 0;
-    for (let j = 0; j < numClasses; j++) {
-      const score = output[(4 + j) * numDetections + i];
-      if (score > maxScore) {
-        maxScore = score;
-        bestClass = j;
-      }
-    }
-
-    if (maxScore > YOLO_CONFIG.CONFIDENCE_THRESHOLD) {
-      // Bbox: cx, cy, w, h — normalized (0-1)
-      const cx = output[0 * numDetections + i];
-      const cy = output[1 * numDetections + i];
-      const w = output[2 * numDetections + i];
-      const h = output[3 * numDetections + i];
-
-      detections.push({
-        bbox: [
-          Math.max(0, (cx - w / 2) * imageWidth),
-          Math.max(0, (cy - h / 2) * imageHeight),
-          w * imageWidth,
-          h * imageHeight,
-        ],
-        class: bestClass,
-        className: YOLO_CLASSES[bestClass] || `Class ${bestClass}`,
-        confidence: maxScore,
-      });
+  for (let i = 0; i < sampleCount; i++) {
+    const value = Number(tensor[i]);
+    if (Math.abs(value - Math.round(value)) < 0.001) {
+      integerLike++;
     }
   }
-  return nms(detections, YOLO_CONFIG.IOU_THRESHOLD).slice(
+
+  return sampleCount > 0 && integerLike === sampleCount;
+};
+
+const findOutputTensors = (
+  outputs: DetectionTensor[],
+): {
+  boxes: DetectionTensor | null;
+  classes: DetectionTensor | null;
+  scores: DetectionTensor | null;
+  count: DetectionTensor | null;
+} => {
+  'worklet';
+  let boxes: DetectionTensor | null = null;
+  let classes: DetectionTensor | null = null;
+  let scores: DetectionTensor | null = null;
+  let count: DetectionTensor | null = null;
+
+  for (let i = 0; i < outputs.length; i++) {
+    if (outputs[i].length === 1) {
+      count = outputs[i];
+      break;
+    }
+  }
+
+  for (let i = 0; i < outputs.length; i++) {
+    const output = outputs[i];
+    if (output === count) continue;
+    if (output.length > 4 && output.length % 4 === 0) {
+      boxes = output;
+      break;
+    }
+  }
+
+  const detectionCount = boxes ? Math.floor(boxes.length / 4) : 0;
+
+  for (let i = 0; i < outputs.length; i++) {
+    const output = outputs[i];
+    if (
+      output === count ||
+      output === boxes ||
+      output.length !== detectionCount
+    ) {
+      continue;
+    }
+
+    if (classes == null && looksLikeClassTensor(output)) {
+      classes = output;
+    } else if (scores == null) {
+      scores = output;
+    }
+  }
+
+  for (let i = 0; i < outputs.length; i++) {
+    const output = outputs[i];
+    if (
+      output === count ||
+      output === boxes ||
+      output === classes ||
+      output.length !== detectionCount
+    ) {
+      continue;
+    }
+
+    if (scores == null) {
+      scores = output;
+    } else if (classes == null) {
+      classes = output;
+    }
+  }
+
+  return { boxes, classes, scores, count };
+};
+
+export const processObjectDetectionOutputs = (
+  outputs: DetectionTensor[],
+  imageWidth: number,
+  imageHeight: number,
+  modelInputWidth: number = DETECTION_CONFIG.DEFAULT_INPUT_SIZE,
+  modelInputHeight: number = DETECTION_CONFIG.DEFAULT_INPUT_SIZE,
+): Detection[] => {
+  'worklet';
+  const { boxes, classes, scores, count } = findOutputTensors(outputs);
+  const detections: Detection[] = [];
+
+  if (boxes == null || classes == null || scores == null) {
+    return detections;
+  }
+
+  const maxByTensor = Math.min(
+    Math.floor(boxes.length / 4),
+    classes.length,
+    scores.length,
+  );
+  const declaredCount =
+    count != null ? Math.max(0, Math.floor(Number(count[0]))) : maxByTensor;
+  const detectionCount = Math.min(maxByTensor, declaredCount);
+
+  for (let i = 0; i < detectionCount; i++) {
+    const confidence = Number(scores[i]);
+    if (confidence < DETECTION_CONFIG.CONFIDENCE_THRESHOLD) {
+      continue;
+    }
+
+    let yMin = Number(boxes[i * 4]);
+    let xMin = Number(boxes[i * 4 + 1]);
+    let yMax = Number(boxes[i * 4 + 2]);
+    let xMax = Number(boxes[i * 4 + 3]);
+
+    if (xMax < xMin) {
+      const nextXMin = xMax;
+      xMax = xMin;
+      xMin = nextXMin;
+    }
+
+    if (yMax < yMin) {
+      const nextYMin = yMax;
+      yMax = yMin;
+      yMin = nextYMin;
+    }
+
+    const normalized = xMin <= 1.5 && xMax <= 1.5 && yMin <= 1.5 && yMax <= 1.5;
+    const scaleX = normalized ? imageWidth : imageWidth / modelInputWidth;
+    const scaleY = normalized ? imageHeight : imageHeight / modelInputHeight;
+
+    const x = clamp(xMin * scaleX, 0, imageWidth);
+    const y = clamp(yMin * scaleY, 0, imageHeight);
+    const width = clamp((xMax - xMin) * scaleX, 0, imageWidth - x);
+    const height = clamp((yMax - yMin) * scaleY, 0, imageHeight - y);
+
+    if (width <= 0 || height <= 0) {
+      continue;
+    }
+
+    const classIndex = Math.max(0, Math.floor(Number(classes[i])));
+    detections.push({
+      bbox: [x, y, width, height],
+      class: classIndex,
+      className: RIP_CURRENT_CLASSES[classIndex] ?? RIP_CURRENT_CLASSES[0],
+      confidence,
+    });
+  }
+
+  return nms(detections, DETECTION_CONFIG.IOU_THRESHOLD).slice(
     0,
-    YOLO_CONFIG.MAX_DETECTIONS,
+    DETECTION_CONFIG.MAX_DETECTIONS,
   );
 };

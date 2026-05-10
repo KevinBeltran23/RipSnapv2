@@ -2,9 +2,11 @@
  * MainNavigator — bottom tabs + any main-app stack screens.
  */
 import React from 'react';
+import { useWindowDimensions } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { useIsFocused } from '@react-navigation/native';
 import Icon from '@expo/vector-icons/MaterialCommunityIcons';
+import * as ScreenOrientation from 'expo-screen-orientation';
 import { MainTabParamList } from './types';
 import { useColors } from '../hooks/useColors';
 import { useResponsiveStyles } from '../hooks/useResponsiveStyles';
@@ -50,9 +52,17 @@ const MapScreenWithUnmount = (props: any) => {
 
 export function MainNavigator() {
   const colors = useColors();
+  const { width, height } = useWindowDimensions();
   const { scaleHeight, scaleWidth, scaleFont, isMediumScreen, isLargeScreen } =
     useResponsiveStyles();
   const isLarge = isMediumScreen || isLargeScreen;
+  const isLandscape = width > height;
+  const lockPortrait = React.useCallback(() => {
+    ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP);
+  }, []);
+  const unlockOrientation = React.useCallback(() => {
+    ScreenOrientation.unlockAsync();
+  }, []);
 
   return (
     <Tab.Navigator
@@ -61,6 +71,7 @@ export function MainNavigator() {
         tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: colors.textSecondary,
         tabBarStyle: {
+          display: isLandscape ? 'none' : 'flex',
           paddingBottom: isLarge ? scaleHeight(25) : scaleHeight(10),
           height: scaleHeight(75),
           backgroundColor: colors.backgroundSecondary,
@@ -76,6 +87,7 @@ export function MainNavigator() {
       <Tab.Screen
         name="HomeTab"
         component={HomeScreen}
+        listeners={{ focus: lockPortrait }}
         options={{
           title: 'Home',
           tabBarIcon: renderHomeIcon,
@@ -84,6 +96,7 @@ export function MainNavigator() {
       <Tab.Screen
         name="MapTab"
         component={MapScreenWithUnmount}
+        listeners={{ focus: lockPortrait }}
         options={{
           title: 'Map',
           tabBarIcon: renderMapIcon,
@@ -92,6 +105,7 @@ export function MainNavigator() {
       <Tab.Screen
         name="LiveFeedTab"
         component={LiveDetectionScreen}
+        listeners={{ focus: unlockOrientation }}
         options={{
           title: 'Live',
           tabBarIcon: renderCameraIcon,
@@ -100,6 +114,7 @@ export function MainNavigator() {
       <Tab.Screen
         name="SettingsTab"
         component={SettingsScreen}
+        listeners={{ focus: lockPortrait }}
         options={{
           title: 'Settings',
           tabBarIcon: renderCogIcon,
