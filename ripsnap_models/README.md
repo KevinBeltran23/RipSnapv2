@@ -1,6 +1,6 @@
 # RipSnap TFLite Models
 
-These are the rip-current detection models used by the React Native app.
+These are the rip-current detection models used by the React Native live feed.
 
 The live camera feed is configured in:
 
@@ -10,11 +10,14 @@ src/config/detection.ts
 
 This config points at the rip-current TFLite models in this folder.
 
-## Model Selection
+## In-App Model Selection
 
-The live feed has an in-app model selector in the top HUD. Switching is disabled
-while recording so one video capture does not mix detections from multiple
-models.
+The live feed has an in-app model selector in the top HUD. Tap the model pill to
+switch between the bundled models without editing code.
+
+Switching is disabled while recording so one video capture does not mix
+detections from multiple models. When the selected model changes, the app reloads
+the TFLite model and clears any stale boxes from the previous model.
 
 The default model is:
 
@@ -26,9 +29,22 @@ The selectable models are registered in `src/config/detection.ts`:
 
 ```ts
 export const RIP_CURRENT_MODELS = [
-  // efficientdet_lite0, efficientdet_lite1, efficientdet_lite2,
-  // and ssd_mobilenet_v1
+  // efficientdet_lite0, efficientdet_lite1,
+  // efficientdet_lite2, and ssd_mobilenet_v1
 ];
+```
+
+Each entry has:
+
+```ts
+{
+  name: string,        // saved in capture metadata
+  displayName: string, // used for logs/accessibility labels
+  shortName: string,   // shown in the top-HUD selector pill
+  asset: number,       // require(...) result for the .tflite asset
+  inputSize: number,   // saved in capture metadata
+  labels: string[],
+}
 ```
 
 ## Available Models
@@ -42,9 +58,23 @@ The TFLite models in this folder use `uint8` image input.
 | `efficientdet_lite1.tflite` |    384x384 | `uint8`    |
 | `efficientdet_lite2.tflite` |    448x448 | `uint8`    |
 
-The live screen reads the loaded model's real input shape, so frame resizing
-should follow whichever model is selected. The `inputSize` field in the config
-is used for saved capture metadata and as a fallback.
+The live screen reads the loaded model's real input shape and input data type, so
+frame resizing follows whichever model is selected. The `inputSize` field in the
+config is used for saved capture metadata and as a fallback.
+
+## Capture Metadata
+
+Photo and video captures save the active model information:
+
+```json
+{
+  "modelName": "efficientdet_lite0",
+  "modelInputSize": 320
+}
+```
+
+This metadata is passed from the live feed into `useDetectionCapture`, so it
+tracks the model selected at capture time.
 
 ## Output Parsing
 
@@ -90,46 +120,10 @@ To change the startup default, reorder `RIP_CURRENT_MODELS` in
 
 The app already includes selectable entries for all bundled TFLite models.
 
-Example for `efficientdet_lite1.tflite`:
-
 ```ts
-{
-  name: 'efficientdet_lite1',
-  displayName: 'EfficientDet Lite1 Rip Current',
-  shortName: 'Lite1',
-  architecture: 'tflite_object_detection',
-  asset: require('../../ripsnap_models/efficientdet_lite1.tflite'),
-  inputSize: 384,
-  labels: RIP_CURRENT_CLASSES,
-}
+export const RIP_CURRENT_MODEL = RIP_CURRENT_MODELS[0];
 ```
 
-Example for `efficientdet_lite2.tflite`:
-
-```ts
-{
-  name: 'efficientdet_lite2',
-  displayName: 'EfficientDet Lite2 Rip Current',
-  shortName: 'Lite2',
-  architecture: 'tflite_object_detection',
-  asset: require('../../ripsnap_models/efficientdet_lite2.tflite'),
-  inputSize: 448,
-  labels: RIP_CURRENT_CLASSES,
-}
-```
-
-Example for `ssd_mobilenet_v1.tflite`:
-
-```ts
-{
-  name: 'ssd_mobilenet_v1',
-  displayName: 'SSD MobileNet V1 Rip Current',
-  shortName: 'SSD',
-  architecture: 'tflite_object_detection',
-  asset: require('../../ripsnap_models/ssd_mobilenet_v1.tflite'),
-  inputSize: 300,
-  labels: RIP_CURRENT_CLASSES,
-}
-```
+Changing the index changes the initial model shown when the live feed opens.
 
 Restart Metro after adding a new model file so the asset is bundled.
