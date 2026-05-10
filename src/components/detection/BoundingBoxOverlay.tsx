@@ -1,5 +1,5 @@
 /**
- * BoundingBoxOverlay — Skia Canvas component that draws YOLO detection boxes.
+ * BoundingBoxOverlay — Skia Canvas component that draws detection boxes.
  * Used by LiveDetectionScreen over the camera view.
  */
 import React from 'react';

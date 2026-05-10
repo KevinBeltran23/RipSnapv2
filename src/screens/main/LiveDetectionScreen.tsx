@@ -1,4 +1,10 @@
-﻿import React, { useEffect, useState, useMemo, useCallback, useRef } from 'react';
+﻿import React, {
+  useEffect,
+  useState,
+  useMemo,
+  useCallback,
+  useRef,
+} from 'react';
 import {
   View,
   Text,
@@ -28,8 +34,8 @@ import { useSharedValue } from 'react-native-reanimated';
 import * as ScreenOrientation from 'expo-screen-orientation';
 import Icon from '@expo/vector-icons/MaterialCommunityIcons';
 import { getBestFormat } from '../../utils/camera';
-import { processYoloOutput, Detection } from '../../utils';
-import { YOLO_CONFIG } from '../../config/yolo';
+import { processObjectDetectionOutputs, Detection } from '../../utils';
+import { DETECTION_CONFIG, RIP_CURRENT_MODEL } from '../../config/yolo';
 import { useRunOnJS } from 'react-native-worklets-core';
 import {
   useDetectionCapture,
@@ -60,11 +66,7 @@ function LiveDetectionScreen() {
     ScreenOrientation.Orientation.PORTRAIT_UP,
   );
 
-  const delegate = Platform.OS === 'ios' ? 'core-ml' : undefined;
-  const yoloModel = useTensorflowModel(
-    require('../../assets/models/best_yolov8n_float32.tflite'),
-    delegate,
-  );
+  const ripCurrentModel = useTensorflowModel(RIP_CURRENT_MODEL.asset);
 
   const format = useMemo(
     () => (device != null ? getBestFormat(device, 720, 1280) : undefined),
@@ -106,21 +108,26 @@ function LiveDetectionScreen() {
     ScreenOrientation.getOrientationAsync().then(setOrientation);
     return () => {
       ScreenOrientation.removeOrientationChangeListener(sub);
-      ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP);
+      ScreenOrientation.lockAsync(
+        ScreenOrientation.OrientationLock.PORTRAIT_UP,
+      );
     };
   }, []);
 
   useEffect(() => {
-    const model = yoloModel.model;
+    const model = ripCurrentModel.model;
     if (model == null) return;
-    console.log('YOLO Model loaded successfully');
+    console.log(`${RIP_CURRENT_MODEL.displayName} loaded successfully`);
     console.log(`Input shape: ${model.inputs[0]?.shape}`);
     console.log(`Output shape: ${model.outputs[0]?.shape}`);
-  }, [yoloModel]);
+  }, [ripCurrentModel]);
 
-  const inputTensor = yoloModel.model?.inputs[0];
-  const inputWidth = inputTensor?.shape[2] ?? YOLO_CONFIG.INPUT_SIZE;
-  const inputHeight = inputTensor?.shape[1] ?? YOLO_CONFIG.INPUT_SIZE;
+  const inputTensor = ripCurrentModel.model?.inputs[0];
+  const inputWidth =
+    inputTensor?.shape[2] ?? DETECTION_CONFIG.DEFAULT_INPUT_SIZE;
+  const inputHeight =
+    inputTensor?.shape[1] ?? DETECTION_CONFIG.DEFAULT_INPUT_SIZE;
+  const inputDataType = inputTensor?.dataType === 'uint8' ? 'uint8' : 'float32';
 
   const { width: viewWidth, height: viewHeight } = useWindowDimensions();
 
@@ -162,7 +169,7 @@ function LiveDetectionScreen() {
     frame => {
       'worklet';
 
-      if (yoloModel.model == null) return;
+      if (ripCurrentModel.model == null) return;
 
       frameSkipCounter.value = (frameSkipCounter.value + 1) % 3;
       if (frameSkipCounter.value !== 0 || processingFrame.value) {
@@ -175,23 +182,17 @@ function LiveDetectionScreen() {
         const resizedFrame = resize(frame, {
           scale: { width: inputWidth, height: inputHeight },
           pixelFormat: 'rgb',
-          dataType: 'float32',
+          dataType: inputDataType,
           rotation: resizeRotation,
         });
 
-        const outputs = yoloModel.model.runSync([resizedFrame]);
-        const output = outputs[0];
-        const outputArray =
-          output instanceof Float32Array
-            ? output
-            : new Float32Array(output.buffer || output);
-
-        const processedDetections = processYoloOutput(
-          outputArray,
+        const outputs = ripCurrentModel.model.runSync([resizedFrame]);
+        const processedDetections = processObjectDetectionOutputs(
+          outputs as Parameters<typeof processObjectDetectionOutputs>[0],
           1.0,
           1.0,
           inputWidth,
-          yoloModel.model?.outputs[0]?.shape,
+          inputHeight,
         );
 
         const mirror = cameraPosition === 'front';
@@ -217,7 +218,7 @@ function LiveDetectionScreen() {
         updateDetectionsOnJS(mapped);
       } catch (error) {
         logErrorOnJS(
-          'YOLO processing error:',
+          'Rip-current detection processing error:',
           error,
           // @ts-ignore
           error?.message,
@@ -227,9 +228,10 @@ function LiveDetectionScreen() {
       }
     },
     [
-      yoloModel,
+      ripCurrentModel,
       inputWidth,
       inputHeight,
+      inputDataType,
       viewWidth,
       viewHeight,
       cameraPosition,
@@ -396,7 +398,7 @@ function LiveDetectionScreen() {
       </View>
 
       {/* Model loading indicator */}
-      {yoloModel.model == null && (
+      {ripCurrentModel.model == null && (
         <View style={[styles.loadingPill, { top: safeTop + 52 }]}>
           <Text style={styles.loadingText}>Loading model...</Text>
         </View>
