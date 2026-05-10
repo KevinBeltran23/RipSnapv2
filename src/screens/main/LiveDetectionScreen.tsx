@@ -121,6 +121,16 @@ function LiveDetectionScreen() {
   }, []);
 
   useEffect(() => {
+    if (reviewResult) {
+      ScreenOrientation.lockAsync(
+        ScreenOrientation.OrientationLock.PORTRAIT_UP,
+      );
+    } else {
+      ScreenOrientation.unlockAsync();
+    }
+  }, [reviewResult]);
+
+  useEffect(() => {
     const model = ripCurrentModel.model;
     if (model == null) return;
     console.log(`${selectedModel.displayName} loaded successfully`);
