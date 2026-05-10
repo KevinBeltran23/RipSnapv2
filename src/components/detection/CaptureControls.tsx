@@ -1,6 +1,6 @@
 /**
- * CaptureControls — iOS-style capture bar with swipeable Photo/Video mode
- * selector and a single adaptive shutter button.
+ * CaptureControls - responsive photo/video controls.
+ * Portrait uses a compact bottom bar; landscape uses a right-side rail.
  */
 import React, { useRef, useState, useCallback } from 'react';
 import {
@@ -9,8 +9,8 @@ import {
   Text,
   StyleSheet,
   ActivityIndicator,
-  Animated,
   PanResponder,
+  useWindowDimensions,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -38,20 +38,34 @@ export default function CaptureControls({
   onRecordStop,
 }: Props) {
   const insets = useSafeAreaInsets();
+  const { width, height } = useWindowDimensions();
   const [selectedMode, setSelectedMode] = useState<Mode>('photo');
+
   const isRecording = captureMode === 'recording';
   const isIdle = captureMode === 'idle';
+  const isLandscape = width > height;
+  const isVideoMode = selectedMode === 'video';
+  const safeAreaStyle = isLandscape
+    ? {
+        right: Math.max(insets.right, 8),
+      }
+    : {
+        bottom: Math.max(insets.bottom, 8),
+      };
 
-  // Swipe gesture to switch modes
-  const panX = useRef(new Animated.Value(0)).current;
   const panResponder = useRef(
     PanResponder.create({
-      onMoveShouldSetPanResponder: (_, g) =>
-        Math.abs(g.dx) > 15 && Math.abs(g.dy) < 30,
-      onPanResponderRelease: (_, g) => {
-        if (g.dx < -40) {
+      onMoveShouldSetPanResponder: (_, gesture) =>
+        Math.max(Math.abs(gesture.dx), Math.abs(gesture.dy)) > 15,
+      onPanResponderRelease: (_, gesture) => {
+        const movement =
+          Math.abs(gesture.dx) > Math.abs(gesture.dy)
+            ? gesture.dx
+            : -gesture.dy;
+
+        if (movement < -40) {
           setSelectedMode('video');
-        } else if (g.dx > 40) {
+        } else if (movement > 40) {
           setSelectedMode('photo');
         }
       },
@@ -60,40 +74,56 @@ export default function CaptureControls({
 
   const handleShutter = useCallback(() => {
     if (isProcessing) return;
+
     if (selectedMode === 'photo') {
       if (isIdle) onPhoto();
-    } else {
-      if (isRecording) {
-        onRecordStop();
-      } else if (isIdle) {
-        onRecordStart();
-      }
+      return;
     }
-  }, [selectedMode, isIdle, isRecording, isProcessing, onPhoto, onRecordStart, onRecordStop]);
 
-  const isVideoMode = selectedMode === 'video';
+    if (isRecording) {
+      onRecordStop();
+    } else if (isIdle) {
+      onRecordStart();
+    }
+  }, [
+    selectedMode,
+    isIdle,
+    isRecording,
+    isProcessing,
+    onPhoto,
+    onRecordStart,
+    onRecordStop,
+  ]);
 
   return (
     <View
-      style={[s.wrap, { paddingBottom: Math.max(insets.bottom) + 4 }]}
+      style={[
+        styles.wrap,
+        isLandscape ? styles.wrapLandscape : styles.wrapPortrait,
+        safeAreaStyle,
+      ]}
       pointerEvents="box-none"
       {...panResponder.panHandlers}
     >
-      {/* Recording timer */}
       {isRecording && (
-        <View style={s.timer}>
-          <View style={s.dot} />
-          <Text style={s.timerText}>
+        <View style={[styles.timer, isLandscape && styles.timerLandscape]}>
+          <View style={styles.dot} />
+          <Text style={styles.timerText}>
             {pad2(Math.floor(recordingSeconds / 60))}:
             {pad2(recordingSeconds % 60)}
           </Text>
         </View>
       )}
 
-      {/* Shutter button */}
-      <View style={s.shutterRow}>
+      <View
+        style={[styles.shutterRow, isLandscape && styles.shutterRowLandscape]}
+      >
         <TouchableOpacity
-          style={[s.shutter, isVideoMode && !isRecording && s.shutterVideo]}
+          style={[
+            styles.shutter,
+            isLandscape && styles.shutterLandscape,
+            isVideoMode && !isRecording && styles.shutterVideo,
+          ]}
           onPress={handleShutter}
           disabled={isProcessing}
           activeOpacity={0.7}
@@ -109,31 +139,37 @@ export default function CaptureControls({
           {isProcessing ? (
             <ActivityIndicator color="#fff" size="small" />
           ) : isVideoMode && isRecording ? (
-            /* Stop icon — red rounded square */
-            <View style={s.stopIcon} />
+            <View style={styles.stopIcon} />
           ) : isVideoMode ? (
-            /* Red circle for video idle */
-            <View style={s.shutterInnerVideo} />
+            <View
+              style={[
+                styles.shutterInnerVideo,
+                isLandscape && styles.shutterInnerLandscape,
+              ]}
+            />
           ) : (
-            /* White circle for photo */
-            <View style={s.shutterInnerPhoto} />
+            <View
+              style={[
+                styles.shutterInnerPhoto,
+                isLandscape && styles.shutterInnerLandscape,
+              ]}
+            />
           )}
         </TouchableOpacity>
       </View>
 
-      {/* Mode selector — swipeable labels */}
       {!isRecording && (
-        <View style={s.modeRow}>
+        <View style={[styles.modeRow, isLandscape && styles.modeRowLandscape]}>
           <TouchableOpacity
             onPress={() => setSelectedMode('photo')}
-            style={s.modeBtn}
+            style={styles.modeBtn}
             accessibilityRole="tab"
             accessibilityState={{ selected: selectedMode === 'photo' }}
           >
             <Text
               style={[
-                s.modeLabel,
-                selectedMode === 'photo' && s.modeLabelActive,
+                styles.modeLabel,
+                selectedMode === 'photo' && styles.modeLabelActive,
               ]}
             >
               PHOTO
@@ -141,14 +177,14 @@ export default function CaptureControls({
           </TouchableOpacity>
           <TouchableOpacity
             onPress={() => setSelectedMode('video')}
-            style={s.modeBtn}
+            style={styles.modeBtn}
             accessibilityRole="tab"
             accessibilityState={{ selected: selectedMode === 'video' }}
           >
             <Text
               style={[
-                s.modeLabel,
-                selectedMode === 'video' && s.modeLabelActive,
+                styles.modeLabel,
+                selectedMode === 'video' && styles.modeLabelActive,
               ]}
             >
               VIDEO
@@ -157,32 +193,48 @@ export default function CaptureControls({
         </View>
       )}
 
-      {/* Swipe hint */}
-      {!isRecording && (
-        <Text style={s.hint}>Swipe to switch mode</Text>
+      {!isRecording && !isLandscape && (
+        <Text style={styles.hint}>Swipe to switch mode</Text>
       )}
     </View>
   );
 }
 
-const s = StyleSheet.create({
+const styles = StyleSheet.create({
   wrap: {
     position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    paddingTop: 24,
     alignItems: 'center',
     backgroundColor: 'rgba(0, 0, 0, 0.35)',
+  },
+  wrapPortrait: {
+    alignSelf: 'center',
+    left: '50%',
+    transform: [{ translateX: -80 }],
+    width: 160,
+    paddingHorizontal: 12,
+    paddingTop: 8,
+    paddingBottom: 6,
+    borderRadius: 18,
+  },
+  wrapLandscape: {
+    top: '50%',
+    transform: [{ translateY: -92 }],
+    width: 92,
+    paddingHorizontal: 10,
+    paddingVertical: 10,
+    borderRadius: 18,
   },
   timer: {
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 6,
     backgroundColor: 'rgba(0, 0, 0, 0.7)',
-    paddingHorizontal: 16,
-    paddingVertical: 6,
-    borderRadius: 20,
+    paddingHorizontal: 14,
+    paddingVertical: 5,
+    borderRadius: 18,
+  },
+  timerLandscape: {
+    paddingHorizontal: 8,
   },
   dot: {
     width: 10,
@@ -193,38 +245,51 @@ const s = StyleSheet.create({
   },
   timerText: {
     color: '#fff',
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '600',
     fontVariant: ['tabular-nums'],
   },
   shutterRow: {
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 16,
+    marginBottom: 8,
+  },
+  shutterRowLandscape: {
+    marginBottom: 8,
   },
   shutter: {
-    width: 76,
-    height: 76,
-    borderRadius: 38,
+    width: 68,
+    height: 68,
+    borderRadius: 34,
     borderWidth: 4,
     borderColor: '#fff',
     alignItems: 'center',
     justifyContent: 'center',
   },
+  shutterLandscape: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+  },
   shutterVideo: {
     borderColor: '#FF3B30',
   },
   shutterInnerPhoto: {
-    width: 62,
-    height: 62,
-    borderRadius: 31,
+    width: 54,
+    height: 54,
+    borderRadius: 27,
     backgroundColor: '#fff',
   },
   shutterInnerVideo: {
-    width: 62,
-    height: 62,
-    borderRadius: 31,
+    width: 54,
+    height: 54,
+    borderRadius: 27,
     backgroundColor: '#FF3B30',
+  },
+  shutterInnerLandscape: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
   },
   stopIcon: {
     width: 28,
@@ -234,18 +299,25 @@ const s = StyleSheet.create({
   },
   modeRow: {
     flexDirection: 'row',
-    gap: 32,
-    marginBottom: 6,
+    gap: 20,
+    marginBottom: 2,
+  },
+  modeRowLandscape: {
+    flexDirection: 'column',
+    gap: 4,
+    marginBottom: 0,
   },
   modeBtn: {
+    minWidth: 58,
+    alignItems: 'center',
     paddingVertical: 4,
-    paddingHorizontal: 8,
+    paddingHorizontal: 4,
   },
   modeLabel: {
     color: 'rgba(255, 255, 255, 0.5)',
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '700',
-    letterSpacing: 1,
+    letterSpacing: 0,
   },
   modeLabelActive: {
     color: '#FFD60A',

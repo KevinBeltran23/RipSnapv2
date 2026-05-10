@@ -66,9 +66,6 @@ function LiveDetectionScreen() {
   const [latestDetections, setLatestDetections] = useState<Detection[]>([]);
   const [reviewResult, setReviewResult] = useState<CaptureResult | null>(null);
 
-  const [orientation, setOrientation] = useState<ScreenOrientation.Orientation>(
-    ScreenOrientation.Orientation.PORTRAIT_UP,
-  );
   const [selectedModelName, setSelectedModelName] = useState<string>(
     RIP_CURRENT_MODEL.name,
   );
@@ -116,12 +113,7 @@ function LiveDetectionScreen() {
 
   useEffect(() => {
     ScreenOrientation.unlockAsync();
-    const sub = ScreenOrientation.addOrientationChangeListener(event => {
-      setOrientation(event.orientationInfo.orientation);
-    });
-    ScreenOrientation.getOrientationAsync().then(setOrientation);
     return () => {
-      ScreenOrientation.removeOrientationChangeListener(sub);
       ScreenOrientation.lockAsync(
         ScreenOrientation.OrientationLock.PORTRAIT_UP,
       );
@@ -151,21 +143,7 @@ function LiveDetectionScreen() {
   const inputDataType = inputTensor?.dataType === 'uint8' ? 'uint8' : 'float32';
 
   const { width: viewWidth, height: viewHeight } = useWindowDimensions();
-
-  const resizeRotation = useMemo((): '0deg' | '90deg' | '180deg' | '270deg' => {
-    switch (orientation) {
-      case ScreenOrientation.Orientation.PORTRAIT_UP:
-        return '90deg';
-      case ScreenOrientation.Orientation.LANDSCAPE_LEFT:
-        return '0deg';
-      case ScreenOrientation.Orientation.PORTRAIT_DOWN:
-        return '270deg';
-      case ScreenOrientation.Orientation.LANDSCAPE_RIGHT:
-        return '180deg';
-      default:
-        return '90deg';
-    }
-  }, [orientation]);
+  const isLandscape = viewWidth > viewHeight;
 
   const updateDetections = useCallback(
     (newDetections: Detection[]) => {
@@ -200,6 +178,22 @@ function LiveDetectionScreen() {
       processingFrame.value = true;
 
       try {
+        let resizeRotation: '0deg' | '90deg' | '180deg' | '270deg' = '0deg';
+        switch (frame.orientation) {
+          case 'portrait':
+            resizeRotation = '0deg';
+            break;
+          case 'landscape-left':
+            resizeRotation = '270deg';
+            break;
+          case 'portrait-upside-down':
+            resizeRotation = '180deg';
+            break;
+          case 'landscape-right':
+            resizeRotation = '90deg';
+            break;
+        }
+
         const resizedFrame = resize(frame, {
           scale: { width: inputWidth, height: inputHeight },
           pixelFormat: 'rgb',
@@ -256,7 +250,6 @@ function LiveDetectionScreen() {
       viewWidth,
       viewHeight,
       cameraPosition,
-      resizeRotation,
       updateDetectionsOnJS,
       logErrorOnJS,
     ],
@@ -409,54 +402,66 @@ function LiveDetectionScreen() {
 
       {/* Top HUD — positioned below the notch/dynamic island */}
       <View
-        style={[styles.topBar, { paddingTop: safeTop + 8 }]}
+        style={[
+          styles.topBar,
+          isLandscape && styles.topBarLandscape,
+          { paddingTop: safeTop + 8 },
+        ]}
         pointerEvents="box-none"
       >
         {/* Detection count pill */}
-        <View style={styles.hudPill}>
+        <View style={[styles.hudPill, isLandscape && styles.hudPillLandscape]}>
           <Icon name="eye-outline" size={16} color="#fff" />
           <Text style={styles.hudText}>
             {detectionCount} detection{detectionCount !== 1 ? 's' : ''}
           </Text>
         </View>
 
-        {/* Model selector */}
-        <TouchableOpacity
-          style={[
-            styles.modelBtn,
-            captureMode !== 'idle' && styles.disabledControl,
-          ]}
-          onPress={toggleModelMenu}
-          disabled={captureMode !== 'idle'}
-          accessibilityLabel="Select detection model"
-          accessibilityRole="button"
-        >
-          <Icon name="chip" size={16} color="#fff" />
-          <Text style={styles.modelBtnText}>{selectedModel.shortName}</Text>
-          <Icon
-            name={isModelMenuOpen ? 'chevron-up' : 'chevron-down'}
-            size={16}
-            color="#fff"
-          />
-        </TouchableOpacity>
+        <View style={styles.topControls}>
+          {/* Model selector */}
+          <TouchableOpacity
+            style={[
+              styles.modelBtn,
+              captureMode !== 'idle' && styles.disabledControl,
+            ]}
+            onPress={toggleModelMenu}
+            disabled={captureMode !== 'idle'}
+            accessibilityLabel="Select detection model"
+            accessibilityRole="button"
+          >
+            <Icon name="chip" size={16} color="#fff" />
+            <Text style={styles.modelBtnText}>{selectedModel.shortName}</Text>
+            <Icon
+              name={isModelMenuOpen ? 'chevron-up' : 'chevron-down'}
+              size={16}
+              color="#fff"
+            />
+          </TouchableOpacity>
 
-        {/* Camera switch button */}
-        <TouchableOpacity
-          style={[
-            styles.iconBtn,
-            captureMode !== 'idle' && styles.disabledControl,
-          ]}
-          onPress={toggleCamera}
-          disabled={captureMode !== 'idle'}
-          accessibilityLabel="Switch camera"
-          accessibilityRole="button"
-        >
-          <Icon name="camera-flip-outline" size={22} color="#fff" />
-        </TouchableOpacity>
+          {/* Camera switch button */}
+          <TouchableOpacity
+            style={[
+              styles.iconBtn,
+              captureMode !== 'idle' && styles.disabledControl,
+            ]}
+            onPress={toggleCamera}
+            disabled={captureMode !== 'idle'}
+            accessibilityLabel="Switch camera"
+            accessibilityRole="button"
+          >
+            <Icon name="camera-flip-outline" size={22} color="#fff" />
+          </TouchableOpacity>
+        </View>
       </View>
 
       {isModelMenuOpen && captureMode === 'idle' && (
-        <View style={[styles.modelMenu, { top: safeTop + 60 }]}>
+        <View
+          style={[
+            styles.modelMenu,
+            isLandscape ? styles.modelMenuLandscape : styles.modelMenuPortrait,
+            { top: safeTop + 52 },
+          ]}
+        >
           {RIP_CURRENT_MODELS.map(model => {
             const selected = model.name === selectedModel.name;
             return (
@@ -525,6 +530,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingBottom: 8,
   },
+  topBarLandscape: {
+    justifyContent: 'center',
+  },
   hudPill: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -534,18 +542,28 @@ const styles = StyleSheet.create({
     paddingVertical: 7,
     borderRadius: 20,
   },
+  hudPillLandscape: {
+    position: 'absolute',
+    left: 16,
+    bottom: 8,
+  },
   hudText: {
     color: '#fff',
     fontSize: 13,
     fontWeight: '600',
   },
   iconBtn: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     backgroundColor: 'rgba(0, 0, 0, 0.6)',
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  topControls: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
   },
   modelBtn: {
     height: 36,
@@ -566,11 +584,17 @@ const styles = StyleSheet.create({
   },
   modelMenu: {
     position: 'absolute',
-    right: 16,
     width: 190,
     backgroundColor: 'rgba(0, 0, 0, 0.82)',
     borderRadius: 8,
     overflow: 'hidden',
+  },
+  modelMenuPortrait: {
+    right: 60,
+  },
+  modelMenuLandscape: {
+    left: '50%',
+    transform: [{ translateX: -95 }],
   },
   modelOption: {
     minHeight: 52,
