@@ -2,6 +2,7 @@
  * MainNavigator — bottom tabs + any main-app stack screens.
  */
 import React from 'react';
+import { useWindowDimensions } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { useIsFocused } from '@react-navigation/native';
 import Icon from '@expo/vector-icons/MaterialCommunityIcons';
@@ -50,9 +51,11 @@ const MapScreenWithUnmount = (props: any) => {
 
 export function MainNavigator() {
   const colors = useColors();
+  const { width, height } = useWindowDimensions();
   const { scaleHeight, scaleWidth, scaleFont, isMediumScreen, isLargeScreen } =
     useResponsiveStyles();
   const isLarge = isMediumScreen || isLargeScreen;
+  const isLandscape = width > height;
 
   return (
     <Tab.Navigator
@@ -61,6 +64,7 @@ export function MainNavigator() {
         tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: colors.textSecondary,
         tabBarStyle: {
+          display: isLandscape ? 'none' : 'flex',
           paddingBottom: isLarge ? scaleHeight(25) : scaleHeight(10),
           height: scaleHeight(75),
           backgroundColor: colors.backgroundSecondary,
