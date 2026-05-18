@@ -9,6 +9,7 @@ import * as ScreenOrientation from 'expo-screen-orientation';
 import { AuthProvider } from './src/contexts/AuthContext';
 import { ThemeProvider } from './src/contexts/ThemeContext';
 import { MapUIProvider } from './src/contexts/MapUIContext';
+import { DetectionSettingsProvider } from './src/contexts/DetectionSettingsContext';
 import AppNavigator from './src/navigation/AppNavigator';
 import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client';
 import { queryClient, clientPersister } from './src/services/store/queryClient';
@@ -24,14 +25,19 @@ export default function App() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
-        <PersistQueryClientProvider client={queryClient} persistOptions={{ persister: clientPersister }}>
+        <PersistQueryClientProvider
+          client={queryClient}
+          persistOptions={{ persister: clientPersister }}
+        >
           <AuthProvider>
             <ThemeProvider>
-              <MapUIProvider>
-                <NavigationContainer>
-                  <AppNavigator />
-                </NavigationContainer>
-              </MapUIProvider>
+              <DetectionSettingsProvider>
+                <MapUIProvider>
+                  <NavigationContainer>
+                    <AppNavigator />
+                  </NavigationContainer>
+                </MapUIProvider>
+              </DetectionSettingsProvider>
             </ThemeProvider>
           </AuthProvider>
         </PersistQueryClientProvider>

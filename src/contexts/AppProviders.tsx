@@ -2,6 +2,7 @@ import React, { ReactNode } from 'react';
 import { AuthProvider } from './AuthContext';
 import { ThemeProvider } from './ThemeContext';
 import { MapUIProvider } from './MapUIContext';
+import { DetectionSettingsProvider } from './DetectionSettingsContext';
 
 /**
  * Composes all app-level context providers in one place.
@@ -9,7 +10,7 @@ import { MapUIProvider } from './MapUIContext';
  *
  * Provider order:
  *   MapUIProvider (bottom, leaf)
- *   └─ LocationProvider  (depends on MapUIContext)
+ *   └─ DetectionSettingsProvider
  *      └─ ThemeProvider  (depends on AuthContext)
  *         └─ AuthProvider (top, no deps)
  */
@@ -17,7 +18,9 @@ export function AppProviders({ children }: { children: ReactNode }) {
   return (
     <AuthProvider>
       <ThemeProvider>
-        <MapUIProvider>{children}</MapUIProvider>
+        <DetectionSettingsProvider>
+          <MapUIProvider>{children}</MapUIProvider>
+        </DetectionSettingsProvider>
       </ThemeProvider>
     </AuthProvider>
   );

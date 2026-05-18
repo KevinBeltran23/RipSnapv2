@@ -14,6 +14,7 @@ import {
   saveMetadataFile,
 } from '../utils/capture';
 import type { RipCurrentModelConfig } from '../config/detection';
+import type { DetectionSettings } from '../contexts/DetectionSettingsContext';
 
 interface FrameRecord {
   timestamp: string;
@@ -53,6 +54,7 @@ export function useDetectionCapture(
   cameraRef: React.RefObject<Camera | null>,
   cameraPosition: 'front' | 'back',
   modelConfig: Pick<RipCurrentModelConfig, 'name' | 'inputSize'>,
+  detectionSettings: DetectionSettings,
 ): UseCaptureReturn {
   const [captureMode, setCaptureMode] = useState('idle');
   const [isProcessing, setIsProcessing] = useState(false);
@@ -94,6 +96,7 @@ export function useDetectionCapture(
           timestamp: new Date().toISOString(),
           modelName: modelConfig.name,
           modelInputSize: modelConfig.inputSize,
+          detectionSettings,
           screenWidth: width,
           screenHeight: height,
           cameraPosition,
@@ -130,7 +133,7 @@ export function useDetectionCapture(
         setCaptureMode('idle');
       }
     },
-    [cameraRef, cameraPosition, captureMode, modelConfig],
+    [cameraRef, cameraPosition, captureMode, detectionSettings, modelConfig],
   );
 
   /* ── Video ─────────────────────────────────────────────────────────── */
@@ -175,6 +178,7 @@ export function useDetectionCapture(
             durationMs: Date.now() - startTimeRef.current,
             modelName: modelConfig.name,
             modelInputSize: modelConfig.inputSize,
+            detectionSettings,
             screenWidth: width,
             screenHeight: height,
             cameraPosition,
@@ -205,7 +209,7 @@ export function useDetectionCapture(
         Alert.alert('Recording Error', error.message);
       },
     });
-  }, [cameraRef, cameraPosition, captureMode, modelConfig]);
+  }, [cameraRef, cameraPosition, captureMode, detectionSettings, modelConfig]);
 
   const stopRecording = useCallback(async () => {
     if (timerRef.current) {

@@ -9,6 +9,8 @@ import {
   Image,
   StyleSheet,
   ActivityIndicator,
+  ScrollView,
+  TouchableOpacity,
 } from 'react-native';
 import { useAuth } from '../../contexts/AuthContext';
 import { User } from '../../types/user';
@@ -18,6 +20,8 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../../navigation/types';
 import { useResponsiveStyles } from '../../hooks/useResponsiveStyles';
 import Button from '../../components/common/Button';
+import { useDetectionSettings } from '../../contexts/DetectionSettingsContext';
+import { DETECTION_SETTING_LIMITS } from '../../config/detection';
 
 interface ProfileSectionProps {
   user: User | null;
@@ -275,6 +279,179 @@ const AccessibilitySettings: React.FC = () => {
   );
 };
 
+const DetectionSettingsSection: React.FC = () => {
+  const { settings, updateSettings, resetSettings } = useDetectionSettings();
+  const colors = useColors();
+  const { scaleHeight, scaleWidth, proportionalSize, scaleFont } =
+    useResponsiveStyles();
+
+  const thresholdLimits = DETECTION_SETTING_LIMITS.CONFIDENCE_THRESHOLD;
+  const maxDetectionsLimits = DETECTION_SETTING_LIMITS.MAX_DETECTIONS;
+  const thresholdPercent = Math.round(settings.confidenceThreshold * 100);
+
+  const adjustThreshold = (delta: number) => {
+    updateSettings({
+      confidenceThreshold: settings.confidenceThreshold + delta,
+    });
+  };
+
+  const adjustMaxDetections = (delta: number) => {
+    updateSettings({
+      maxDetections: settings.maxDetections + delta,
+    });
+  };
+
+  const dynamicStyles = StyleSheet.create({
+    sectionContainer: {
+      marginBottom: scaleHeight(10),
+      paddingVertical: scaleHeight(6),
+    },
+    sectionTitle: {
+      color: colors.textPrimary,
+      fontSize: scaleFont(18),
+      fontWeight: '700',
+      marginBottom: scaleHeight(6),
+    },
+    settingRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      paddingVertical: scaleHeight(12),
+      borderBottomWidth: proportionalSize(1),
+      borderBottomColor: colors.borderLight,
+      gap: scaleWidth(12),
+    },
+    settingText: {
+      flex: 1,
+      color: colors.textPrimary,
+      fontSize: scaleFont(16),
+    },
+    stepper: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: scaleWidth(8),
+    },
+    stepButton: {
+      width: proportionalSize(36),
+      height: proportionalSize(36),
+      borderRadius: proportionalSize(18),
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: colors.primary,
+    },
+    stepButtonDisabled: {
+      backgroundColor: colors.gray300,
+    },
+    stepButtonText: {
+      color: colors.textInverse,
+      fontSize: scaleFont(22),
+      fontWeight: '700',
+      lineHeight: scaleFont(24),
+    },
+    stepValue: {
+      minWidth: scaleWidth(58),
+      color: colors.textPrimary,
+      fontSize: scaleFont(16),
+      fontWeight: '700',
+      textAlign: 'center',
+    },
+    resetButton: {
+      alignSelf: 'flex-start',
+      marginTop: scaleHeight(12),
+      paddingHorizontal: scaleWidth(16),
+      paddingVertical: scaleHeight(8),
+    },
+    resetButtonText: {
+      fontSize: scaleFont(14),
+    },
+  });
+
+  const thresholdAtMin =
+    settings.confidenceThreshold <= thresholdLimits.MIN + 0.001;
+  const thresholdAtMax =
+    settings.confidenceThreshold >= thresholdLimits.MAX - 0.001;
+  const maxResultsAtMin = settings.maxDetections <= maxDetectionsLimits.MIN;
+  const maxResultsAtMax = settings.maxDetections >= maxDetectionsLimits.MAX;
+
+  return (
+    <View style={dynamicStyles.sectionContainer}>
+      <Text style={dynamicStyles.sectionTitle}>Detection</Text>
+
+      <View style={dynamicStyles.settingRow}>
+        <Text style={dynamicStyles.settingText}>
+          Bounding Box Detection Threshold
+        </Text>
+        <View style={dynamicStyles.stepper}>
+          <TouchableOpacity
+            style={[
+              dynamicStyles.stepButton,
+              thresholdAtMin && dynamicStyles.stepButtonDisabled,
+            ]}
+            onPress={() => adjustThreshold(-thresholdLimits.STEP)}
+            disabled={thresholdAtMin}
+            accessibilityLabel="Decrease detection threshold"
+            accessibilityRole="button"
+          >
+            <Text style={dynamicStyles.stepButtonText}>-</Text>
+          </TouchableOpacity>
+          <Text style={dynamicStyles.stepValue}>{thresholdPercent}%</Text>
+          <TouchableOpacity
+            style={[
+              dynamicStyles.stepButton,
+              thresholdAtMax && dynamicStyles.stepButtonDisabled,
+            ]}
+            onPress={() => adjustThreshold(thresholdLimits.STEP)}
+            disabled={thresholdAtMax}
+            accessibilityLabel="Increase detection threshold"
+            accessibilityRole="button"
+          >
+            <Text style={dynamicStyles.stepButtonText}>+</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      <View style={dynamicStyles.settingRow}>
+        <Text style={dynamicStyles.settingText}>Max Results at One Time</Text>
+        <View style={dynamicStyles.stepper}>
+          <TouchableOpacity
+            style={[
+              dynamicStyles.stepButton,
+              maxResultsAtMin && dynamicStyles.stepButtonDisabled,
+            ]}
+            onPress={() => adjustMaxDetections(-maxDetectionsLimits.STEP)}
+            disabled={maxResultsAtMin}
+            accessibilityLabel="Decrease max detection results"
+            accessibilityRole="button"
+          >
+            <Text style={dynamicStyles.stepButtonText}>-</Text>
+          </TouchableOpacity>
+          <Text style={dynamicStyles.stepValue}>{settings.maxDetections}</Text>
+          <TouchableOpacity
+            style={[
+              dynamicStyles.stepButton,
+              maxResultsAtMax && dynamicStyles.stepButtonDisabled,
+            ]}
+            onPress={() => adjustMaxDetections(maxDetectionsLimits.STEP)}
+            disabled={maxResultsAtMax}
+            accessibilityLabel="Increase max detection results"
+            accessibilityRole="button"
+          >
+            <Text style={dynamicStyles.stepButtonText}>+</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      <Button
+        variant="ghost"
+        label="Reset Detection Defaults"
+        onPress={resetSettings}
+        style={dynamicStyles.resetButton}
+        textStyle={dynamicStyles.resetButtonText}
+      />
+    </View>
+  );
+};
+
 const SignOutButton = ({ onSignOut }: { onSignOut: () => void }) => {
   const { scaleHeight } = useResponsiveStyles();
 
@@ -323,6 +500,10 @@ function SettingsScreen() {
     },
     settingsScreenContainer: {
       flex: 1,
+      backgroundColor: colors.background,
+    },
+    settingsContentContainer: {
+      flexGrow: 1,
       padding: proportionalSize(20),
       backgroundColor: colors.background,
     },
@@ -346,11 +527,15 @@ function SettingsScreen() {
   }
 
   return (
-    <View style={dynamicStyles.settingsScreenContainer}>
+    <ScrollView
+      style={dynamicStyles.settingsScreenContainer}
+      contentContainerStyle={dynamicStyles.settingsContentContainer}
+    >
       <ProfileSection user={user} onUpdateUser={updateUser} />
+      <DetectionSettingsSection />
       <AccessibilitySettings />
       <SignOutButton onSignOut={handleSignOut} />
-    </View>
+    </ScrollView>
   );
 }
 

@@ -156,6 +156,8 @@ export const processObjectDetectionOutputs = (
   imageHeight: number,
   modelInputWidth: number = DETECTION_CONFIG.DEFAULT_INPUT_SIZE,
   modelInputHeight: number = DETECTION_CONFIG.DEFAULT_INPUT_SIZE,
+  confidenceThreshold: number = DETECTION_CONFIG.CONFIDENCE_THRESHOLD,
+  maxDetections: number = DETECTION_CONFIG.MAX_DETECTIONS,
 ): Detection[] => {
   'worklet';
   const { boxes, classes, scores, count } = findOutputTensors(outputs);
@@ -176,7 +178,7 @@ export const processObjectDetectionOutputs = (
 
   for (let i = 0; i < detectionCount; i++) {
     const confidence = Number(scores[i]);
-    if (confidence < DETECTION_CONFIG.CONFIDENCE_THRESHOLD) {
+    if (confidence < confidenceThreshold) {
       continue;
     }
 
@@ -221,6 +223,6 @@ export const processObjectDetectionOutputs = (
 
   return nms(detections, DETECTION_CONFIG.IOU_THRESHOLD).slice(
     0,
-    DETECTION_CONFIG.MAX_DETECTIONS,
+    maxDetections,
   );
 };

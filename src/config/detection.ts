@@ -59,3 +59,16 @@ export const DETECTION_CONFIG = {
   IOU_THRESHOLD: 0.45,
   MAX_DETECTIONS: 10,
 };
+
+export const DETECTION_SETTING_LIMITS = {
+  CONFIDENCE_THRESHOLD: {
+    MIN: 0.05,
+    MAX: 0.95,
+    STEP: 0.05,
+  },
+  MAX_DETECTIONS: {
+    MIN: 1,
+    MAX: 50,
+    STEP: 1,
+  },
+} as const;

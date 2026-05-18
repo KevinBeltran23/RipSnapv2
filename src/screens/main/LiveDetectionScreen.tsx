@@ -45,6 +45,7 @@ import {
   useDetectionCapture,
   CaptureResult,
 } from '../../hooks/useDetectionCapture';
+import { useDetectionSettings } from '../../contexts/DetectionSettingsContext';
 import CaptureControls from '../../components/detection/CaptureControls';
 import CaptureReviewScreen from './CaptureReviewScreen';
 
@@ -70,6 +71,7 @@ function LiveDetectionScreen() {
     RIP_CURRENT_MODEL.name,
   );
   const [isModelMenuOpen, setIsModelMenuOpen] = useState(false);
+  const { settings: detectionSettings } = useDetectionSettings();
 
   const selectedModel = useMemo(
     () =>
@@ -96,7 +98,12 @@ function LiveDetectionScreen() {
     logFrame,
     lastVideoResult,
     clearLastVideoResult,
-  } = useDetectionCapture(cameraRef, cameraPosition, selectedModel);
+  } = useDetectionCapture(
+    cameraRef,
+    cameraPosition,
+    selectedModel,
+    detectionSettings,
+  );
 
   const isRecording = captureMode === 'recording';
 
@@ -218,6 +225,8 @@ function LiveDetectionScreen() {
           1.0,
           inputWidth,
           inputHeight,
+          detectionSettings.confidenceThreshold,
+          detectionSettings.maxDetections,
         );
 
         const mirror = cameraPosition === 'front';
@@ -260,6 +269,8 @@ function LiveDetectionScreen() {
       viewWidth,
       viewHeight,
       cameraPosition,
+      detectionSettings.confidenceThreshold,
+      detectionSettings.maxDetections,
       updateDetectionsOnJS,
       logErrorOnJS,
     ],
@@ -275,7 +286,7 @@ function LiveDetectionScreen() {
 
   const boundingBoxes = useMemo(() => {
     if (!font) return [];
-    return latestDetections.slice(0, 15).map((detection, index) => ({
+    return latestDetections.map((detection, index) => ({
       id: index,
       rect: {
         x: detection.bbox[0],
