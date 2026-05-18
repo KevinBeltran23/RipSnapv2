@@ -19,7 +19,7 @@ import {
   serverTimestamp,
 } from '@react-native-firebase/firestore';
 import { Platform } from 'react-native';
-import * as FileSystem from 'expo-file-system/legacy';
+import type { CaptureLocationSnapshot } from '../../utils/location';
 
 const storage = getStorage();
 const db = getFirestore();
@@ -34,9 +34,7 @@ export interface CaptureUploadParams {
   metadataUri: string;
   captureType: 'photo' | 'video';
   notes: string;
-  locationName: string;
-  latitude?: number;
-  longitude?: number;
+  location: CaptureLocationSnapshot;
 }
 
 export interface CaptureUploadResult {
@@ -58,9 +56,7 @@ export async function uploadCapture(
     metadataUri,
     captureType,
     notes,
-    locationName,
-    latitude,
-    longitude,
+    location,
   } = params;
 
   const mediaExt = captureType === 'video' ? 'mp4' : 'jpg';
@@ -69,9 +65,7 @@ export async function uploadCapture(
 
   // Upload media file
   const mediaFilePath =
-    Platform.OS === 'android'
-      ? mediaUri
-      : mediaUri.replace('file://', '');
+    Platform.OS === 'android' ? mediaUri : mediaUri.replace('file://', '');
   const mediaRef = ref(storage, mediaStoragePath);
   await mediaRef.putFile(mediaFilePath);
   const mediaUrl = await getDownloadURL(mediaRef);
@@ -95,9 +89,7 @@ export async function uploadCapture(
     mediaStoragePath,
     metaStoragePath,
     notes: notes.trim(),
-    locationName: locationName.trim(),
-    latitude: latitude ?? null,
-    longitude: longitude ?? null,
+    location,
     createdAt: serverTimestamp(),
   });
 

@@ -13,6 +13,7 @@ import {
   saveMediaFile,
   saveMetadataFile,
 } from '../utils/capture';
+import { getCurrentLocationSnapshot } from '../utils/location';
 import type { RipCurrentModelConfig } from '../config/detection';
 import type { DetectionSettings } from '../contexts/DetectionSettingsContext';
 
@@ -89,11 +90,13 @@ export function useDetectionCapture(
           sessionId,
           'photo.jpg',
         );
+        const location = await getCurrentLocationSnapshot();
 
         const metadata = {
           sessionId,
           captureType: 'photo' as const,
           timestamp: new Date().toISOString(),
+          location,
           modelName: modelConfig.name,
           modelInputSize: modelConfig.inputSize,
           detectionSettings,
@@ -169,6 +172,7 @@ export function useDetectionCapture(
             sessionId,
             'video.mp4',
           );
+          const location = await getCurrentLocationSnapshot();
 
           const metadata = {
             sessionId,
@@ -176,6 +180,7 @@ export function useDetectionCapture(
             startTime: new Date(startTimeRef.current).toISOString(),
             endTime: new Date().toISOString(),
             durationMs: Date.now() - startTimeRef.current,
+            location,
             modelName: modelConfig.name,
             modelInputSize: modelConfig.inputSize,
             detectionSettings,

@@ -1,6 +1,6 @@
 /**
  * CaptureReviewScreen — review captured media with detection overlays,
- * add notes and location, then upload to Firebase or share locally.
+ * add notes, then upload to Firebase or share locally.
  */
 import React, { useState, useCallback } from 'react';
 import {
@@ -19,7 +19,8 @@ import {
 import Video from 'react-native-video';
 import { useColors } from '../../hooks/useColors';
 import { useAuth } from '../../contexts/AuthContext';
-import { shareFile } from '../../utils/capture';
+import { saveMetadataFile, shareFile } from '../../utils/capture';
+import { getCurrentLocationSnapshot } from '../../utils/location';
 import { uploadCapture } from '../../services/firebase/captures';
 import type { CaptureResult } from '../../hooks/useDetectionCapture';
 
@@ -38,11 +39,14 @@ export default function CaptureReviewScreen({
   const { authUser } = useAuth();
 
   const [notes, setNotes] = useState('');
-  const [locationName, setLocationName] = useState('');
   const [uploading, setUploading] = useState(false);
 
   const isVideo = captureResult.captureType === 'video';
   const meta = captureResult.metadata as any;
+  const capturedLocation = meta?.location;
+  const locationLabel = capturedLocation
+    ? `${capturedLocation.latitude.toFixed(6)}, ${capturedLocation.longitude.toFixed(6)}`
+    : 'Pending GPS';
   const totalDetections = meta?.frames
     ? meta.frames.reduce(
         (sum: number, f: any) => sum + (f.detections?.length ?? 0),
@@ -50,9 +54,7 @@ export default function CaptureReviewScreen({
       )
     : 0;
   const frameCount = meta?.frames?.length ?? 0;
-  const durationSec = meta?.durationMs
-    ? Math.round(meta.durationMs / 1000)
-    : 0;
+  const durationSec = meta?.durationMs ? Math.round(meta.durationMs / 1000) : 0;
 
   /* ── Upload to Firebase ────────────────────────────────────────────── */
 
@@ -61,21 +63,34 @@ export default function CaptureReviewScreen({
       Alert.alert('Not Signed In', 'You must be signed in to upload captures.');
       return;
     }
-    if (!locationName.trim()) {
-      Alert.alert('Location Required', 'Please enter a location name for this capture.');
-      return;
-    }
 
     setUploading(true);
     try {
+      const location = meta?.location ?? (await getCurrentLocationSnapshot());
+
+      if (!location) {
+        Alert.alert(
+          'GPS Location Required',
+          'Allow location access so this capture can be uploaded with GPS coordinates.',
+        );
+        return;
+      }
+
+      const metadata =
+        meta?.location == null ? { ...meta, location } : captureResult.metadata;
+      const metadataUri =
+        meta?.location == null
+          ? await saveMetadataFile(captureResult.sessionId, metadata)
+          : captureResult.metadataUri;
+
       const result = await uploadCapture({
         userId: authUser.uid,
         sessionId: captureResult.sessionId,
         mediaUri: captureResult.mediaUri,
-        metadataUri: captureResult.metadataUri,
+        metadataUri,
         captureType: captureResult.captureType,
         notes,
-        locationName,
+        location,
       });
 
       Alert.alert(
@@ -89,7 +104,7 @@ export default function CaptureReviewScreen({
     } finally {
       setUploading(false);
     }
-  }, [authUser, captureResult, notes, locationName, onBack]);
+  }, [authUser, captureResult, meta, notes, onBack]);
 
   /* ── Share locally ─────────────────────────────────────────────────── */
 
@@ -105,7 +120,10 @@ export default function CaptureReviewScreen({
 
   const dynamicStyles = {
     container: { backgroundColor: colors.background },
-    card: { backgroundColor: colors.backgroundSecondary, borderColor: colors.borderLight },
+    card: {
+      backgroundColor: colors.backgroundSecondary,
+      borderColor: colors.borderLight,
+    },
     text: { color: colors.textPrimary },
     textSec: { color: colors.textSecondary },
     textTer: { color: colors.textTertiary },
@@ -115,7 +133,10 @@ export default function CaptureReviewScreen({
       borderColor: colors.border,
     },
     btnPrimary: { backgroundColor: colors.primary },
-    btnSecondary: { backgroundColor: colors.backgroundTertiary, borderColor: colors.border },
+    btnSecondary: {
+      backgroundColor: colors.backgroundTertiary,
+      borderColor: colors.border,
+    },
   };
 
   return (
@@ -147,9 +168,9 @@ export default function CaptureReviewScreen({
             📋 Review Your Capture
           </Text>
           <Text style={[styles.cardBody, dynamicStyles.textSec]}>
-            Preview your {isVideo ? 'video' : 'photo'} below. Add a location
-            name and optional notes, then upload to the research database or
-            share the files directly.
+            Preview your {isVideo ? 'video' : 'photo'} below. Add optional
+            notes, then upload to the research database or share the files
+            directly.
           </Text>
         </View>
 
@@ -201,23 +222,17 @@ export default function CaptureReviewScreen({
           </View>
         </View>
 
-        {/* Location input */}
-        <Text style={[styles.label, dynamicStyles.text]}>
-          Location *
-        </Text>
-        <TextInput
-          style={[styles.input, dynamicStyles.input]}
-          placeholder="e.g. Main St & 5th Ave, Santa Cruz"
-          placeholderTextColor={colors.textTertiary}
-          value={locationName}
-          onChangeText={setLocationName}
-          returnKeyType="next"
-        />
+        <View style={[styles.locationCard, dynamicStyles.card]}>
+          <Text style={[styles.locationLabel, dynamicStyles.textTer]}>
+            GPS Location
+          </Text>
+          <Text style={[styles.locationValue, dynamicStyles.text]}>
+            {locationLabel}
+          </Text>
+        </View>
 
         {/* Notes input */}
-        <Text style={[styles.label, dynamicStyles.text]}>
-          Notes (optional)
-        </Text>
+        <Text style={[styles.label, dynamicStyles.text]}>Notes (optional)</Text>
         <TextInput
           style={[styles.input, styles.inputMultiline, dynamicStyles.input]}
           placeholder="Any observations about conditions, time of day, etc."
@@ -233,7 +248,11 @@ export default function CaptureReviewScreen({
         <View style={styles.actions}>
           {/* Upload */}
           <TouchableOpacity
-            style={[styles.btn, dynamicStyles.btnPrimary, uploading && styles.btnDisabled]}
+            style={[
+              styles.btn,
+              dynamicStyles.btnPrimary,
+              uploading && styles.btnDisabled,
+            ]}
             onPress={handleUpload}
             disabled={uploading}
             accessibilityLabel="Upload to Firebase"
@@ -248,7 +267,7 @@ export default function CaptureReviewScreen({
 
           {/* Share media */}
           <TouchableOpacity
-            style={[styles.btn, dynamicStyles.btnSecondary, { borderWidth: 1 }]}
+            style={[styles.btn, styles.btnBorder, dynamicStyles.btnSecondary]}
             onPress={handleShareMedia}
             disabled={uploading}
             accessibilityLabel={`Share ${isVideo ? 'video' : 'photo'}`}
@@ -261,7 +280,7 @@ export default function CaptureReviewScreen({
 
           {/* Share metadata */}
           <TouchableOpacity
-            style={[styles.btn, dynamicStyles.btnSecondary, { borderWidth: 1 }]}
+            style={[styles.btn, styles.btnBorder, dynamicStyles.btnSecondary]}
             onPress={handleShareMetadata}
             disabled={uploading}
             accessibilityLabel="Share metadata JSON"
@@ -364,6 +383,21 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     marginTop: 2,
   },
+  locationCard: {
+    borderRadius: 12,
+    padding: 14,
+    borderWidth: StyleSheet.hairlineWidth,
+  },
+  locationLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    marginBottom: 4,
+    textTransform: 'uppercase',
+  },
+  locationValue: {
+    fontSize: 15,
+    fontWeight: '600',
+  },
   label: {
     fontSize: 14,
     fontWeight: '600',
@@ -389,6 +423,9 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  btnBorder: {
+    borderWidth: 1,
   },
   btnDisabled: {
     opacity: 0.6,
