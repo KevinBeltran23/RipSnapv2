@@ -76,12 +76,16 @@ export default function CaptureReviewScreen({
         return;
       }
 
-      const metadata =
-        meta?.location == null ? { ...meta, location } : captureResult.metadata;
-      const metadataUri =
-        meta?.location == null
-          ? await saveMetadataFile(captureResult.sessionId, metadata)
-          : captureResult.metadataUri;
+      const trimmedNotes = notes.trim();
+      const metadata = {
+        ...meta,
+        location,
+        notes: trimmedNotes,
+      };
+      const metadataUri = await saveMetadataFile(
+        captureResult.sessionId,
+        metadata,
+      );
 
       const result = await uploadCapture({
         userId: authUser.uid,
@@ -89,7 +93,7 @@ export default function CaptureReviewScreen({
         mediaUri: captureResult.mediaUri,
         metadataUri,
         captureType: captureResult.captureType,
-        notes,
+        notes: trimmedNotes,
         location,
       });
 

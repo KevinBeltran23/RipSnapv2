@@ -150,6 +150,97 @@ const findOutputTensors = (
   return { boxes, classes, scores, count };
 };
 
+const processSingleClassYoloOutput = (
+  output: DetectionTensor,
+  imageWidth: number,
+  imageHeight: number,
+  modelInputWidth: number,
+  modelInputHeight: number,
+  confidenceThreshold: number,
+  maxDetections: number,
+  outputShape: readonly number[] | null,
+): Detection[] => {
+  'worklet';
+  const detections: Detection[] = [];
+
+  let channelFirst = true;
+  let detectionCount = Math.floor(output.length / 5);
+
+  if (outputShape != null && outputShape.length >= 3) {
+    const last = outputShape[outputShape.length - 1];
+    const previous = outputShape[outputShape.length - 2];
+
+    if (previous === 5) {
+      channelFirst = true;
+      detectionCount = last;
+    } else if (last === 5) {
+      channelFirst = false;
+      detectionCount = previous;
+    }
+  }
+
+  if (detectionCount <= 0 || detectionCount * 5 > output.length) {
+    return detections;
+  }
+
+  for (let i = 0; i < detectionCount; i++) {
+    const confidence = Number(
+      output[channelFirst ? 4 * detectionCount + i : i * 5 + 4],
+    );
+    if (!Number.isFinite(confidence) || confidence < confidenceThreshold) {
+      continue;
+    }
+
+    const centerX = Number(output[channelFirst ? i : i * 5]);
+    const centerY = Number(
+      output[channelFirst ? detectionCount + i : i * 5 + 1],
+    );
+    const boxWidth = Number(
+      output[channelFirst ? 2 * detectionCount + i : i * 5 + 2],
+    );
+    const boxHeight = Number(
+      output[channelFirst ? 3 * detectionCount + i : i * 5 + 3],
+    );
+
+    if (
+      !Number.isFinite(centerX) ||
+      !Number.isFinite(centerY) ||
+      !Number.isFinite(boxWidth) ||
+      !Number.isFinite(boxHeight) ||
+      boxWidth <= 0 ||
+      boxHeight <= 0
+    ) {
+      continue;
+    }
+
+    const normalized =
+      centerX <= 1.5 && centerY <= 1.5 && boxWidth <= 1.5 && boxHeight <= 1.5;
+    const scaleX = normalized ? imageWidth : imageWidth / modelInputWidth;
+    const scaleY = normalized ? imageHeight : imageHeight / modelInputHeight;
+
+    const x = clamp((centerX - boxWidth / 2) * scaleX, 0, imageWidth);
+    const y = clamp((centerY - boxHeight / 2) * scaleY, 0, imageHeight);
+    const width = clamp(boxWidth * scaleX, 0, imageWidth - x);
+    const height = clamp(boxHeight * scaleY, 0, imageHeight - y);
+
+    if (width <= 0 || height <= 0) {
+      continue;
+    }
+
+    detections.push({
+      bbox: [x, y, width, height],
+      class: 0,
+      className: RIP_CURRENT_CLASSES[0],
+      confidence,
+    });
+  }
+
+  return nms(detections, DETECTION_CONFIG.IOU_THRESHOLD).slice(
+    0,
+    maxDetections,
+  );
+};
+
 export const processObjectDetectionOutputs = (
   outputs: DetectionTensor[],
   imageWidth: number,
@@ -158,8 +249,26 @@ export const processObjectDetectionOutputs = (
   modelInputHeight: number = DETECTION_CONFIG.DEFAULT_INPUT_SIZE,
   confidenceThreshold: number = DETECTION_CONFIG.CONFIDENCE_THRESHOLD,
   maxDetections: number = DETECTION_CONFIG.MAX_DETECTIONS,
+  firstOutputShape: readonly number[] | null = null,
 ): Detection[] => {
   'worklet';
+  if (
+    outputs.length === 1 &&
+    outputs[0].length >= 5 &&
+    outputs[0].length % 5 === 0
+  ) {
+    return processSingleClassYoloOutput(
+      outputs[0],
+      imageWidth,
+      imageHeight,
+      modelInputWidth,
+      modelInputHeight,
+      confidenceThreshold,
+      maxDetections,
+      firstOutputShape,
+    );
+  }
+
   const { boxes, classes, scores, count } = findOutputTensors(outputs);
   const detections: Detection[] = [];
 

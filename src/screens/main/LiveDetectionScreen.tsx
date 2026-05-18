@@ -158,6 +158,7 @@ function LiveDetectionScreen() {
   const inputHeight =
     inputTensor?.shape[1] ?? DETECTION_CONFIG.DEFAULT_INPUT_SIZE;
   const inputDataType = inputTensor?.dataType === 'uint8' ? 'uint8' : 'float32';
+  const firstOutputShape = ripCurrentModel.model?.outputs[0]?.shape ?? null;
 
   const { width: viewWidth, height: viewHeight } = useWindowDimensions();
   const isLandscape = viewWidth > viewHeight;
@@ -227,6 +228,7 @@ function LiveDetectionScreen() {
           inputHeight,
           detectionSettings.confidenceThreshold,
           detectionSettings.maxDetections,
+          firstOutputShape,
         );
 
         const mirror = cameraPosition === 'front';
@@ -266,6 +268,7 @@ function LiveDetectionScreen() {
       inputWidth,
       inputHeight,
       inputDataType,
+      firstOutputShape,
       viewWidth,
       viewHeight,
       cameraPosition,

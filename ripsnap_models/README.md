@@ -30,7 +30,7 @@ The selectable models are registered in `src/config/detection.ts`:
 ```ts
 export const RIP_CURRENT_MODELS = [
   // efficientdet_lite0, efficientdet_lite1,
-  // efficientdet_lite2, and ssd_mobilenet_v1
+  // efficientdet_lite2, ssd_mobilenet_v1, and model_bathy
 ];
 ```
 
@@ -49,14 +49,15 @@ Each entry has:
 
 ## Available Models
 
-The TFLite models in this folder use `uint8` image input.
+The selectable TFLite models in this folder are:
 
-| Model                       | Input size | Input type |
-| --------------------------- | ---------: | ---------- |
-| `ssd_mobilenet_v1.tflite`   |    300x300 | `uint8`    |
-| `efficientdet_lite0.tflite` |    320x320 | `uint8`    |
-| `efficientdet_lite1.tflite` |    384x384 | `uint8`    |
-| `efficientdet_lite2.tflite` |    448x448 | `uint8`    |
+| Model                       | Input size | Input type | Output format               |
+| --------------------------- | ---------: | ---------- | --------------------------- |
+| `ssd_mobilenet_v1.tflite`   |    300x300 | `uint8`    | TF object-detection tensors |
+| `efficientdet_lite0.tflite` |    320x320 | `uint8`    | TF object-detection tensors |
+| `efficientdet_lite1.tflite` |    384x384 | `uint8`    | TF object-detection tensors |
+| `efficientdet_lite2.tflite` |    448x448 | `uint8`    | TF object-detection tensors |
+| `model_bathy.tflite`        |    640x640 | `float32`  | YOLO-style `[1, 5, 8400]`   |
 
 The live screen reads the loaded model's real input shape and input data type, so
 frame resizing follows whichever model is selected. The `inputSize` field in the
@@ -78,8 +79,8 @@ tracks the model selected at capture time.
 
 ## Output Parsing
 
-These models use TensorFlow object-detection postprocess outputs, not a
-single channels-first output tensor.
+The EfficientDet and SSD models use TensorFlow object-detection postprocess
+outputs:
 
 The parser in `src/utils/detection.ts` expects four outputs:
 
@@ -98,6 +99,21 @@ camera overlay format:
   confidence: number
 }
 ```
+
+`model_bathy.tflite` uses a single YOLO-style output tensor:
+
+```text
+[1, 5, 8400]
+```
+
+The parser treats that as one class with channels:
+
+```text
+center_x, center_y, width, height, confidence
+```
+
+It applies the same in-app confidence threshold, non-max suppression, and max
+results settings as the other selectable models.
 
 ## Labels
 

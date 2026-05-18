@@ -49,6 +49,15 @@ export const RIP_CURRENT_MODELS = [
     inputSize: 300,
     labels: RIP_CURRENT_CLASSES,
   },
+  {
+    name: 'model_bathy',
+    displayName: 'Bathy Rip Current',
+    shortName: 'Bathy',
+    architecture: 'tflite_object_detection',
+    asset: require('../../ripsnap_models/model_bathy.tflite'),
+    inputSize: 640,
+    labels: RIP_CURRENT_CLASSES,
+  },
 ] as const satisfies readonly RipCurrentModelConfig[];
 
 export const RIP_CURRENT_MODEL = RIP_CURRENT_MODELS[0];
