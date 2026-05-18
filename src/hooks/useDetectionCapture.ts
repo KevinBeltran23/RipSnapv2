@@ -5,7 +5,7 @@
  * navigate to a review screen instead of showing an alert.
  */
 import { useCallback, useRef, useState } from 'react';
-import { Alert, Dimensions } from 'react-native';
+import { Alert } from 'react-native';
 import type { Camera } from 'react-native-vision-camera';
 import type { Detection } from '../utils/detection';
 import {
@@ -56,6 +56,7 @@ export function useDetectionCapture(
   cameraPosition: 'front' | 'back',
   modelConfig: Pick<RipCurrentModelConfig, 'name' | 'inputSize'>,
   detectionSettings: DetectionSettings,
+  previewSize: { width: number; height: number },
 ): UseCaptureReturn {
   const [captureMode, setCaptureMode] = useState('idle');
   const [isProcessing, setIsProcessing] = useState(false);
@@ -83,7 +84,6 @@ export function useDetectionCapture(
       try {
         const photo = await cam.takePhoto({ flash: 'off' });
         const sessionId = generateSessionId();
-        const { width, height } = Dimensions.get('window');
 
         const mediaUri = await saveMediaFile(
           photo.path,
@@ -100,8 +100,10 @@ export function useDetectionCapture(
           modelName: modelConfig.name,
           modelInputSize: modelConfig.inputSize,
           detectionSettings,
-          screenWidth: width,
-          screenHeight: height,
+          screenWidth: previewSize.width,
+          screenHeight: previewSize.height,
+          mediaWidth: photo.width,
+          mediaHeight: photo.height,
           cameraPosition,
           frames: [
             {
@@ -136,7 +138,15 @@ export function useDetectionCapture(
         setCaptureMode('idle');
       }
     },
-    [cameraRef, cameraPosition, captureMode, detectionSettings, modelConfig],
+    [
+      cameraRef,
+      cameraPosition,
+      captureMode,
+      detectionSettings,
+      modelConfig,
+      previewSize.height,
+      previewSize.width,
+    ],
   );
 
   /* ── Video ─────────────────────────────────────────────────────────── */
@@ -166,7 +176,6 @@ export function useDetectionCapture(
       onRecordingFinished: async video => {
         setIsProcessing(true);
         try {
-          const { width, height } = Dimensions.get('window');
           const mediaUri = await saveMediaFile(
             video.path,
             sessionId,
@@ -184,8 +193,10 @@ export function useDetectionCapture(
             modelName: modelConfig.name,
             modelInputSize: modelConfig.inputSize,
             detectionSettings,
-            screenWidth: width,
-            screenHeight: height,
+            screenWidth: previewSize.width,
+            screenHeight: previewSize.height,
+            mediaWidth: video.width,
+            mediaHeight: video.height,
             cameraPosition,
             totalFrames: framesRef.current.length,
             frames: framesRef.current,
@@ -214,7 +225,15 @@ export function useDetectionCapture(
         Alert.alert('Recording Error', error.message);
       },
     });
-  }, [cameraRef, cameraPosition, captureMode, detectionSettings, modelConfig]);
+  }, [
+    cameraRef,
+    cameraPosition,
+    captureMode,
+    detectionSettings,
+    modelConfig,
+    previewSize.height,
+    previewSize.width,
+  ]);
 
   const stopRecording = useCallback(async () => {
     if (timerRef.current) {

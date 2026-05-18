@@ -2,7 +2,7 @@
  * CaptureReviewScreen — review captured media with detection overlays,
  * add notes, then upload to Firebase or share locally.
  */
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useMemo, useRef } from 'react';
 import {
   View,
   Text,
@@ -15,14 +15,17 @@ import {
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
+  Modal,
 } from 'react-native';
-import Video from 'react-native-video';
+import Video, { type VideoRef } from 'react-native-video';
 import { useColors } from '../../hooks/useColors';
 import { useAuth } from '../../contexts/AuthContext';
 import { saveMetadataFile, shareFile } from '../../utils/capture';
 import { getCurrentLocationSnapshot } from '../../utils/location';
 import { uploadCapture } from '../../services/firebase/captures';
 import type { CaptureResult } from '../../hooks/useDetectionCapture';
+import ReviewDetectionOverlay from '../../components/detection/ReviewDetectionOverlay';
+import type { OnLoadData } from 'react-native-video';
 
 interface Props {
   captureResult: CaptureResult;
@@ -40,9 +43,46 @@ export default function CaptureReviewScreen({
 
   const [notes, setNotes] = useState('');
   const [uploading, setUploading] = useState(false);
+  const [videoPlaybackMs, setVideoPlaybackMs] = useState(0);
+  const [previewFullscreen, setPreviewFullscreen] = useState(false);
+  const [videoNaturalSize, setVideoNaturalSize] = useState<{
+    width: number;
+    height: number;
+  } | null>(null);
+  const embeddedVideoRef = useRef<VideoRef>(null);
+  const fullscreenVideoRef = useRef<VideoRef>(null);
 
   const isVideo = captureResult.captureType === 'video';
   const meta = captureResult.metadata as any;
+  const metadataFrames = useMemo(() => {
+    if (!Array.isArray(meta?.frames)) return [];
+
+    return [...meta.frames]
+      .filter(frame => typeof frame?.elapsedMs === 'number')
+      .sort((a, b) => a.elapsedMs - b.elapsedMs);
+  }, [meta?.frames]);
+  const sourceWidth =
+    typeof meta?.screenWidth === 'number' && meta.screenWidth > 0
+      ? meta.screenWidth
+      : 1;
+  const sourceHeight =
+    typeof meta?.screenHeight === 'number' && meta.screenHeight > 0
+      ? meta.screenHeight
+      : 1;
+  const metadataMediaWidth =
+    typeof meta?.mediaWidth === 'number' && meta.mediaWidth > 0
+      ? meta.mediaWidth
+      : sourceWidth;
+  const metadataMediaHeight =
+    typeof meta?.mediaHeight === 'number' && meta.mediaHeight > 0
+      ? meta.mediaHeight
+      : sourceHeight;
+  const mediaWidth = isVideo
+    ? (videoNaturalSize?.width ?? metadataMediaWidth)
+    : sourceWidth;
+  const mediaHeight = isVideo
+    ? (videoNaturalSize?.height ?? metadataMediaHeight)
+    : sourceHeight;
   const capturedLocation = meta?.location;
   const locationLabel = capturedLocation
     ? `${capturedLocation.latitude.toFixed(6)}, ${capturedLocation.longitude.toFixed(6)}`
@@ -120,6 +160,39 @@ export default function CaptureReviewScreen({
     shareFile(captureResult.metadataUri);
   }, [captureResult.metadataUri]);
 
+  const handleVideoProgress = useCallback(
+    ({ currentTime }: { currentTime: number }) => {
+      setVideoPlaybackMs(currentTime * 1000);
+    },
+    [],
+  );
+
+  const handleVideoLoad = useCallback((event: OnLoadData) => {
+    const { width, height } = event.naturalSize;
+    if (width > 0 && height > 0) {
+      setVideoNaturalSize({ width, height });
+    }
+  }, []);
+
+  const videoControlsStyles = useMemo(() => ({ hideFullscreen: true }), []);
+
+  const openPreviewFullscreen = useCallback(() => {
+    setPreviewFullscreen(true);
+  }, []);
+
+  const closePreviewFullscreen = useCallback(() => {
+    setPreviewFullscreen(false);
+    if (isVideo) {
+      embeddedVideoRef.current?.seek(videoPlaybackMs / 1000);
+    }
+  }, [isVideo, videoPlaybackMs]);
+
+  const handleFullscreenVideoLoad = useCallback(() => {
+    if (isVideo && videoPlaybackMs > 0) {
+      fullscreenVideoRef.current?.seek(videoPlaybackMs / 1000);
+    }
+  }, [isVideo, videoPlaybackMs]);
+
   /* ── Styles ────────────────────────────────────────────────────────── */
 
   const dynamicStyles = {
@@ -182,12 +255,17 @@ export default function CaptureReviewScreen({
         <View style={[styles.mediaContainer, dynamicStyles.card]}>
           {isVideo ? (
             <Video
+              ref={embeddedVideoRef}
               source={{ uri: captureResult.mediaUri }}
               style={styles.media}
               controls
+              controlsStyles={videoControlsStyles}
               resizeMode="contain"
-              paused={false}
+              paused={previewFullscreen}
               repeat
+              progressUpdateInterval={100}
+              onProgress={handleVideoProgress}
+              onLoad={handleVideoLoad}
             />
           ) : (
             <Image
@@ -196,7 +274,80 @@ export default function CaptureReviewScreen({
               resizeMode="contain"
             />
           )}
+          <ReviewDetectionOverlay
+            frames={metadataFrames}
+            sourceWidth={sourceWidth}
+            sourceHeight={sourceHeight}
+            mediaWidth={mediaWidth}
+            mediaHeight={mediaHeight}
+            currentMs={isVideo ? videoPlaybackMs : 0}
+            isVideo={isVideo}
+          />
+          <TouchableOpacity
+            style={styles.fullscreenButton}
+            onPress={openPreviewFullscreen}
+            accessibilityLabel="Open fullscreen preview"
+            accessibilityRole="button"
+          >
+            <Text style={styles.fullscreenButtonText}>Fullscreen</Text>
+          </TouchableOpacity>
         </View>
+
+        <Modal
+          visible={previewFullscreen}
+          animationType="fade"
+          supportedOrientations={[
+            'portrait',
+            'landscape',
+            'landscape-left',
+            'landscape-right',
+          ]}
+          onRequestClose={closePreviewFullscreen}
+        >
+          <View style={styles.fullscreenRoot}>
+            {isVideo ? (
+              <Video
+                ref={fullscreenVideoRef}
+                source={{ uri: captureResult.mediaUri }}
+                style={StyleSheet.absoluteFill}
+                controls
+                controlsStyles={videoControlsStyles}
+                resizeMode="contain"
+                paused={!previewFullscreen}
+                repeat
+                progressUpdateInterval={100}
+                onProgress={handleVideoProgress}
+                onLoad={event => {
+                  handleVideoLoad(event);
+                  handleFullscreenVideoLoad();
+                }}
+              />
+            ) : (
+              <Image
+                source={{ uri: captureResult.mediaUri }}
+                style={StyleSheet.absoluteFill}
+                resizeMode="contain"
+              />
+            )}
+            <ReviewDetectionOverlay
+              frames={metadataFrames}
+              sourceWidth={sourceWidth}
+              sourceHeight={sourceHeight}
+              mediaWidth={mediaWidth}
+              mediaHeight={mediaHeight}
+              currentMs={isVideo ? videoPlaybackMs : 0}
+              isVideo={isVideo}
+            />
+            <TouchableOpacity
+              style={styles.fullscreenCloseButton}
+              onPress={closePreviewFullscreen}
+              accessibilityLabel="Close fullscreen preview"
+              accessibilityRole="button"
+            >
+              <Text style={styles.fullscreenButtonText}>Close</Text>
+            </TouchableOpacity>
+          </View>
+        </Modal>
 
         {/* Stats */}
         <View style={[styles.statsRow]}>
@@ -358,6 +509,7 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
   mediaContainer: {
+    position: 'relative',
     borderRadius: 12,
     overflow: 'hidden',
     borderWidth: StyleSheet.hairlineWidth,
@@ -366,6 +518,33 @@ const styles = StyleSheet.create({
     width: '100%',
     height: 240,
     backgroundColor: '#000',
+  },
+  fullscreenButton: {
+    position: 'absolute',
+    right: 10,
+    top: 10,
+    backgroundColor: 'rgba(0, 0, 0, 0.72)',
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  fullscreenButtonText: {
+    color: '#fff',
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  fullscreenRoot: {
+    flex: 1,
+    backgroundColor: '#000',
+  },
+  fullscreenCloseButton: {
+    position: 'absolute',
+    right: 16,
+    top: 52,
+    backgroundColor: 'rgba(0, 0, 0, 0.72)',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
   },
   statsRow: {
     flexDirection: 'row',
