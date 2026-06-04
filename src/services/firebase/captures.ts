@@ -20,6 +20,7 @@ import {
 } from '@react-native-firebase/firestore';
 import { Platform } from 'react-native';
 import type { CaptureLocationSnapshot } from '../../utils/location';
+import type { RipMapLayerId } from '../../types/ripMap';
 
 const storage = getStorage();
 const db = getFirestore();
@@ -33,6 +34,7 @@ export interface CaptureUploadParams {
   mediaUri: string;
   metadataUri: string;
   captureType: 'photo' | 'video';
+  layerId: RipMapLayerId;
   notes: string;
   location: CaptureLocationSnapshot;
 }
@@ -55,6 +57,7 @@ export async function uploadCapture(
     mediaUri,
     metadataUri,
     captureType,
+    layerId,
     notes,
     location,
   } = params;
@@ -84,6 +87,7 @@ export async function uploadCapture(
     userId,
     sessionId,
     captureType,
+    layerId,
     mediaUrl,
     metadataUrl,
     mediaStoragePath,

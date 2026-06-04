@@ -3,7 +3,7 @@ export interface RipCoordinate {
   longitude: number;
 }
 
-export type RipMapLayerId = 'ripUploads';
+export type RipMapLayerId = 'public' | 'admin' | 'extra';
 
 export type RipCaptureType = 'photo' | 'video' | 'unknown';
 
@@ -50,7 +50,9 @@ export interface RipMapCameraRequest {
 }
 
 export interface RipMapPointsByLayer {
-  ripUploads: RipMapPoint[];
+  public: RipMapPoint[];
+  admin: RipMapPoint[];
+  extra: RipMapPoint[];
 }
 
 export interface RipMapUploadDraft {

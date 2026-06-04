@@ -24,6 +24,7 @@ export interface RipCaptureMapRecord {
   notes?: string;
   title?: string;
   displayName?: string;
+  layerId?: string;
   latitude?: number;
   longitude?: number;
   location?: {
@@ -34,8 +35,20 @@ export interface RipCaptureMapRecord {
 }
 
 export const emptyRipMapPointsByLayer = (): RipMapPointsByLayer => ({
-  ripUploads: [],
+  public: [],
+  admin: [],
+  extra: [],
 });
+
+export const isRipMapLayerId = (value: string): value is RipMapLayerId =>
+  value === 'public' || value === 'admin' || value === 'extra';
+
+export const normalizeRipMapLayerId = (
+  layerId: string | null | undefined,
+): RipMapLayerId => {
+  if (layerId && isRipMapLayerId(layerId)) return layerId;
+  return 'public';
+};
 
 export const isValidRipCoordinate = (
   coordinate: Partial<RipCoordinate> | null | undefined,
@@ -77,7 +90,7 @@ const normalizeCaptureType = (captureType?: string): RipCaptureType => {
 
 export const normalizeCaptureToRipMapPoint = (
   record: RipCaptureMapRecord,
-  layerId: RipMapLayerId = 'ripUploads',
+  layerId: RipMapLayerId = normalizeRipMapLayerId(record.layerId),
 ): RipMapPoint | null => {
   const coordinate = {
     latitude: record.latitude ?? record.location?.latitude,

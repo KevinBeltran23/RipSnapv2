@@ -26,6 +26,9 @@ import { uploadCapture } from '../../services/firebase/captures';
 import type { CaptureResult } from '../../hooks/useDetectionCapture';
 import ReviewDetectionOverlay from '../../components/detection/ReviewDetectionOverlay';
 import type { OnLoadData } from 'react-native-video';
+import DropdownSelector from '../../components/common/DropdownSelector';
+import { RIP_MAP_LAYERS, RIP_MAP_LAYER_BY_ID } from '../../config/mapLayers';
+import type { RipMapLayerId } from '../../types/ripMap';
 
 interface Props {
   captureResult: CaptureResult;
@@ -42,6 +45,8 @@ export default function CaptureReviewScreen({
   const { authUser } = useAuth();
 
   const [notes, setNotes] = useState('');
+  const [selectedLayerId, setSelectedLayerId] =
+    useState<RipMapLayerId>('public');
   const [uploading, setUploading] = useState(false);
   const [videoPlaybackMs, setVideoPlaybackMs] = useState(0);
   const [previewFullscreen, setPreviewFullscreen] = useState(false);
@@ -120,6 +125,7 @@ export default function CaptureReviewScreen({
       const metadata = {
         ...meta,
         location,
+        layerId: selectedLayerId,
         notes: trimmedNotes,
       };
       const metadataUri = await saveMetadataFile(
@@ -133,6 +139,7 @@ export default function CaptureReviewScreen({
         mediaUri: captureResult.mediaUri,
         metadataUri,
         captureType: captureResult.captureType,
+        layerId: selectedLayerId,
         notes: trimmedNotes,
         location,
       });
@@ -148,7 +155,7 @@ export default function CaptureReviewScreen({
     } finally {
       setUploading(false);
     }
-  }, [authUser, captureResult, meta, notes, onBack]);
+  }, [authUser, captureResult, meta, notes, onBack, selectedLayerId]);
 
   /* ── Share locally ─────────────────────────────────────────────────── */
 
@@ -215,6 +222,7 @@ export default function CaptureReviewScreen({
       borderColor: colors.border,
     },
   };
+  const selectedLayer = RIP_MAP_LAYER_BY_ID[selectedLayerId];
 
   return (
     <KeyboardAvoidingView
@@ -385,6 +393,21 @@ export default function CaptureReviewScreen({
             {locationLabel}
           </Text>
         </View>
+
+        <DropdownSelector
+          title="Data Layer"
+          options={RIP_MAP_LAYERS.map(layer => ({
+            label: layer.label,
+            value: layer.id,
+            icon: layer.icon,
+          }))}
+          selectedValue={selectedLayerId}
+          onValueChange={value => setSelectedLayerId(value as RipMapLayerId)}
+          placeholder="Select a data layer..."
+          buttonBackgroundColor={selectedLayer.color}
+          buttonTextColor={colors.textInverse}
+          zIndex={200}
+        />
 
         {/* Notes input */}
         <Text style={[styles.label, dynamicStyles.text]}>Notes (optional)</Text>

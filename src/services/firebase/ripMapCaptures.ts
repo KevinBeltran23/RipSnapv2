@@ -10,7 +10,7 @@ import {
   serverTimestamp,
 } from '@react-native-firebase/firestore';
 import type { RipCaptureMapRecord } from '../../utils/ripMapPoints';
-import type { RipCoordinate } from '../../types/ripMap';
+import type { RipCoordinate, RipMapLayerId } from '../../types/ripMap';
 
 export const RIP_CAPTURES_COLLECTION = 'ripsnap_captures';
 const DEFAULT_MAP_CAPTURE_LIMIT = 250;
@@ -41,6 +41,7 @@ export interface CreateRipMapUploadParams {
   title: string;
   notes: string;
   coordinate: RipCoordinate;
+  layerId?: RipMapLayerId;
 }
 
 export async function createRipMapUploadRecord({
@@ -48,12 +49,14 @@ export async function createRipMapUploadRecord({
   title,
   notes,
   coordinate,
+  layerId = 'public',
 }: CreateRipMapUploadParams): Promise<string> {
   const docRef = await addDoc(collection(db, RIP_CAPTURES_COLLECTION), {
     userId,
     title: title.trim(),
     notes: notes.trim(),
     captureType: 'unknown',
+    layerId,
     location: {
       latitude: coordinate.latitude,
       longitude: coordinate.longitude,

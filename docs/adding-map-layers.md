@@ -11,14 +11,16 @@ Edit `src/types/ripMap.ts`.
 Add the new id to `RipMapLayerId`:
 
 ```ts
-export type RipMapLayerId = 'ripUploads' | 'winter';
+export type RipMapLayerId = 'public' | 'admin' | 'extra' | 'winter';
 ```
 
 Add a matching key to `RipMapPointsByLayer`:
 
 ```ts
 export interface RipMapPointsByLayer {
-  ripUploads: RipMapPoint[];
+  public: RipMapPoint[];
+  admin: RipMapPoint[];
+  extra: RipMapPoint[];
   winter: RipMapPoint[];
 }
 ```
@@ -58,7 +60,9 @@ Update `emptyRipMapPointsByLayer`:
 
 ```ts
 export const emptyRipMapPointsByLayer = (): RipMapPointsByLayer => ({
-  ripUploads: [],
+  public: [],
+  admin: [],
+  extra: [],
   winter: [],
 });
 ```
@@ -89,8 +93,8 @@ export const groupRipMapPointsByLayer = (
   const pointsByLayer = emptyRipMapPointsByLayer();
 
   records.forEach(record => {
-    const uploadPoint = normalizeCaptureToRipMapPoint(record, 'ripUploads');
-    if (uploadPoint) pointsByLayer.ripUploads.push(uploadPoint);
+    const uploadPoint = normalizeCaptureToRipMapPoint(record, 'public');
+    if (uploadPoint) pointsByLayer.public.push(uploadPoint);
 
     const winterPoint = normalizeCaptureToRipMapPoint(record, 'winter');
     if (winterPoint && isWinterUpload(winterPoint.createdAt)) {

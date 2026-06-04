@@ -2,11 +2,25 @@ import type { RipMapLayer, RipMapLayerId } from '../types/ripMap';
 
 export const RIP_MAP_LAYERS: RipMapLayer[] = [
   {
-    id: 'ripUploads',
-    label: 'Rip uploads',
-    description: 'Capture locations uploaded from the Live Feed tab.',
+    id: 'public',
+    label: 'Public',
+    description: 'Public capture locations uploaded by app users.',
     icon: 'map-marker-wave',
     color: '#0EA5A3',
+  },
+  {
+    id: 'admin',
+    label: 'Admin',
+    description: 'Admin-managed capture locations and observations.',
+    icon: 'shield-check',
+    color: '#2563EB',
+  },
+  {
+    id: 'extra',
+    label: 'Extra',
+    description: 'Additional map observations and supporting data.',
+    icon: 'layers-triple',
+    color: '#F59E0B',
   },
 ];
 
