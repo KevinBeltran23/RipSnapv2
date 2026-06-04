@@ -1,9 +1,8 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import BottomSheet, { BottomSheetScrollView } from '@gorhom/bottom-sheet';
 import SearchBar from '../common/SearchBar';
 import Button from '../common/Button';
-import LayerTogglePanel from '../map/LayerTogglePanel';
 import PopupSheet from './PopupSheet';
 import { BOTTOM_SHEET_SNAP_POINTS } from '../../config/constants';
 import { RIP_MAP_LAYER_BY_ID } from '../../config/mapLayers';
@@ -13,11 +12,9 @@ import type {
   RipCoordinate,
   RipMapLayerId,
   RipMapPoint,
-  RipMapPointsByLayer,
 } from '../../types/ripMap';
 
 interface FilterSheetProps {
-  pointsByLayer: RipMapPointsByLayer;
   visibleLayerIds: RipMapLayerId[];
   visiblePoints: RipMapPoint[];
   selectedPoint: RipMapPoint | null;
@@ -25,6 +22,7 @@ interface FilterSheetProps {
   isPinPlacementMode: boolean;
   isLoading: boolean;
   isSubmitting: boolean;
+  isLayerPickerOpen: boolean;
   error: string | null;
   onSelectPoint: (point: RipMapPoint) => void;
   onToggleLayer: (layerId: RipMapLayerId) => void;
@@ -35,17 +33,17 @@ interface FilterSheetProps {
 }
 
 function FilterSheet({
-  pointsByLayer,
-  visibleLayerIds,
+  visibleLayerIds: _visibleLayerIds,
   visiblePoints,
   selectedPoint,
   draftCoordinate,
   isPinPlacementMode,
   isLoading,
   isSubmitting,
+  isLayerPickerOpen,
   error,
   onSelectPoint,
-  onToggleLayer,
+  onToggleLayer: _onToggleLayer,
   onStartAdd,
   onClosePopup,
   onStartPinPlacement,
@@ -53,6 +51,9 @@ function FilterSheet({
 }: FilterSheetProps) {
   const [activeSnapIndex, setActiveSnapIndex] = useState(0);
   const [showAddPopup, setShowAddPopup] = useState(false);
+  const bottomSheetRef = useRef<BottomSheet>(null);
+  const restoreSnapIndexRef = useRef(0);
+  const wasLayerPickerOpenRef = useRef(false);
   const colors = useColors();
   const { scaleHeight, scaleWidth, proportionalSize, scaleFont } =
     useResponsiveStyles();
@@ -75,6 +76,22 @@ function FilterSheet({
     setShowAddPopup(false);
     onClosePopup();
   };
+
+  useEffect(() => {
+    if (isLayerPickerOpen) {
+      if (!wasLayerPickerOpenRef.current) {
+        restoreSnapIndexRef.current = activeSnapIndex;
+      }
+      wasLayerPickerOpenRef.current = true;
+      bottomSheetRef.current?.close();
+      return;
+    }
+
+    if (wasLayerPickerOpenRef.current) {
+      wasLayerPickerOpenRef.current = false;
+      bottomSheetRef.current?.snapToIndex(restoreSnapIndexRef.current);
+    }
+  }, [activeSnapIndex, isLayerPickerOpen]);
 
   const getSuggestedPoints = () => visiblePoints.slice(0, 6);
 
@@ -136,6 +153,7 @@ function FilterSheet({
         draftCoordinate={draftCoordinate}
         isPinPlacementMode={isPinPlacementMode}
         isSubmitting={isSubmitting}
+        isLayerPickerOpen={isLayerPickerOpen}
         onClose={handleClosePopup}
         onAddPress={handleStartAdd}
         onStartPinPlacement={onStartPinPlacement}
@@ -152,6 +170,7 @@ function FilterSheet({
         draftCoordinate={draftCoordinate}
         isPinPlacementMode={isPinPlacementMode}
         isSubmitting={isSubmitting}
+        isLayerPickerOpen={isLayerPickerOpen}
         onClose={handleClosePopup}
         onAddPress={handleStartAdd}
         onStartPinPlacement={onStartPinPlacement}
@@ -162,9 +181,12 @@ function FilterSheet({
 
   return (
     <BottomSheet
+      ref={bottomSheetRef}
       index={activeSnapIndex}
       snapPoints={BOTTOM_SHEET_SNAP_POINTS}
-      onChange={setActiveSnapIndex}
+      onChange={index => {
+        if (index >= 0) setActiveSnapIndex(index);
+      }}
       backgroundStyle={backgroundStyle}
       handleIndicatorStyle={{
         backgroundColor: colors.gray300,
@@ -198,12 +220,6 @@ function FilterSheet({
             No visible uploads for enabled layers.
           </Text>
         )}
-
-        <LayerTogglePanel
-          visibleLayerIds={visibleLayerIds}
-          pointsByLayer={pointsByLayer}
-          onToggleLayer={onToggleLayer}
-        />
 
         <Text style={s.sectionTitle}>Recent Uploads</Text>
         <View style={s.suggestedGrid}>

@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Linking,
   StyleSheet,
@@ -21,6 +21,7 @@ interface PopupSheetProps {
   draftCoordinate: RipCoordinate | null;
   isPinPlacementMode: boolean;
   isSubmitting: boolean;
+  isLayerPickerOpen: boolean;
   onClose: () => void;
   onAddPress: () => void;
   onStartPinPlacement: () => void;
@@ -43,6 +44,7 @@ function PopupSheet({
   draftCoordinate,
   isPinPlacementMode,
   isSubmitting,
+  isLayerPickerOpen,
   onClose,
   onAddPress,
   onStartPinPlacement,
@@ -53,6 +55,8 @@ function PopupSheet({
     useResponsiveStyles();
   const [title, setTitle] = useState('');
   const [notes, setNotes] = useState('');
+  const bottomSheetRef = useRef<BottomSheet>(null);
+  const restoreSnapIndexRef = useRef(1);
 
   useEffect(() => {
     if (mode === 'add') {
@@ -60,6 +64,15 @@ function PopupSheet({
       setNotes('');
     }
   }, [mode]);
+
+  useEffect(() => {
+    if (isLayerPickerOpen) {
+      bottomSheetRef.current?.close();
+      return;
+    }
+
+    bottomSheetRef.current?.snapToIndex(restoreSnapIndexRef.current);
+  }, [isLayerPickerOpen]);
 
   const backgroundStyle = useMemo(
     () => ({
@@ -172,8 +185,12 @@ function PopupSheet({
 
   return (
     <BottomSheet
+      ref={bottomSheetRef}
       index={1}
       snapPoints={BOTTOM_SHEET_SNAP_POINTS}
+      onChange={index => {
+        if (index >= 0) restoreSnapIndexRef.current = index;
+      }}
       backgroundStyle={backgroundStyle}
       handleIndicatorStyle={{
         backgroundColor: colors.gray300,

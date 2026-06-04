@@ -1,4 +1,4 @@
-import React, { useCallback } from 'react';
+import React, { useCallback, useState } from 'react';
 import { Alert, StyleSheet, View } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import {
@@ -14,11 +14,10 @@ import {
   useCreateRipMapUploadMutation,
   useRipMapPointsQuery,
 } from '../../services/store/ripMapQueries';
-import type { RipMapPointsByLayer } from '../../types/ripMap';
-
-const EMPTY_POINTS_BY_LAYER: RipMapPointsByLayer = { ripUploads: [] };
+import type { RipMapPoint } from '../../types/ripMap';
 
 function MapScreen() {
+  const [isLayerPickerOpen, setIsLayerPickerOpen] = useState(false);
   const {
     data: pointsByLayer,
     isLoading,
@@ -33,7 +32,7 @@ function MapScreen() {
     toggleLayer,
     selectedPoint,
     selectedPointId,
-    selectPoint,
+    selectPoint: setSelectedPoint,
     clearSelection,
     visiblePoints,
     userLocation,
@@ -62,13 +61,26 @@ function MapScreen() {
     requestCameraFocus(coordinate);
   }, [getUserCoordinate, requestCameraFocus, setUserLocation]);
 
-  const handleShowLayers = useCallback(() => {
-    clearSelection();
-  }, [clearSelection]);
+  const handleSelectPoint = useCallback(
+    (point: RipMapPoint) => {
+      setIsLayerPickerOpen(false);
+      setSelectedPoint(point);
+    },
+    [setSelectedPoint],
+  );
+
+  const handleLayersPress = useCallback(() => {
+    setIsLayerPickerOpen(current => !current);
+  }, []);
+
+  const handleCloseLayerPicker = useCallback(() => {
+    setIsLayerPickerOpen(false);
+  }, []);
 
   const handleMapPress = useCallback(
     (coordinate: { latitude: number; longitude: number }) => {
       if (isPinPlacementMode) {
+        setIsLayerPickerOpen(false);
         placeDraftPin(coordinate);
         return;
       }
@@ -78,10 +90,17 @@ function MapScreen() {
   );
 
   const handleStartAdd = useCallback(() => {
+    setIsLayerPickerOpen(false);
     clearSelection();
   }, [clearSelection]);
 
+  const handleStartPinPlacement = useCallback(() => {
+    setIsLayerPickerOpen(false);
+    startPinPlacement();
+  }, [startPinPlacement]);
+
   const handleClosePopup = useCallback(() => {
+    setIsLayerPickerOpen(false);
     clearSelection();
     clearDraftPin();
   }, [clearDraftPin, clearSelection]);
@@ -132,32 +151,36 @@ function MapScreen() {
         userLocation={userLocation}
         draftPin={draftPin}
         cameraRequest={cameraRequest}
-        onPointPress={selectPoint}
+        onPointPress={handleSelectPoint}
         onMapPress={handleMapPress}
         onViewportChange={setViewport}
       />
       <MapControls
         onLocate={handleLocate}
         onReload={refetch}
-        onLayers={handleShowLayers}
         isLoading={isLoading}
+        visibleLayerIds={visibleLayerIds}
+        onToggleLayer={toggleLayer}
+        isLayerPickerOpen={isLayerPickerOpen}
+        onLayersPress={handleLayersPress}
+        onCloseLayerPicker={handleCloseLayerPicker}
       />
       {isPinPlacementMode && <PinPlacementBanner onCancel={clearDraftPin} />}
       <FilterSheet
         selectedPoint={selectedPoint}
-        pointsByLayer={pointsByLayer ?? EMPTY_POINTS_BY_LAYER}
         visibleLayerIds={visibleLayerIds}
         visiblePoints={visiblePoints}
         draftCoordinate={draftPin}
         isPinPlacementMode={isPinPlacementMode}
         isLoading={isLoading}
         isSubmitting={createUploadMutation.isPending}
+        isLayerPickerOpen={isLayerPickerOpen}
         error={error instanceof Error ? error.message : null}
-        onSelectPoint={selectPoint}
+        onSelectPoint={handleSelectPoint}
         onToggleLayer={toggleLayer}
         onStartAdd={handleStartAdd}
         onClosePopup={handleClosePopup}
-        onStartPinPlacement={startPinPlacement}
+        onStartPinPlacement={handleStartPinPlacement}
         onSubmitUpload={handleSubmitUpload}
       />
     </View>
