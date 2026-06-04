@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Linking,
   StyleSheet,
@@ -7,9 +7,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import BottomSheet, { BottomSheetScrollView } from '@gorhom/bottom-sheet';
 import Button from '../common/Button';
-import { BOTTOM_SHEET_SNAP_POINTS } from '../../config/constants';
 import { RIP_MAP_LAYER_BY_ID } from '../../config/mapLayers';
 import { useColors } from '../../hooks/useColors';
 import { useResponsiveStyles } from '../../hooks/useResponsiveStyles';
@@ -21,7 +19,6 @@ interface PopupSheetProps {
   draftCoordinate: RipCoordinate | null;
   isPinPlacementMode: boolean;
   isSubmitting: boolean;
-  isLayerPickerOpen: boolean;
   onClose: () => void;
   onAddPress: () => void;
   onStartPinPlacement: () => void;
@@ -44,7 +41,6 @@ function PopupSheet({
   draftCoordinate,
   isPinPlacementMode,
   isSubmitting,
-  isLayerPickerOpen,
   onClose,
   onAddPress,
   onStartPinPlacement,
@@ -55,8 +51,6 @@ function PopupSheet({
     useResponsiveStyles();
   const [title, setTitle] = useState('');
   const [notes, setNotes] = useState('');
-  const bottomSheetRef = useRef<BottomSheet>(null);
-  const restoreSnapIndexRef = useRef(1);
 
   useEffect(() => {
     if (mode === 'add') {
@@ -64,24 +58,6 @@ function PopupSheet({
       setNotes('');
     }
   }, [mode]);
-
-  useEffect(() => {
-    if (isLayerPickerOpen) {
-      bottomSheetRef.current?.close();
-      return;
-    }
-
-    bottomSheetRef.current?.snapToIndex(restoreSnapIndexRef.current);
-  }, [isLayerPickerOpen]);
-
-  const backgroundStyle = useMemo(
-    () => ({
-      backgroundColor: colors.background,
-      borderTopLeftRadius: proportionalSize(24),
-      borderTopRightRadius: proportionalSize(24),
-    }),
-    [colors.background, proportionalSize],
-  );
 
   const handleOpenMaps = () => {
     if (!point) return;
@@ -92,9 +68,6 @@ function PopupSheet({
   const submitLabel = isSubmitting ? 'Saving...' : 'Submit Upload';
 
   const s = StyleSheet.create({
-    bottomSheet: { zIndex: 1000 },
-    container: { flex: 1 },
-    contentContainer: { padding: proportionalSize(16) },
     header: {
       flexDirection: 'row',
       justifyContent: 'space-between',
@@ -184,80 +157,28 @@ function PopupSheet({
   });
 
   return (
-    <BottomSheet
-      ref={bottomSheetRef}
-      index={1}
-      snapPoints={BOTTOM_SHEET_SNAP_POINTS}
-      onChange={index => {
-        if (index >= 0) restoreSnapIndexRef.current = index;
-      }}
-      backgroundStyle={backgroundStyle}
-      handleIndicatorStyle={{
-        backgroundColor: colors.gray300,
-        width: scaleWidth(40),
-      }}
-      enablePanDownToClose={false}
-      style={s.bottomSheet}
-    >
-      <BottomSheetScrollView
-        style={s.container}
-        contentContainerStyle={s.contentContainer}
-        keyboardShouldPersistTaps="handled"
-      >
-        {mode === 'view' && point && (
-          <>
-            <View style={s.header}>
-              <Text style={s.title} numberOfLines={1}>
-                {point.title}
-              </Text>
-              <View style={s.headerButtons}>
-                <Button
-                  variant="secondary"
-                  label="Add"
-                  onPress={onAddPress}
-                  style={s.compactButton}
-                  textStyle={s.compactButtonText}
-                />
-                <Button
-                  variant="primary"
-                  label="Maps"
-                  onPress={handleOpenMaps}
-                  style={s.compactButton}
-                  textStyle={s.compactButtonText}
-                />
-                <Button
-                  variant="danger"
-                  label="Close"
-                  onPress={onClose}
-                  style={s.compactButton}
-                  textStyle={s.compactButtonText}
-                />
-              </View>
-            </View>
-
-            <Text style={s.label}>Layer</Text>
-            <Text style={s.detailText}>
-              {RIP_MAP_LAYER_BY_ID[point.layerId].label}
+    <>
+      {mode === 'view' && point && (
+        <>
+          <View style={s.header}>
+            <Text style={s.title} numberOfLines={1}>
+              {point.title}
             </Text>
-            <Text style={s.label}>Captured</Text>
-            <Text style={s.detailText}>
-              {formatDisplayDate(point.createdAt)}
-            </Text>
-            <Text style={s.label}>Coordinates</Text>
-            <Text style={s.detailText}>
-              {formatCoordinate(point.coordinate)}
-            </Text>
-            <Text style={s.label}>Capture type</Text>
-            <Text style={s.detailText}>{point.captureType}</Text>
-            <Text style={s.label}>Notes</Text>
-            <Text style={s.detailText}>{point.notes ?? 'No notes'}</Text>
-          </>
-        )}
-
-        {mode === 'add' && (
-          <>
-            <View style={s.header}>
-              <Text style={s.title}>Add Map Upload</Text>
+            <View style={s.headerButtons}>
+              <Button
+                variant="secondary"
+                label="Add"
+                onPress={onAddPress}
+                style={s.compactButton}
+                textStyle={s.compactButtonText}
+              />
+              <Button
+                variant="primary"
+                label="Maps"
+                onPress={handleOpenMaps}
+                style={s.compactButton}
+                textStyle={s.compactButtonText}
+              />
               <Button
                 variant="danger"
                 label="Close"
@@ -266,58 +187,86 @@ function PopupSheet({
                 textStyle={s.compactButtonText}
               />
             </View>
+          </View>
 
-            <Text style={s.sectionTitle}>Upload Name</Text>
-            <TextInput
-              style={s.input}
-              placeholder="e.g. Rip observation near main beach"
-              placeholderTextColor={colors.textTertiary}
-              value={title}
-              onChangeText={setTitle}
-            />
+          <Text style={s.label}>Layer</Text>
+          <Text style={s.detailText}>
+            {RIP_MAP_LAYER_BY_ID[point.layerId].label}
+          </Text>
+          <Text style={s.label}>Captured</Text>
+          <Text style={s.detailText}>{formatDisplayDate(point.createdAt)}</Text>
+          <Text style={s.label}>Coordinates</Text>
+          <Text style={s.detailText}>{formatCoordinate(point.coordinate)}</Text>
+          <Text style={s.label}>Capture type</Text>
+          <Text style={s.detailText}>{point.captureType}</Text>
+          <Text style={s.label}>Notes</Text>
+          <Text style={s.detailText}>{point.notes ?? 'No notes'}</Text>
+        </>
+      )}
 
-            <Text style={s.sectionTitle}>Notes</Text>
-            <TextInput
-              style={[s.input, s.multilineInput]}
-              placeholder="Optional details about conditions or context"
-              placeholderTextColor={colors.textTertiary}
-              value={notes}
-              onChangeText={setNotes}
-              multiline
-            />
-
-            <TouchableOpacity style={s.placePin} onPress={onStartPinPlacement}>
-              <Text style={s.placePinText}>
-                {isPinPlacementMode
-                  ? 'Select Location on Map'
-                  : draftCoordinate
-                    ? 'Pin Placed - Tap to Change'
-                    : 'Place Pin on Map'}
-              </Text>
-            </TouchableOpacity>
-
-            {draftCoordinate && (
-              <View style={s.coordinatesContainer}>
-                <Text style={s.coordinatesText}>
-                  {formatCoordinate(draftCoordinate)}
-                </Text>
-              </View>
-            )}
-
+      {mode === 'add' && (
+        <>
+          <View style={s.header}>
+            <Text style={s.title}>Add Map Upload</Text>
             <Button
-              variant="primary"
-              label={submitLabel}
-              onPress={async () => {
-                const didSubmit = await onSubmit({ title, notes });
-                if (didSubmit) onClose();
-              }}
-              disabled={isSubmitting}
-              style={s.submitButton}
+              variant="danger"
+              label="Close"
+              onPress={onClose}
+              style={s.compactButton}
+              textStyle={s.compactButtonText}
             />
-          </>
-        )}
-      </BottomSheetScrollView>
-    </BottomSheet>
+          </View>
+
+          <Text style={s.sectionTitle}>Upload Name</Text>
+          <TextInput
+            style={s.input}
+            placeholder="e.g. Rip observation near main beach"
+            placeholderTextColor={colors.textTertiary}
+            value={title}
+            onChangeText={setTitle}
+          />
+
+          <Text style={s.sectionTitle}>Notes</Text>
+          <TextInput
+            style={[s.input, s.multilineInput]}
+            placeholder="Optional details about conditions or context"
+            placeholderTextColor={colors.textTertiary}
+            value={notes}
+            onChangeText={setNotes}
+            multiline
+          />
+
+          <TouchableOpacity style={s.placePin} onPress={onStartPinPlacement}>
+            <Text style={s.placePinText}>
+              {isPinPlacementMode
+                ? 'Select Location on Map'
+                : draftCoordinate
+                  ? 'Pin Placed - Tap to Change'
+                  : 'Place Pin on Map'}
+            </Text>
+          </TouchableOpacity>
+
+          {draftCoordinate && (
+            <View style={s.coordinatesContainer}>
+              <Text style={s.coordinatesText}>
+                {formatCoordinate(draftCoordinate)}
+              </Text>
+            </View>
+          )}
+
+          <Button
+            variant="primary"
+            label={submitLabel}
+            onPress={async () => {
+              const didSubmit = await onSubmit({ title, notes });
+              if (didSubmit) onClose();
+            }}
+            disabled={isSubmitting}
+            style={s.submitButton}
+          />
+        </>
+      )}
+    </>
   );
 }
 

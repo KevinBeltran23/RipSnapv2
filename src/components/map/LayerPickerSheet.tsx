@@ -21,9 +21,9 @@ function LayerPickerSheet({
 }: LayerPickerSheetProps) {
   const bottomSheetRef = useRef<BottomSheet>(null);
   const colors = useColors();
-  const { scaleHeight, scaleWidth, proportionalSize, scaleFont } =
+  const { height, scaleHeight, scaleWidth, proportionalSize, scaleFont } =
     useResponsiveStyles();
-  const snapPoints = useMemo(() => ['34%'], []);
+  const snapPoints = useMemo(() => [Math.round(height * 0.34)], [height]);
 
   useEffect(() => {
     if (isOpen) {
@@ -41,8 +41,6 @@ function LayerPickerSheet({
     }),
     [colors.background, proportionalSize],
   );
-
-  if (!isOpen) return null;
 
   const s = StyleSheet.create({
     sheet: {
@@ -64,11 +62,12 @@ function LayerPickerSheet({
   return (
     <BottomSheet
       ref={bottomSheetRef}
-      index={0}
+      index={-1}
       snapPoints={snapPoints}
+      animateOnMount={false}
       enablePanDownToClose
       onChange={index => {
-        if (index === -1) onClose();
+        if (index === -1 && isOpen) onClose();
       }}
       backgroundStyle={backgroundStyle}
       handleIndicatorStyle={{

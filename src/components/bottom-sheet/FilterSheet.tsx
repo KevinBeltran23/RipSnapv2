@@ -4,7 +4,6 @@ import BottomSheet, { BottomSheetScrollView } from '@gorhom/bottom-sheet';
 import SearchBar from '../common/SearchBar';
 import Button from '../common/Button';
 import PopupSheet from './PopupSheet';
-import { BOTTOM_SHEET_SNAP_POINTS } from '../../config/constants';
 import { RIP_MAP_LAYER_BY_ID } from '../../config/mapLayers';
 import { useColors } from '../../hooks/useColors';
 import { useResponsiveStyles } from '../../hooks/useResponsiveStyles';
@@ -52,11 +51,21 @@ function FilterSheet({
   const [activeSnapIndex, setActiveSnapIndex] = useState(0);
   const [showAddPopup, setShowAddPopup] = useState(false);
   const bottomSheetRef = useRef<BottomSheet>(null);
+  const activeSnapIndexRef = useRef(0);
   const restoreSnapIndexRef = useRef(0);
   const wasLayerPickerOpenRef = useRef(false);
   const colors = useColors();
-  const { scaleHeight, scaleWidth, proportionalSize, scaleFont } =
+  const { height, scaleHeight, scaleWidth, proportionalSize, scaleFont } =
     useResponsiveStyles();
+
+  const snapPoints = useMemo(
+    () => [
+      Math.round(height * 0.15),
+      Math.round(height * 0.5),
+      Math.round(height * 0.85),
+    ],
+    [height],
+  );
 
   const backgroundStyle = useMemo(
     () => ({
@@ -80,10 +89,10 @@ function FilterSheet({
   useEffect(() => {
     if (isLayerPickerOpen) {
       if (!wasLayerPickerOpenRef.current) {
-        restoreSnapIndexRef.current = activeSnapIndex;
+        restoreSnapIndexRef.current = activeSnapIndexRef.current;
       }
       wasLayerPickerOpenRef.current = true;
-      bottomSheetRef.current?.close();
+      bottomSheetRef.current?.snapToIndex(0);
       return;
     }
 
@@ -91,7 +100,7 @@ function FilterSheet({
       wasLayerPickerOpenRef.current = false;
       bottomSheetRef.current?.snapToIndex(restoreSnapIndexRef.current);
     }
-  }, [activeSnapIndex, isLayerPickerOpen]);
+  }, [isLayerPickerOpen]);
 
   const getSuggestedPoints = () => visiblePoints.slice(0, 6);
 
@@ -146,47 +155,18 @@ function FilterSheet({
     },
   });
 
-  if (showAddPopup) {
-    return (
-      <PopupSheet
-        mode="add"
-        draftCoordinate={draftCoordinate}
-        isPinPlacementMode={isPinPlacementMode}
-        isSubmitting={isSubmitting}
-        isLayerPickerOpen={isLayerPickerOpen}
-        onClose={handleClosePopup}
-        onAddPress={handleStartAdd}
-        onStartPinPlacement={onStartPinPlacement}
-        onSubmit={onSubmitUpload}
-      />
-    );
-  }
-
-  if (selectedPoint) {
-    return (
-      <PopupSheet
-        mode="view"
-        point={selectedPoint}
-        draftCoordinate={draftCoordinate}
-        isPinPlacementMode={isPinPlacementMode}
-        isSubmitting={isSubmitting}
-        isLayerPickerOpen={isLayerPickerOpen}
-        onClose={handleClosePopup}
-        onAddPress={handleStartAdd}
-        onStartPinPlacement={onStartPinPlacement}
-        onSubmit={onSubmitUpload}
-      />
-    );
-  }
-
   return (
     <BottomSheet
       ref={bottomSheetRef}
       index={activeSnapIndex}
-      snapPoints={BOTTOM_SHEET_SNAP_POINTS}
+      snapPoints={snapPoints}
       onChange={index => {
-        if (index >= 0) setActiveSnapIndex(index);
+        if (index >= 0) {
+          activeSnapIndexRef.current = index;
+          setActiveSnapIndex(index);
+        }
       }}
+      animateOnMount={false}
       backgroundStyle={backgroundStyle}
       handleIndicatorStyle={{
         backgroundColor: colors.gray300,
@@ -200,44 +180,73 @@ function FilterSheet({
         contentContainerStyle={s.contentContainer}
         keyboardShouldPersistTaps="handled"
       >
-        <SearchBar
-          points={visiblePoints}
-          onSelectPoint={onSelectPoint}
-          placeholder="Search map uploads..."
-        />
+        {showAddPopup ? (
+          <PopupSheet
+            mode="add"
+            draftCoordinate={draftCoordinate}
+            isPinPlacementMode={isPinPlacementMode}
+            isSubmitting={isSubmitting}
+            onClose={handleClosePopup}
+            onAddPress={handleStartAdd}
+            onStartPinPlacement={onStartPinPlacement}
+            onSubmit={onSubmitUpload}
+          />
+        ) : selectedPoint ? (
+          <PopupSheet
+            mode="view"
+            point={selectedPoint}
+            draftCoordinate={draftCoordinate}
+            isPinPlacementMode={isPinPlacementMode}
+            isSubmitting={isSubmitting}
+            onClose={handleClosePopup}
+            onAddPress={handleStartAdd}
+            onStartPinPlacement={onStartPinPlacement}
+            onSubmit={onSubmitUpload}
+          />
+        ) : (
+          <>
+            <SearchBar
+              points={visiblePoints}
+              onSelectPoint={onSelectPoint}
+              placeholder="Search map uploads..."
+            />
 
-        <Button
-          variant="secondary"
-          label="Add Upload"
-          onPress={handleStartAdd}
-          style={s.addDataButton}
-        />
+            <Button
+              variant="secondary"
+              label="Add Upload"
+              onPress={handleStartAdd}
+              style={s.addDataButton}
+            />
 
-        {isLoading && <Text style={s.statusText}>Loading map uploads...</Text>}
-        {error && <Text style={s.statusText}>{error}</Text>}
-        {!isLoading && !error && visiblePoints.length === 0 && (
-          <Text style={s.statusText}>
-            No visible uploads for enabled layers.
-          </Text>
+            {isLoading && (
+              <Text style={s.statusText}>Loading map uploads...</Text>
+            )}
+            {error && <Text style={s.statusText}>{error}</Text>}
+            {!isLoading && !error && visiblePoints.length === 0 && (
+              <Text style={s.statusText}>
+                No visible uploads for enabled layers.
+              </Text>
+            )}
+
+            <Text style={s.sectionTitle}>Recent Uploads</Text>
+            <View style={s.suggestedGrid}>
+              {getSuggestedPoints().map(point => (
+                <TouchableOpacity
+                  key={point.id}
+                  style={s.suggestedItem}
+                  onPress={() => onSelectPoint(point)}
+                >
+                  <Text style={s.suggestedTitle} numberOfLines={1}>
+                    {point.title}
+                  </Text>
+                  <Text style={s.suggestedMeta} numberOfLines={1}>
+                    {RIP_MAP_LAYER_BY_ID[point.layerId].label}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </>
         )}
-
-        <Text style={s.sectionTitle}>Recent Uploads</Text>
-        <View style={s.suggestedGrid}>
-          {getSuggestedPoints().map(point => (
-            <TouchableOpacity
-              key={point.id}
-              style={s.suggestedItem}
-              onPress={() => onSelectPoint(point)}
-            >
-              <Text style={s.suggestedTitle} numberOfLines={1}>
-                {point.title}
-              </Text>
-              <Text style={s.suggestedMeta} numberOfLines={1}>
-                {RIP_MAP_LAYER_BY_ID[point.layerId].label}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </View>
       </BottomSheetScrollView>
     </BottomSheet>
   );
