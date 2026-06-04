@@ -3,29 +3,19 @@ import { TouchableOpacity, StyleSheet } from 'react-native';
 import Icon from '@expo/vector-icons/MaterialCommunityIcons';
 import { useColors } from '../../hooks/useColors';
 import { useResponsiveStyles } from '../../hooks/useResponsiveStyles';
-import type { RipMapLayerId } from '../../types/ripMap';
-import LayerPickerSheet from './LayerPickerSheet';
 
 interface MapControlsProps {
   onLocate: () => void;
   onReload: () => void;
   isLoading: boolean;
-  visibleLayerIds: RipMapLayerId[];
-  onToggleLayer: (layerId: RipMapLayerId) => void;
-  isLayerPickerOpen: boolean;
   onLayersPress: () => void;
-  onCloseLayerPicker: () => void;
 }
 
 function MapControls({
   onLocate,
   onReload,
   isLoading,
-  visibleLayerIds,
-  onToggleLayer,
-  isLayerPickerOpen,
   onLayersPress,
-  onCloseLayerPicker,
 }: MapControlsProps) {
   const colors = useColors();
   const {
@@ -82,12 +72,6 @@ function MapControls({
           color={isLoading ? colors.gray400 : colors.primary}
         />
       </TouchableOpacity>
-      <LayerPickerSheet
-        isOpen={isLayerPickerOpen}
-        visibleLayerIds={visibleLayerIds}
-        onToggleLayer={onToggleLayer}
-        onClose={onCloseLayerPicker}
-      />
     </>
   );
 }

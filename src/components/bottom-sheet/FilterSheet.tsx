@@ -1,9 +1,10 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import BottomSheet, { BottomSheetScrollView } from '@gorhom/bottom-sheet';
 import SearchBar from '../common/SearchBar';
 import Button from '../common/Button';
 import PopupSheet from './PopupSheet';
+import LayerPickerGrid from '../map/LayerPickerGrid';
 import { RIP_MAP_LAYER_BY_ID } from '../../config/mapLayers';
 import { useColors } from '../../hooks/useColors';
 import { useResponsiveStyles } from '../../hooks/useResponsiveStyles';
@@ -27,12 +28,13 @@ interface FilterSheetProps {
   onToggleLayer: (layerId: RipMapLayerId) => void;
   onStartAdd: () => void;
   onClosePopup: () => void;
+  onCloseLayerPicker: () => void;
   onStartPinPlacement: () => void;
   onSubmitUpload: (draft: { title: string; notes: string }) => Promise<boolean>;
 }
 
 function FilterSheet({
-  visibleLayerIds: _visibleLayerIds,
+  visibleLayerIds,
   visiblePoints,
   selectedPoint,
   draftCoordinate,
@@ -42,7 +44,7 @@ function FilterSheet({
   isLayerPickerOpen,
   error,
   onSelectPoint,
-  onToggleLayer: _onToggleLayer,
+  onToggleLayer,
   onStartAdd,
   onClosePopup,
   onStartPinPlacement,
@@ -52,17 +54,15 @@ function FilterSheet({
   const [showAddPopup, setShowAddPopup] = useState(false);
   const bottomSheetRef = useRef<BottomSheet>(null);
   const activeSnapIndexRef = useRef(0);
-  const restoreSnapIndexRef = useRef(0);
-  const wasLayerPickerOpenRef = useRef(false);
   const colors = useColors();
   const { height, scaleHeight, scaleWidth, proportionalSize, scaleFont } =
     useResponsiveStyles();
 
   const snapPoints = useMemo(
     () => [
-      Math.round(height * 0.15),
+      100,
       Math.round(height * 0.5),
-      Math.round(height * 0.85),
+      Math.round(height * 0.88),
     ],
     [height],
   );
@@ -85,22 +85,6 @@ function FilterSheet({
     setShowAddPopup(false);
     onClosePopup();
   };
-
-  useEffect(() => {
-    if (isLayerPickerOpen) {
-      if (!wasLayerPickerOpenRef.current) {
-        restoreSnapIndexRef.current = activeSnapIndexRef.current;
-      }
-      wasLayerPickerOpenRef.current = true;
-      bottomSheetRef.current?.snapToIndex(0);
-      return;
-    }
-
-    if (wasLayerPickerOpenRef.current) {
-      wasLayerPickerOpenRef.current = false;
-      bottomSheetRef.current?.snapToIndex(restoreSnapIndexRef.current);
-    }
-  }, [isLayerPickerOpen]);
 
   const getSuggestedPoints = () => visiblePoints.slice(0, 6);
 
@@ -153,6 +137,12 @@ function FilterSheet({
       color: colors.textSecondary,
       fontSize: scaleFont(11),
     },
+    layerPickerTitle: {
+      color: colors.textPrimary,
+      fontSize: scaleFont(18),
+      fontWeight: '800',
+      marginBottom: scaleHeight(14),
+    },
   });
 
   return (
@@ -166,7 +156,6 @@ function FilterSheet({
           setActiveSnapIndex(index);
         }
       }}
-      animateOnMount={false}
       backgroundStyle={backgroundStyle}
       handleIndicatorStyle={{
         backgroundColor: colors.gray300,
@@ -203,6 +192,14 @@ function FilterSheet({
             onStartPinPlacement={onStartPinPlacement}
             onSubmit={onSubmitUpload}
           />
+        ) : isLayerPickerOpen ? (
+          <View>
+            <Text style={s.layerPickerTitle}>Map Layers</Text>
+            <LayerPickerGrid
+              visibleLayerIds={visibleLayerIds}
+              onToggleLayer={onToggleLayer}
+            />
+          </View>
         ) : (
           <>
             <SearchBar

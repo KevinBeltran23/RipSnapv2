@@ -159,11 +159,7 @@ function MapScreen() {
         onLocate={handleLocate}
         onReload={refetch}
         isLoading={isLoading}
-        visibleLayerIds={visibleLayerIds}
-        onToggleLayer={toggleLayer}
-        isLayerPickerOpen={isLayerPickerOpen}
         onLayersPress={handleLayersPress}
-        onCloseLayerPicker={handleCloseLayerPicker}
       />
       {isPinPlacementMode && <PinPlacementBanner onCancel={clearDraftPin} />}
       <FilterSheet
@@ -180,6 +176,7 @@ function MapScreen() {
         onToggleLayer={toggleLayer}
         onStartAdd={handleStartAdd}
         onClosePopup={handleClosePopup}
+        onCloseLayerPicker={handleCloseLayerPicker}
         onStartPinPlacement={handleStartPinPlacement}
         onSubmitUpload={handleSubmitUpload}
       />
