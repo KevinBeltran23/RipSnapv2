@@ -1,7 +1,6 @@
 import React, { useMemo, useRef, useState } from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import BottomSheet, { BottomSheetScrollView } from '@gorhom/bottom-sheet';
-import SearchBar from '../common/SearchBar';
 import Button from '../common/Button';
 import PopupSheet from './PopupSheet';
 import LayerPickerGrid from '../map/LayerPickerGrid';
@@ -202,12 +201,6 @@ function FilterSheet({
           </View>
         ) : (
           <>
-            <SearchBar
-              points={visiblePoints}
-              onSelectPoint={onSelectPoint}
-              placeholder="Search map uploads..."
-            />
-
             <Button
               variant="secondary"
               label="Add Upload"
