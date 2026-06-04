@@ -1,84 +1,173 @@
-﻿import React from 'react';
-import { View, StyleSheet } from 'react-native';
-import MapView, { PROVIDER_GOOGLE, Marker } from 'react-native-maps';
-import { INITIAL_REGION } from '../../config/constants';
-import { useColors } from '../../hooks/useColors';
+import React, { useCallback } from 'react';
+import { Alert, StyleSheet, View } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import {
+  GoogleRipMap,
   MapControls,
-  LocationMarker,
   PinPlacementBanner,
-  Legend,
 } from '../../components/map';
 import FilterSheet from '../../components/bottom-sheet/FilterSheet';
-import { useMapScreen } from './useMapScreen';
+import { useAuth } from '../../contexts/AuthContext';
+import { useRipMapLocation } from '../../hooks/useRipMapLocation';
+import { useRipMapState } from '../../hooks/useRipMapState';
+import {
+  useCreateRipMapUploadMutation,
+  useRipMapPointsQuery,
+} from '../../services/store/ripMapQueries';
+import type { RipMapPointsByLayer } from '../../types/ripMap';
 
-const MapScreen = () => {
-  const colors = useColors();
+const EMPTY_POINTS_BY_LAYER: RipMapPointsByLayer = { ripUploads: [] };
+
+function MapScreen() {
   const {
-    mapRef,
-    filteredLocations,
-    isLoadingLocations,
+    data: pointsByLayer,
+    isLoading,
+    error,
+    refetch,
+  } = useRipMapPointsQuery();
+  const createUploadMutation = useCreateRipMapUploadMutation();
+  const { authUser } = useAuth();
+  const {
+    setViewport,
+    visibleLayerIds,
+    toggleLayer,
+    selectedPoint,
+    selectedPointId,
+    selectPoint,
+    clearSelection,
+    visiblePoints,
+    userLocation,
+    setUserLocation,
+    draftPin,
     isPinPlacementMode,
-    showLegend,
-    tempPin,
-    handleCurrentLocation,
-    handleReload,
-    toggleLegend,
-    handleMapPress,
-    selectLocation,
-    cancelPin,
-  } = useMapScreen();
+    startPinPlacement,
+    placeDraftPin,
+    clearDraftPin,
+    cameraRequest,
+    requestCameraFocus,
+  } = useRipMapState(pointsByLayer);
+  const { getUserCoordinate } = useRipMapLocation();
+
+  useFocusEffect(
+    useCallback(() => {
+      refetch();
+    }, [refetch]),
+  );
+
+  const handleLocate = useCallback(async () => {
+    const coordinate = await getUserCoordinate();
+    if (!coordinate) return;
+
+    setUserLocation(coordinate);
+    requestCameraFocus(coordinate);
+  }, [getUserCoordinate, requestCameraFocus, setUserLocation]);
+
+  const handleShowLayers = useCallback(() => {
+    clearSelection();
+  }, [clearSelection]);
+
+  const handleMapPress = useCallback(
+    (coordinate: { latitude: number; longitude: number }) => {
+      if (isPinPlacementMode) {
+        placeDraftPin(coordinate);
+        return;
+      }
+      clearSelection();
+    },
+    [clearSelection, isPinPlacementMode, placeDraftPin],
+  );
+
+  const handleStartAdd = useCallback(() => {
+    clearSelection();
+  }, [clearSelection]);
+
+  const handleClosePopup = useCallback(() => {
+    clearSelection();
+    clearDraftPin();
+  }, [clearDraftPin, clearSelection]);
+
+  const handleSubmitUpload = useCallback(
+    async ({ title, notes }: { title: string; notes: string }) => {
+      const trimmedTitle = title.trim();
+      if (!trimmedTitle) {
+        Alert.alert('Missing Upload Name', 'Enter a name for this upload.');
+        return false;
+      }
+      if (!draftPin) {
+        Alert.alert('Missing Pin', 'Place a pin on the map before submitting.');
+        return false;
+      }
+      if (!authUser) {
+        Alert.alert('Not Signed In', 'Sign in before adding a map upload.');
+        return false;
+      }
+
+      try {
+        await createUploadMutation.mutateAsync({
+          userId: authUser.uid,
+          title: trimmedTitle,
+          notes,
+          coordinate: draftPin,
+        });
+        clearDraftPin();
+        refetch();
+        Alert.alert('Upload Saved', 'The map upload was saved successfully.');
+        return true;
+      } catch (submitError: any) {
+        Alert.alert(
+          'Upload Failed',
+          submitError?.message ?? 'Could not save the map upload.',
+        );
+        return false;
+      }
+    },
+    [authUser, clearDraftPin, createUploadMutation, draftPin, refetch],
+  );
 
   return (
     <View style={styles.container}>
-      <MapView
-        ref={mapRef}
-        provider={PROVIDER_GOOGLE}
-        style={styles.map}
-        initialRegion={INITIAL_REGION}
-        showsUserLocation={false}
-        showsMyLocationButton={false}
-        showsCompass={false}
-        toolbarEnabled={false}
-        onPress={handleMapPress}
-      >
-        {filteredLocations
-          .filter(
-            loc =>
-              loc.coordinates &&
-              !isNaN(loc.coordinates.latitude) &&
-              !isNaN(loc.coordinates.longitude),
-          )
-          .map(loc => (
-            <LocationMarker
-              key={loc.id}
-              location={loc}
-              onPress={selectLocation}
-            />
-          ))}
-
-        {tempPin && <Marker coordinate={tempPin} pinColor={colors.primary} />}
-      </MapView>
-
-      <MapControls
-        onLocate={handleCurrentLocation}
-        onReload={handleReload}
-        onLegend={toggleLegend}
-        isLoading={isLoadingLocations}
+      <GoogleRipMap
+        points={visiblePoints}
+        selectedPointId={selectedPointId}
+        userLocation={userLocation}
+        draftPin={draftPin}
+        cameraRequest={cameraRequest}
+        onPointPress={selectPoint}
+        onMapPress={handleMapPress}
+        onViewportChange={setViewport}
       />
-
-      <Legend visible={showLegend} />
-
-      {isPinPlacementMode && <PinPlacementBanner onCancel={cancelPin} />}
-
-      <FilterSheet />
+      <MapControls
+        onLocate={handleLocate}
+        onReload={refetch}
+        onLayers={handleShowLayers}
+        isLoading={isLoading}
+      />
+      {isPinPlacementMode && <PinPlacementBanner onCancel={clearDraftPin} />}
+      <FilterSheet
+        selectedPoint={selectedPoint}
+        pointsByLayer={pointsByLayer ?? EMPTY_POINTS_BY_LAYER}
+        visibleLayerIds={visibleLayerIds}
+        visiblePoints={visiblePoints}
+        draftCoordinate={draftPin}
+        isPinPlacementMode={isPinPlacementMode}
+        isLoading={isLoading}
+        isSubmitting={createUploadMutation.isPending}
+        error={error instanceof Error ? error.message : null}
+        onSelectPoint={selectPoint}
+        onToggleLayer={toggleLayer}
+        onStartAdd={handleStartAdd}
+        onClosePopup={handleClosePopup}
+        onStartPinPlacement={startPinPlacement}
+        onSubmitUpload={handleSubmitUpload}
+      />
     </View>
   );
-};
+}
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
-  map: { ...StyleSheet.absoluteFillObject },
+  container: {
+    flex: 1,
+  },
 });
 
 export default MapScreen;

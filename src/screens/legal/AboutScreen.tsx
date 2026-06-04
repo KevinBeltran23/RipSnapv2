@@ -150,9 +150,7 @@ function AboutScreen() {
         </Text>
 
         <Text style={dynamicStyles.sectionTitle}>Contact</Text>
-        <Text style={dynamicStyles.paragraph}>
-          Email: fkhan4@ucsc.edu
-        </Text>
+        <Text style={dynamicStyles.paragraph}>Email: fkhan4@ucsc.edu</Text>
 
         <Text style={dynamicStyles.versionText}>Version 1.0.0</Text>
         <Text style={dynamicStyles.versionText}>

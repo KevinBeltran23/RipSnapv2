@@ -7,14 +7,14 @@ import { useResponsiveStyles } from '../../hooks/useResponsiveStyles';
 interface MapControlsProps {
   onLocate: () => void;
   onReload: () => void;
-  onLegend: () => void;
+  onLayers: () => void;
   isLoading: boolean;
 }
 
 function MapControls({
   onLocate,
   onReload,
-  onLegend,
+  onLayers,
   isLoading,
 }: MapControlsProps) {
   const colors = useColors();
@@ -45,7 +45,7 @@ function MapControls({
       elevation: 5,
     },
     locate: { top: isLarge ? scaleHeight(60) : scaleHeight(80) },
-    legend: { top: isLarge ? scaleHeight(120) : scaleHeight(140) },
+    layers: { top: isLarge ? scaleHeight(120) : scaleHeight(140) },
     reload: { top: isLarge ? scaleHeight(180) : scaleHeight(200) },
   });
 
@@ -58,8 +58,8 @@ function MapControls({
           color={colors.primary}
         />
       </TouchableOpacity>
-      <TouchableOpacity style={[s.base, s.legend]} onPress={onLegend}>
-        <Icon name="help-circle" size={scaleFont(24)} color={colors.primary} />
+      <TouchableOpacity style={[s.base, s.layers]} onPress={onLayers}>
+        <Icon name="layers" size={scaleFont(24)} color={colors.primary} />
       </TouchableOpacity>
       <TouchableOpacity
         style={[s.base, s.reload]}

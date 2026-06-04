@@ -1,4 +1,4 @@
-export { default as Legend } from './Legend';
 export { default as MapControls } from './MapControls';
-export { default as LocationMarker } from './LocationMarker';
+export { default as GoogleRipMap } from './GoogleRipMap';
+export { default as LayerTogglePanel } from './LayerTogglePanel';
 export { default as PinPlacementBanner } from './PinPlacementBanner';

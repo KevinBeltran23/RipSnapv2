@@ -1,153 +1,161 @@
-﻿import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import React, { useMemo, useState } from 'react';
+import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import BottomSheet, { BottomSheetScrollView } from '@gorhom/bottom-sheet';
-import { useFilteredLocations } from '../../hooks/useFilteredLocations';
-import { useMapUI } from '../../contexts/MapUIContext';
-import { LocationData } from '../../types/location';
-import PopupSheet from './PopupSheet';
 import SearchBar from '../common/SearchBar';
-import {
-  BOTTOM_SHEET_SNAP_POINTS,
-  CATEGORY_OPTIONS,
-  SEVERITY_OPTIONS,
-} from '../../config/constants';
-import { Colors, useColors } from '../../hooks/useColors';
-import DropdownSelector from '../common/DropdownSelector';
 import Button from '../common/Button';
-import { SeverityLevel } from '../../types/severity';
+import LayerTogglePanel from '../map/LayerTogglePanel';
+import PopupSheet from './PopupSheet';
+import { BOTTOM_SHEET_SNAP_POINTS } from '../../config/constants';
+import { RIP_MAP_LAYER_BY_ID } from '../../config/mapLayers';
+import { useColors } from '../../hooks/useColors';
 import { useResponsiveStyles } from '../../hooks/useResponsiveStyles';
+import type {
+  RipCoordinate,
+  RipMapLayerId,
+  RipMapPoint,
+  RipMapPointsByLayer,
+} from '../../types/ripMap';
 
-function FilterSheet() {
-  const { selectedLocation, setSelectedLocation, clearLocationStates } =
-    useMapUI();
+interface FilterSheetProps {
+  pointsByLayer: RipMapPointsByLayer;
+  visibleLayerIds: RipMapLayerId[];
+  visiblePoints: RipMapPoint[];
+  selectedPoint: RipMapPoint | null;
+  draftCoordinate: RipCoordinate | null;
+  isPinPlacementMode: boolean;
+  isLoading: boolean;
+  isSubmitting: boolean;
+  error: string | null;
+  onSelectPoint: (point: RipMapPoint) => void;
+  onToggleLayer: (layerId: RipMapLayerId) => void;
+  onStartAdd: () => void;
+  onClosePopup: () => void;
+  onStartPinPlacement: () => void;
+  onSubmitUpload: (draft: { title: string; notes: string }) => Promise<boolean>;
+}
 
-  const { filteredLocations } = useFilteredLocations();
-
-  const {
-    showDetailsPopup,
-    setShowDetailsPopup,
-    showAddDataPopup,
-    setShowAddDataPopup,
-    categoryFilter,
-    setCategoryFilter,
-    severityFilter,
-    setSeverityFilter,
-  } = useMapUI();
-
+function FilterSheet({
+  pointsByLayer,
+  visibleLayerIds,
+  visiblePoints,
+  selectedPoint,
+  draftCoordinate,
+  isPinPlacementMode,
+  isLoading,
+  isSubmitting,
+  error,
+  onSelectPoint,
+  onToggleLayer,
+  onStartAdd,
+  onClosePopup,
+  onStartPinPlacement,
+  onSubmitUpload,
+}: FilterSheetProps) {
+  const [activeSnapIndex, setActiveSnapIndex] = useState(0);
+  const [showAddPopup, setShowAddPopup] = useState(false);
   const colors = useColors();
   const { scaleHeight, scaleWidth, proportionalSize, scaleFont } =
     useResponsiveStyles();
 
-  useEffect(() => {
-    const isAnyPopupOpen = showDetailsPopup || showAddDataPopup;
-    if (!isAnyPopupOpen) {
-      clearLocationStates();
-    }
-  }, [showDetailsPopup, showAddDataPopup, clearLocationStates]);
+  const backgroundStyle = useMemo(
+    () => ({
+      backgroundColor: colors.background,
+      borderTopLeftRadius: proportionalSize(24),
+      borderTopRightRadius: proportionalSize(24),
+    }),
+    [colors.background, proportionalSize],
+  );
 
-  const [activeSnapIndex, setActiveSnapIndex] = useState(0);
-
-  const handleShowLocation = (location: LocationData) => {
-    setSelectedLocation(location);
-    setShowDetailsPopup(true);
+  const handleStartAdd = () => {
+    setShowAddPopup(true);
+    onStartAdd();
   };
 
   const handleClosePopup = () => {
-    setShowDetailsPopup(false);
+    setShowAddPopup(false);
+    onClosePopup();
   };
 
-  const handleShowAddData = () => {
-    setShowAddDataPopup(true);
-  };
+  const getSuggestedPoints = () => visiblePoints.slice(0, 6);
 
-  const handleCloseAddData = () => {
-    setShowAddDataPopup(false);
-  };
-
-  const handleCategorySelect = (value: string | number | null) => {
-    setCategoryFilter(value as number);
-  };
-
-  const handleSeveritySelect = (value: string | number | null) => {
-    setSeverityFilter(value as SeverityLevel | null);
-  };
-
-  const getSuggestedLocations = () => {
-    return filteredLocations.slice(0, 6);
-  };
-
-  const dynamicStyles = StyleSheet.create({
-    bottomSheet: {
-      zIndex: 100,
+  const s = StyleSheet.create({
+    bottomSheet: { zIndex: 100 },
+    container: { flex: 1 },
+    contentContainer: { padding: proportionalSize(16) },
+    addDataButton: {
+      marginTop: scaleHeight(8),
+      marginBottom: scaleHeight(16),
+      marginHorizontal: scaleWidth(4),
     },
-    container: {
-      flex: 1,
-    },
-    contentContainer: {
-      padding: proportionalSize(16),
+    statusText: {
+      color: error ? colors.error : colors.textSecondary,
+      fontSize: scaleFont(13),
+      fontWeight: '600',
+      marginBottom: scaleHeight(12),
     },
     sectionTitle: {
       color: colors.textPrimary,
+      marginTop: scaleHeight(10),
       marginBottom: scaleHeight(8),
       fontSize: scaleFont(16),
-      fontWeight: '500',
-      marginTop: scaleHeight(8),
+      fontWeight: '700',
     },
     suggestedGrid: {
       flexDirection: 'row',
       flexWrap: 'wrap',
       justifyContent: 'space-between',
+      gap: scaleWidth(8),
     },
     suggestedItem: {
-      width: scaleWidth(150),
-      height: scaleHeight(50),
+      width: scaleWidth(160),
+      minHeight: scaleHeight(58),
       borderRadius: proportionalSize(8),
-      marginBottom: scaleHeight(12),
+      marginBottom: scaleHeight(10),
       justifyContent: 'center',
-      alignItems: 'center',
-      padding: proportionalSize(8),
+      padding: proportionalSize(10),
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: colors.border,
+      backgroundColor: colors.backgroundSecondary,
     },
-    suggestedText: {
-      color: colors.textInverse,
-      fontWeight: 'bold',
-      textAlign: 'center',
+    suggestedTitle: {
+      color: colors.textPrimary,
+      fontWeight: '700',
       fontSize: scaleFont(14),
+      marginBottom: scaleHeight(3),
     },
-    addDataButton: {
-      marginTop: scaleHeight(16),
-      marginBottom: scaleHeight(16),
-      marginHorizontal: scaleWidth(4),
+    suggestedMeta: {
+      color: colors.textSecondary,
+      fontSize: scaleFont(11),
     },
   });
 
-  const selectedSeverityOption = SEVERITY_OPTIONS.find(
-    option => option.level === severityFilter,
-  );
-  const severityButtonBackgroundColor = selectedSeverityOption
-    ? colors[selectedSeverityOption.color]
-    : colors.info;
-
-  if (showAddDataPopup) {
+  if (showAddPopup) {
     return (
       <PopupSheet
         mode="add"
-        location={selectedLocation || undefined}
-        onClose={handleCloseAddData}
-        index={activeSnapIndex}
-        onChange={setActiveSnapIndex}
-        initialCategory={categoryFilter}
+        draftCoordinate={draftCoordinate}
+        isPinPlacementMode={isPinPlacementMode}
+        isSubmitting={isSubmitting}
+        onClose={handleClosePopup}
+        onAddPress={handleStartAdd}
+        onStartPinPlacement={onStartPinPlacement}
+        onSubmit={onSubmitUpload}
       />
     );
   }
 
-  if (showDetailsPopup && selectedLocation) {
+  if (selectedPoint) {
     return (
       <PopupSheet
         mode="view"
-        location={selectedLocation}
+        point={selectedPoint}
+        draftCoordinate={draftCoordinate}
+        isPinPlacementMode={isPinPlacementMode}
+        isSubmitting={isSubmitting}
         onClose={handleClosePopup}
-        index={activeSnapIndex}
-        onChange={setActiveSnapIndex}
+        onAddPress={handleStartAdd}
+        onStartPinPlacement={onStartPinPlacement}
+        onSubmit={onSubmitUpload}
       />
     );
   }
@@ -157,83 +165,59 @@ function FilterSheet() {
       index={activeSnapIndex}
       snapPoints={BOTTOM_SHEET_SNAP_POINTS}
       onChange={setActiveSnapIndex}
-      backgroundStyle={{
-        backgroundColor: colors.background,
-        borderTopLeftRadius: proportionalSize(24),
-        borderTopRightRadius: proportionalSize(24),
-      }}
+      backgroundStyle={backgroundStyle}
       handleIndicatorStyle={{
         backgroundColor: colors.gray300,
         width: scaleWidth(40),
       }}
       enablePanDownToClose={false}
-      style={dynamicStyles.bottomSheet}
+      style={s.bottomSheet}
     >
       <BottomSheetScrollView
-        style={dynamicStyles.container}
-        contentContainerStyle={dynamicStyles.contentContainer}
+        style={s.container}
+        contentContainerStyle={s.contentContainer}
+        keyboardShouldPersistTaps="handled"
       >
-        <SearchBar onSelectLocation={handleShowLocation} />
+        <SearchBar
+          points={visiblePoints}
+          onSelectPoint={onSelectPoint}
+          placeholder="Search map uploads..."
+        />
 
         <Button
           variant="secondary"
-          label="Add Data"
-          onPress={handleShowAddData}
-          style={dynamicStyles.addDataButton}
+          label="Add Upload"
+          onPress={handleStartAdd}
+          style={s.addDataButton}
         />
 
-        <DropdownSelector
-          title="Filter by Category"
-          options={CATEGORY_OPTIONS.map(cat => ({
-            label: cat.label,
-            value: cat.id,
-            icon: cat.icon,
-          }))}
-          selectedValue={categoryFilter}
-          onValueChange={handleCategorySelect}
-          placeholder="Select a category..."
-          buttonBackgroundColor={colors.primary}
-          buttonTextColor={colors.textInverse}
-          zIndex={200}
+        {isLoading && <Text style={s.statusText}>Loading map uploads...</Text>}
+        {error && <Text style={s.statusText}>{error}</Text>}
+        {!isLoading && !error && visiblePoints.length === 0 && (
+          <Text style={s.statusText}>
+            No visible uploads for enabled layers.
+          </Text>
+        )}
+
+        <LayerTogglePanel
+          visibleLayerIds={visibleLayerIds}
+          pointsByLayer={pointsByLayer}
+          onToggleLayer={onToggleLayer}
         />
 
-        <DropdownSelector
-          title="Filter by Severity"
-          options={[
-            {
-              label: 'All Severities',
-              value: null,
-              icon: 'filter-remove',
-              colorKey: 'info' as keyof Colors,
-            },
-            ...SEVERITY_OPTIONS.map(sev => ({
-              label: sev.label,
-              value: sev.level,
-              icon: undefined,
-              colorKey: sev.color as keyof Colors,
-            })),
-          ]}
-          selectedValue={severityFilter}
-          onValueChange={handleSeveritySelect}
-          placeholder="Select a severity..."
-          buttonBackgroundColor={severityButtonBackgroundColor}
-          buttonTextColor={colors.textInverse}
-          zIndex={100}
-        />
-
-        <Text style={dynamicStyles.sectionTitle}>Suggested</Text>
-        <View style={dynamicStyles.suggestedGrid}>
-          {getSuggestedLocations().map(location => (
+        <Text style={s.sectionTitle}>Recent Uploads</Text>
+        <View style={s.suggestedGrid}>
+          {getSuggestedPoints().map(point => (
             <TouchableOpacity
-              key={location.id}
-              style={[
-                dynamicStyles.suggestedItem,
-                { backgroundColor: colors[location.severityColor] },
-              ]}
-              onPress={() => handleShowLocation(location)}
+              key={point.id}
+              style={s.suggestedItem}
+              onPress={() => onSelectPoint(point)}
             >
-              <Text style={dynamicStyles.suggestedText} numberOfLines={1}>
-                {location.name}
+              <Text style={s.suggestedTitle} numberOfLines={1}>
+                {point.title}
+              </Text>
+              <Text style={s.suggestedMeta} numberOfLines={1}>
+                {RIP_MAP_LAYER_BY_ID[point.layerId].label}
               </Text>
             </TouchableOpacity>
           ))}

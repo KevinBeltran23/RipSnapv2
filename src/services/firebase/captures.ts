@@ -5,7 +5,7 @@
  *                ripsnap_captures/{userId}/{sessionId}/metadata.json
  * Firestore:     ripsnap_captures/{docId}
  *
- * Kept separate from the legacy accessibility location routes.
+ * Capture documents are the source for the MVP RipFinder map layer.
  */
 import {
   getStorage,
@@ -90,6 +90,8 @@ export async function uploadCapture(
     metaStoragePath,
     notes: notes.trim(),
     location,
+    latitude: location.latitude,
+    longitude: location.longitude,
     createdAt: serverTimestamp(),
   });
 

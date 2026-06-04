@@ -24,13 +24,6 @@ export interface Colors {
   error: string;
   info: string;
 
-  // Severity colors
-  fullyAccessible: string;
-  partiallyAccessible: string;
-  limitedAccessibility: string;
-  notAccessible: string;
-  unknownAccessibility: string;
-
   // Neutral colors
   white: string;
   black: string;
@@ -104,13 +97,6 @@ const getColors = (themeClasses: string): Colors => {
     error: '#E53E3E',
     info: '#4299E1',
 
-    // Severity colors (significantly softer for less visual intrusion)
-    fullyAccessible: '#48BB78',
-    partiallyAccessible: '#FFD54F',
-    limitedAccessibility: '#F6AD55',
-    notAccessible: '#E53E3E',
-    unknownAccessibility: '#B0BEC5',
-
     // Neutral colors (refined grayscale for better hierarchy and readability)
     white: '#FFFFFF',
     black: '#000000',
@@ -176,13 +162,6 @@ const getColors = (themeClasses: string): Colors => {
       error: '#FC8181', // Lighter red for visibility
       info: '#63B3ED', // Using primary blue for info
 
-      // Severity colors (adjusted for dark background visibility)
-      fullyAccessible: '#38A169', // Stronger green
-      partiallyAccessible: '#ECC94B', // Stronger yellow-orange
-      limitedAccessibility: '#DD6B20', // Stronger orange
-      notAccessible: '#E53E3E', // Stronger red
-      unknownAccessibility: '#718096', // Medium dark gray (good for contrast)
-
       // Neutral colors for dark mode (inverted and adjusted for readability)
       white: '#1A202C', // Used for textInverse, effectively
       black: '#FFFFFF', // Used for textInverse, effectively
@@ -235,10 +214,6 @@ const getColors = (themeClasses: string): Colors => {
       warning: '#FFB000',
       error: '#DC267F',
       info: '#648FFF',
-      fullyAccessible: '#785EF0',
-      partiallyAccessible: '#FFB000',
-      limitedAccessibility: '#FE6100',
-      notAccessible: '#DC267F',
     };
   }
 
@@ -256,7 +231,6 @@ const getColors = (themeClasses: string): Colors => {
         border: '#FFFFFF',
         borderLight: '#FFFFFF',
         borderDark: '#FFFFFF',
-        limitedAccessibility: '#FFFF00', // Example: High contrast yellow
       };
     } else {
       colors = {
@@ -274,7 +248,6 @@ const getColors = (themeClasses: string): Colors => {
         secondary: '#008000',
         error: '#FF0000',
         warning: '#FF8C00',
-        limitedAccessibility: '#800080', // Example: High contrast purple
       };
     }
   }

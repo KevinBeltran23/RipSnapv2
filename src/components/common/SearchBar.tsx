@@ -1,22 +1,20 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
-  View,
+  ScrollView,
+  StyleSheet,
+  Text,
   TextInput,
   TouchableOpacity,
-  Text,
-  StyleSheet,
-  ScrollView,
+  View,
 } from 'react-native';
-import { LocationData } from '../../types/location';
-import { useMapUI } from '../../contexts/MapUIContext';
-import { convertFirestoreToLocationData } from '../../services/firebase/locations';
 import { useColors } from '../../hooks/useColors';
-import { useResponsiveStyles } from '../../hooks/useResponsiveStyles';
-import { useSearchQuery } from '../../services/store/searchQueries';
 import { useDebounce } from '../../hooks/useDebounce';
+import { useResponsiveStyles } from '../../hooks/useResponsiveStyles';
+import type { RipMapPoint } from '../../types/ripMap';
 
 interface SearchBarProps {
-  onSelectLocation?: (location: LocationData) => void;
+  points?: RipMapPoint[];
+  onSelectPoint?: (point: RipMapPoint) => void;
   placeholder?: string;
   initialValue?: string;
   showResults?: boolean;
@@ -24,29 +22,15 @@ interface SearchBarProps {
 }
 
 function SearchBar({
-  onSelectLocation,
-  placeholder = 'Search locations...',
+  points = [],
+  onSelectPoint,
+  placeholder = 'Search uploads...',
   initialValue = '',
   showResults = true,
   onTextChange,
 }: SearchBarProps) {
-  const { categoryFilter } = useMapUI();
   const [searchQuery, setSearchQuery] = useState(initialValue);
-
-  // Debounce the input before hitting our cache/store
-  const debouncedSearchTerm = useDebounce(searchQuery, 300);
-
-  // Call TanStack query using the debounced query
-  const { data: rawResults = [] } = useSearchQuery(debouncedSearchTerm);
-
-  // Map Firestore response cleanly into filtered UI data
-  const searchResults = React.useMemo(() => {
-    if (!debouncedSearchTerm.trim()) return [];
-    return rawResults.map(loc =>
-      convertFirestoreToLocationData(loc, categoryFilter),
-    );
-  }, [rawResults, categoryFilter, debouncedSearchTerm]);
-
+  const debouncedSearchTerm = useDebounce(searchQuery, 250);
   const colors = useColors();
   const { scaleHeight, proportionalSize, scaleFont } = useResponsiveStyles();
 
@@ -54,14 +38,35 @@ function SearchBar({
     setSearchQuery(initialValue);
   }, [initialValue]);
 
+  const searchResults = useMemo(() => {
+    const query = debouncedSearchTerm.trim().toLowerCase();
+    if (!query) return [];
+
+    return points
+      .filter(point => {
+        const searchable = [
+          point.title,
+          point.notes,
+          point.captureType,
+          point.coordinate.latitude.toFixed(6),
+          point.coordinate.longitude.toFixed(6),
+        ]
+          .filter(Boolean)
+          .join(' ')
+          .toLowerCase();
+        return searchable.includes(query);
+      })
+      .slice(0, 8);
+  }, [debouncedSearchTerm, points]);
+
   const handleSearch = (text: string) => {
     setSearchQuery(text);
-    if (onTextChange) onTextChange(text);
+    onTextChange?.(text);
   };
 
-  const handleSelectLocation = (location: LocationData) => {
-    setSearchQuery(location.name);
-    if (onSelectLocation) onSelectLocation(location);
+  const handleSelectPoint = (point: RipMapPoint) => {
+    setSearchQuery(point.title);
+    onSelectPoint?.(point);
   };
 
   const s = StyleSheet.create({
@@ -75,32 +80,38 @@ function SearchBar({
       borderRadius: proportionalSize(8),
       padding: proportionalSize(12),
       fontSize: scaleFont(16),
-      borderWidth: proportionalSize(1),
+      borderWidth: StyleSheet.hairlineWidth,
       borderColor: colors.border,
       color: colors.textPrimary,
     },
     results: {
-      maxHeight: scaleHeight(200),
+      maxHeight: scaleHeight(210),
       backgroundColor: colors.background,
-      borderWidth: proportionalSize(1),
+      borderWidth: StyleSheet.hairlineWidth,
       borderColor: colors.border,
       borderRadius: proportionalSize(8),
       position: 'absolute',
-      top: scaleHeight(48),
+      top: scaleHeight(52),
       left: 0,
       right: 0,
       zIndex: 101,
+      elevation: 4,
     },
     resultItem: {
       paddingVertical: scaleHeight(12),
       paddingHorizontal: proportionalSize(12),
-      borderBottomWidth: proportionalSize(1),
+      borderBottomWidth: StyleSheet.hairlineWidth,
       borderBottomColor: colors.border,
     },
     resultName: {
-      fontSize: scaleFont(16),
-      fontWeight: '500',
+      fontSize: scaleFont(15),
+      fontWeight: '600',
       color: colors.textPrimary,
+    },
+    resultMeta: {
+      marginTop: scaleHeight(2),
+      fontSize: scaleFont(12),
+      color: colors.textSecondary,
     },
   });
 
@@ -119,13 +130,17 @@ function SearchBar({
           nestedScrollEnabled
           keyboardShouldPersistTaps="handled"
         >
-          {searchResults.map(item => (
+          {searchResults.map(point => (
             <TouchableOpacity
-              key={item.id}
+              key={point.id}
               style={s.resultItem}
-              onPress={() => handleSelectLocation(item)}
+              onPress={() => handleSelectPoint(point)}
             >
-              <Text style={s.resultName}>{item.name}</Text>
+              <Text style={s.resultName}>{point.title}</Text>
+              <Text style={s.resultMeta}>
+                {point.coordinate.latitude.toFixed(5)},{' '}
+                {point.coordinate.longitude.toFixed(5)}
+              </Text>
             </TouchableOpacity>
           ))}
         </ScrollView>
