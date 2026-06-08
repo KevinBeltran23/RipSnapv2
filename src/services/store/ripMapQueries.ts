@@ -8,13 +8,20 @@ import { groupRipMapPointsByLayer } from '../../utils/ripMapPoints';
 
 export const RIP_MAP_POINTS_QUERY_KEY = ['ripMapPoints'];
 
-export function useRipMapPointsQuery() {
+interface UseRipMapPointsQueryOptions {
+  enabled?: boolean;
+}
+
+export function useRipMapPointsQuery({
+  enabled = true,
+}: UseRipMapPointsQueryOptions = {}) {
   return useQuery({
     queryKey: RIP_MAP_POINTS_QUERY_KEY,
     queryFn: async () => {
       const records = await getRipMapCaptureRecords();
       return groupRipMapPointsByLayer(records);
     },
+    enabled,
     staleTime: 1000 * 60,
   });
 }

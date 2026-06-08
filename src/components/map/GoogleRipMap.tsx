@@ -4,23 +4,8 @@ import MapView, { Marker, PROVIDER_GOOGLE, Region } from 'react-native-maps';
 import { INITIAL_REGION } from '../../config/constants';
 import { RIP_MAP_LAYER_BY_ID } from '../../config/mapLayers';
 import { useColors } from '../../hooks/useColors';
-import type {
-  RipCoordinate,
-  RipMapCameraRequest,
-  RipMapPoint,
-  RipMapViewport,
-} from '../../types/ripMap';
-
-interface GoogleRipMapProps {
-  points: RipMapPoint[];
-  selectedPointId: string | null;
-  userLocation: RipCoordinate | null;
-  draftPin: RipCoordinate | null;
-  cameraRequest: RipMapCameraRequest | null;
-  onPointPress: (point: RipMapPoint) => void;
-  onMapPress: (coordinate: RipCoordinate) => void;
-  onViewportChange: (viewport: RipMapViewport) => void;
-}
+import type { RipMapViewport } from '../../types/ripMap';
+import type { RipMapRendererProps } from './RipMapRenderer.types';
 
 const regionToViewport = (region: Region): RipMapViewport => ({
   center: {
@@ -40,7 +25,7 @@ function GoogleRipMap({
   onPointPress,
   onMapPress,
   onViewportChange,
-}: GoogleRipMapProps) {
+}: RipMapRendererProps) {
   const colors = useColors();
   const mapRef = useRef<MapView>(null);
   const lastCameraRequestId = useRef<number | null>(null);

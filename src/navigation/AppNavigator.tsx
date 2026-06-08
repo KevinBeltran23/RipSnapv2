@@ -1,11 +1,9 @@
-/**
- * AppNavigator — root navigator.
- * Gate: authenticated + accepted terms → Main tabs; otherwise → Auth screens.
- */
 import React from 'react';
+import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { RootStackParamList } from './types';
 import { useAuth } from '../contexts/AuthContext';
+import { useColors } from '../hooks/useColors';
 import { MainNavigator } from './MainNavigator';
 import LoginScreen from '../screens/auth/LoginScreen';
 import SignUpScreen from '../screens/auth/SignUpScreen';
@@ -17,32 +15,59 @@ import AboutScreen from '../screens/legal/AboutScreen';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
-const AppNavigator = () => {
-  const { authUser, user } = useAuth();
-
-  let initialRouteName: keyof RootStackParamList = 'Login';
-  if (authUser) {
-    initialRouteName = user?.hasAcceptedTerms ? 'Main' : 'TermsAcceptance';
-  }
+function AuthLoadingScreen() {
+  const colors = useColors();
 
   return (
-    <Stack.Navigator
-      initialRouteName={initialRouteName}
-      screenOptions={{ headerShown: false }}
+    <View
+      style={[styles.loadingContainer, { backgroundColor: colors.background }]}
     >
-      {/* Auth + terms screens */}
-      <Stack.Screen name="Login" component={LoginScreen} />
-      <Stack.Screen name="SignUp" component={SignUpScreen} />
-      <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
-      <Stack.Screen name="TermsAcceptance" component={TermsAcceptanceScreen} />
-      {/* Legal info — accessible from any state */}
+      <ActivityIndicator size="large" color={colors.primary} />
+    </View>
+  );
+}
+
+const AppNavigator = () => {
+  const { authUser, user, loading } = useAuth();
+  const isAuthenticated = Boolean(authUser);
+  const isResolvingProfile = isAuthenticated && (loading || !user);
+  const hasAcceptedTerms = Boolean(user?.hasAcceptedTerms);
+
+  return (
+    <Stack.Navigator screenOptions={{ headerShown: false }}>
+      {isResolvingProfile ? (
+        <Stack.Screen name="Login" component={AuthLoadingScreen} />
+      ) : !isAuthenticated ? (
+        <>
+          <Stack.Screen name="Login" component={LoginScreen} />
+          <Stack.Screen name="SignUp" component={SignUpScreen} />
+          <Stack.Screen
+            name="ForgotPassword"
+            component={ForgotPasswordScreen}
+          />
+        </>
+      ) : !hasAcceptedTerms ? (
+        <Stack.Screen
+          name="TermsAcceptance"
+          component={TermsAcceptanceScreen}
+        />
+      ) : (
+        <Stack.Screen name="Main" component={MainNavigator} />
+      )}
+
       <Stack.Screen name="PrivacyPolicy" component={PrivacyPolicyScreen} />
       <Stack.Screen name="TermsOfService" component={TermsOfServiceScreen} />
       <Stack.Screen name="About" component={AboutScreen} />
-      {/* Authenticated main app */}
-      <Stack.Screen name="Main" component={MainNavigator} />
     </Stack.Navigator>
   );
 };
+
+const styles = StyleSheet.create({
+  loadingContainer: {
+    alignItems: 'center',
+    flex: 1,
+    justifyContent: 'center',
+  },
+});
 
 export default AppNavigator;

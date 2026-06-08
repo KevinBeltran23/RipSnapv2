@@ -1,11 +1,7 @@
 import React, { useCallback, useState } from 'react';
 import { Alert, StyleSheet, View } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
-import {
-  GoogleRipMap,
-  MapControls,
-  PinPlacementBanner,
-} from '../../components/map';
+import { MapControls, PinPlacementBanner } from '../../components/map';
 import FilterSheet from '../../components/bottom-sheet/FilterSheet';
 import { useAuth } from '../../contexts/AuthContext';
 import { useRipMapLocation } from '../../hooks/useRipMapLocation';
@@ -15,17 +11,22 @@ import {
   useRipMapPointsQuery,
 } from '../../services/store/ripMapQueries';
 import type { RipMapPoint } from '../../types/ripMap';
+import type { RipMapRendererProps } from '../../components/map/RipMapRenderer.types';
 
-function MapScreen() {
+interface MapScreenProps {
+  MapRenderer: React.ComponentType<RipMapRendererProps>;
+}
+
+function MapScreen({ MapRenderer }: MapScreenProps) {
   const [isLayerPickerOpen, setIsLayerPickerOpen] = useState(false);
+  const { authUser } = useAuth();
   const {
     data: pointsByLayer,
     isLoading,
     error,
     refetch,
-  } = useRipMapPointsQuery();
+  } = useRipMapPointsQuery({ enabled: Boolean(authUser) });
   const createUploadMutation = useCreateRipMapUploadMutation();
-  const { authUser } = useAuth();
   const {
     setViewport,
     visibleLayerIds,
@@ -49,9 +50,17 @@ function MapScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      refetch();
-    }, [refetch]),
+      if (authUser) {
+        refetch();
+      }
+    }, [authUser, refetch]),
   );
+
+  const handleReload = useCallback(() => {
+    if (authUser) {
+      refetch();
+    }
+  }, [authUser, refetch]);
 
   const handleLocate = useCallback(async () => {
     const coordinate = await getUserCoordinate();
@@ -145,7 +154,7 @@ function MapScreen() {
 
   return (
     <View style={styles.container}>
-      <GoogleRipMap
+      <MapRenderer
         points={visiblePoints}
         selectedPointId={selectedPointId}
         userLocation={userLocation}
@@ -157,7 +166,7 @@ function MapScreen() {
       />
       <MapControls
         onLocate={handleLocate}
-        onReload={refetch}
+        onReload={handleReload}
         isLoading={isLoading}
         onLayersPress={handleLayersPress}
       />

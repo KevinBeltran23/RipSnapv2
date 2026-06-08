@@ -12,7 +12,8 @@ import { useColors } from '../hooks/useColors';
 import { useResponsiveStyles } from '../hooks/useResponsiveStyles';
 
 import HomeScreen from '../screens/main/HomeScreen';
-import MapScreen from '../screens/main/MapScreen';
+import GoogleMapScreen from '../screens/main/GoogleMapScreen';
+import MapboxMapScreen from '../screens/main/MapboxMapScreen';
 import LiveDetectionScreen from '../screens/main/LiveDetectionScreen';
 import SettingsScreen from '../screens/main/SettingsScreen';
 
@@ -45,9 +46,14 @@ const renderCogIcon = ({ color, size }: { color: string; size: number }) => (
   <TabBarIcon name="cog" color={color} size={size} />
 );
 
-const MapScreenWithUnmount = (props: any) => {
+const GoogleMapScreenWithUnmount = (props: any) => {
   const isFocused = useIsFocused();
-  return isFocused ? <MapScreen {...props} /> : null;
+  return isFocused ? <GoogleMapScreen {...props} /> : null;
+};
+
+const MapboxMapScreenWithUnmount = (props: any) => {
+  const isFocused = useIsFocused();
+  return isFocused ? <MapboxMapScreen {...props} /> : null;
 };
 
 export function MainNavigator() {
@@ -95,10 +101,19 @@ export function MainNavigator() {
       />
       <Tab.Screen
         name="MapTab"
-        component={MapScreenWithUnmount}
+        component={GoogleMapScreenWithUnmount}
         listeners={{ focus: lockPortrait }}
         options={{
           title: 'Map',
+          tabBarIcon: renderMapIcon,
+        }}
+      />
+      <Tab.Screen
+        name="MapboxMapTab"
+        component={MapboxMapScreenWithUnmount}
+        listeners={{ focus: lockPortrait }}
+        options={{
+          title: 'Mapbox',
           tabBarIcon: renderMapIcon,
         }}
       />

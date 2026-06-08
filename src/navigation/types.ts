@@ -12,6 +12,7 @@ export type RootStackParamList = {
 
 export type MainTabParamList = {
   MapTab: undefined;
+  MapboxMapTab: undefined;
   HomeTab: undefined;
   SettingsTab: undefined;
   LiveFeedTab: undefined;

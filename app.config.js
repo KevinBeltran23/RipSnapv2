@@ -4,6 +4,26 @@ const localIosGoogleServicesFile = './GoogleService-Info.plist';
 const localAndroidGoogleServicesFile = './google-services.json';
 
 const existingFile = (path) => (fs.existsSync(path) ? path : undefined);
+const MAPBOX_PLUGIN = '@rnmapbox/maps';
+
+const hasPlugin = (plugins, pluginName) =>
+    plugins.some((plugin) =>
+        Array.isArray(plugin) ? plugin[0] === pluginName : plugin === pluginName,
+    );
+
+const withMapboxPlugin = (plugins) => {
+    const mapboxOptions = {
+        ...(process.env.RNMAPBOX_MAPS_VERSION
+            ? { RNMapboxMapsVersion: process.env.RNMAPBOX_MAPS_VERSION }
+            : {}),
+    };
+    const mapboxPlugin =
+        Object.keys(mapboxOptions).length > 0
+            ? [MAPBOX_PLUGIN, mapboxOptions]
+            : MAPBOX_PLUGIN;
+
+    return hasPlugin(plugins, MAPBOX_PLUGIN) ? plugins : [...plugins, mapboxPlugin];
+};
 
 /** @type {import('@expo/config').ConfigContext} */
 module.exports = ({ config }) => {
@@ -17,9 +37,11 @@ module.exports = ({ config }) => {
 
     const googleMapsApiKeyIos = process.env.GOOGLE_MAPS_API_KEY_IOS;
     const googleMapsApiKeyAndroid = process.env.GOOGLE_MAPS_API_KEY_ANDROID;
+    const mapboxAccessToken = process.env.EXPO_PUBLIC_MAPBOX_ACCESS_TOKEN;
 
     return {
         ...config,
+        plugins: withMapboxPlugin(config.plugins ?? []),
         ios: {
             ...ios,
             googleServicesFile:
@@ -42,6 +64,10 @@ module.exports = ({ config }) => {
                     ...(googleMapsApiKeyAndroid ? { apiKey: googleMapsApiKeyAndroid } : {}),
                 },
             },
+        },
+        extra: {
+            ...(config.extra ?? {}),
+            ...(mapboxAccessToken ? { mapboxAccessToken } : {}),
         },
     };
 };

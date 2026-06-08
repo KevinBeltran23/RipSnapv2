@@ -148,10 +148,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
   };
 
   const signInWithGoogle = async () => {
-    try {
-      await GoogleAuth.signInWithGoogle();
-    } catch {
-      /* error already logged in google auth service */
+    const credential = await GoogleAuth.signInWithGoogle();
+    if (!credential?.user) {
+      throw new Error('Google sign-in did not complete.');
     }
   };
 

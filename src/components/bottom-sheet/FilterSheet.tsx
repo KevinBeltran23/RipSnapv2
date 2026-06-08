@@ -58,11 +58,7 @@ function FilterSheet({
     useResponsiveStyles();
 
   const snapPoints = useMemo(
-    () => [
-      100,
-      Math.round(height * 0.5),
-      Math.round(height * 0.88),
-    ],
+    () => [100, Math.round(height * 0.5), Math.round(height * 0.88)],
     [height],
   );
 

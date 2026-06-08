@@ -5,7 +5,7 @@ export const RIP_MAP_LAYERS: RipMapLayer[] = [
     id: 'public',
     label: 'Public',
     description: 'Public capture locations uploaded by app users.',
-    icon: 'map-marker-wave',
+    icon: 'waves',
     color: '#0EA5A3',
   },
   {
