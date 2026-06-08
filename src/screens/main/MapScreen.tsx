@@ -12,12 +12,14 @@ import {
 } from '../../services/store/ripMapQueries';
 import type { RipMapPoint } from '../../types/ripMap';
 import type { RipMapRendererProps } from '../../components/map/RipMapRenderer.types';
+import type { RipMapClusteringConfig } from '../../types/ripMap';
 
 interface MapScreenProps {
   MapRenderer: React.ComponentType<RipMapRendererProps>;
+  clustering?: RipMapClusteringConfig;
 }
 
-function MapScreen({ MapRenderer }: MapScreenProps) {
+function MapScreen({ MapRenderer, clustering }: MapScreenProps) {
   const [isLayerPickerOpen, setIsLayerPickerOpen] = useState(false);
   const { authUser } = useAuth();
   const {
@@ -160,6 +162,7 @@ function MapScreen({ MapRenderer }: MapScreenProps) {
         userLocation={userLocation}
         draftPin={draftPin}
         cameraRequest={cameraRequest}
+        clustering={clustering}
         onPointPress={handleSelectPoint}
         onMapPress={handleMapPress}
         onViewportChange={setViewport}

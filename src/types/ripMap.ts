@@ -49,6 +49,12 @@ export interface RipMapCameraRequest {
   longitudeDelta?: number;
 }
 
+export interface RipMapClusteringConfig {
+  enabled: boolean;
+  radius: number;
+  maxZoom: number;
+}
+
 export interface RipMapPointsByLayer {
   public: RipMapPoint[];
   admin: RipMapPoint[];

@@ -1,12 +1,30 @@
-import React, { useEffect, useMemo, useRef } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
-import Mapbox, { type Camera as MapboxCameraRef } from '@rnmapbox/maps';
-import { INITIAL_REGION } from '../../config/constants';
-import { RIP_MAP_LAYER_BY_ID } from '../../config/mapLayers';
+import Mapbox, {
+  ShapeSource,
+  type Camera as MapboxCameraRef,
+} from '@rnmapbox/maps';
 import { useColors } from '../../hooks/useColors';
 import { useResponsiveStyles } from '../../hooks/useResponsiveStyles';
-import type { RipCoordinate, RipMapLayerId } from '../../types/ripMap';
 import type { RipMapRendererProps } from './RipMapRenderer.types';
+import {
+  coordinateToPosition,
+  createClusterCircleStyle,
+  createClusterLabelStyle,
+  createRipMapPointFeatureCollection,
+  createSelectedUploadCircleStyle,
+  createUploadCircleStyle,
+  initialMapboxCenter,
+  initialMapboxZoom,
+  isMapboxClusterFeature,
+  MAPBOX_CLUSTER_FILTER,
+  MAPBOX_RIP_LAYER_IDS,
+  MAPBOX_RIP_SOURCE_ID,
+  MAPBOX_SELECTED_POINT_FILTER,
+  MAPBOX_UNSELECTED_POINT_FILTER,
+  positionToCoordinate,
+  zoomFromLongitudeDelta,
+} from './mapbox/mapboxRipMapUtils';
 
 const MAPBOX_ACCESS_TOKEN = process.env.EXPO_PUBLIC_MAPBOX_ACCESS_TOKEN;
 
@@ -14,32 +32,10 @@ if (MAPBOX_ACCESS_TOKEN) {
   Mapbox.setAccessToken(MAPBOX_ACCESS_TOKEN).catch(() => undefined);
 }
 
-type MapboxPosition = [number, number];
-
-interface RipMapFeatureProperties {
-  pointId: string;
-  layerId: RipMapLayerId;
-  color: string;
-  isSelected: boolean;
-  title: string;
-}
-
-const coordinateToPosition = ({
-  latitude,
-  longitude,
-}: RipCoordinate): MapboxPosition => [longitude, latitude];
-
-const positionToCoordinate = ([
-  longitude,
-  latitude,
-]: number[]): RipCoordinate => ({
-  latitude,
-  longitude,
-});
-
-const zoomFromLongitudeDelta = (longitudeDelta?: number) => {
-  if (!longitudeDelta || longitudeDelta <= 0) return 13;
-  return Math.max(1, Math.min(20, Math.log2(360 / longitudeDelta)));
+const DEFAULT_MAPBOX_CLUSTERING = {
+  enabled: true,
+  radius: 48,
+  maxZoom: 14,
 };
 
 function MapboxRipMap({
@@ -48,6 +44,7 @@ function MapboxRipMap({
   userLocation,
   draftPin,
   cameraRequest,
+  clustering = DEFAULT_MAPBOX_CLUSTERING,
   onPointPress,
   onMapPress,
   onViewportChange,
@@ -55,6 +52,7 @@ function MapboxRipMap({
   const colors = useColors();
   const { scaleFont } = useResponsiveStyles();
   const cameraRef = useRef<MapboxCameraRef>(null);
+  const shapeSourceRef = useRef<ShapeSource>(null);
   const lastCameraRequestId = useRef<number | null>(null);
   const ignoreNextMapPressRef = useRef(false);
 
@@ -63,31 +61,13 @@ function MapboxRipMap({
     [points],
   );
 
-  const pointShape = useMemo<
-    GeoJSON.FeatureCollection<GeoJSON.Point, RipMapFeatureProperties>
-  >(
-    () => ({
-      type: 'FeatureCollection',
-      features: points.map(point => {
-        const layer = RIP_MAP_LAYER_BY_ID[point.layerId];
-
-        return {
-          type: 'Feature',
-          id: point.id,
-          geometry: {
-            type: 'Point',
-            coordinates: coordinateToPosition(point.coordinate),
-          },
-          properties: {
-            pointId: point.id,
-            layerId: point.layerId,
-            color: point.id === selectedPointId ? colors.accent : layer.color,
-            isSelected: point.id === selectedPointId,
-            title: point.title,
-          },
-        };
-      }),
-    }),
+  const pointShape = useMemo(
+    () =>
+      createRipMapPointFeatureCollection(
+        points,
+        selectedPointId,
+        colors.accent,
+      ),
     [colors.accent, points, selectedPointId],
   );
 
@@ -106,27 +86,65 @@ function MapboxRipMap({
   }, [cameraRequest]);
 
   const uploadCircleStyle = useMemo(
-    () => ({
-      circleColor: ['get', 'color'] as any,
-      circleOpacity: 0.96,
-      circleRadius: [
-        'case',
-        ['boolean', ['get', 'isSelected'], false],
-        10,
-        7,
-      ] as any,
-      circleStrokeColor: colors.background,
-      circleStrokeWidth: [
-        'case',
-        ['boolean', ['get', 'isSelected'], false],
-        3,
-        2,
-      ] as any,
-    }),
+    () => createUploadCircleStyle(colors.background),
     [colors.background],
   );
 
+  const selectedUploadCircleStyle = useMemo(
+    () => createSelectedUploadCircleStyle(colors.accent, colors.background),
+    [colors.accent, colors.background],
+  );
+
+  const clusterCircleStyle = useMemo(
+    () => createClusterCircleStyle(colors.primary, colors.background),
+    [colors.background, colors.primary],
+  );
+
+  const clusterLabelStyle = useMemo(
+    () => createClusterLabelStyle(colors.background),
+    [colors.background],
+  );
+
+  const resetIgnoredMapPress = () => {
+    setTimeout(() => {
+      ignoreNextMapPressRef.current = false;
+    }, 0);
+  };
+
+  const handleClusterPress = useCallback(async (feature: GeoJSON.Feature) => {
+    if (feature.geometry.type !== 'Point') return;
+
+    ignoreNextMapPressRef.current = true;
+    const centerCoordinate = feature.geometry.coordinates;
+
+    try {
+      const expansionZoom =
+        await shapeSourceRef.current?.getClusterExpansionZoom(feature);
+      cameraRef.current?.setCamera({
+        centerCoordinate,
+        zoomLevel: Math.min(expansionZoom ?? 16, 20),
+        animationDuration: 500,
+        animationMode: 'easeTo',
+      });
+    } catch {
+      cameraRef.current?.setCamera({
+        centerCoordinate,
+        zoomLevel: 16,
+        animationDuration: 500,
+        animationMode: 'easeTo',
+      });
+    } finally {
+      resetIgnoredMapPress();
+    }
+  }, []);
+
   const handlePointShapePress = (event: { features: GeoJSON.Feature[] }) => {
+    const clusterFeature = event.features.find(isMapboxClusterFeature);
+    if (clusterFeature) {
+      handleClusterPress(clusterFeature);
+      return;
+    }
+
     const feature = event.features.find(
       pressedFeature => typeof pressedFeature.properties?.pointId === 'string',
     );
@@ -137,9 +155,7 @@ function MapboxRipMap({
 
     ignoreNextMapPressRef.current = true;
     onPointPress(point);
-    setTimeout(() => {
-      ignoreNextMapPressRef.current = false;
-    }, 0);
+    resetIgnoredMapPress();
   };
 
   const handleMapPress = (feature: GeoJSON.Feature<GeoJSON.Point>) => {
@@ -191,25 +207,42 @@ function MapboxRipMap({
       <Mapbox.Camera
         ref={cameraRef}
         defaultSettings={{
-          centerCoordinate: coordinateToPosition({
-            latitude: INITIAL_REGION.latitude,
-            longitude: INITIAL_REGION.longitude,
-          }),
-          zoomLevel: zoomFromLongitudeDelta(INITIAL_REGION.longitudeDelta),
+          centerCoordinate: initialMapboxCenter(),
+          zoomLevel: initialMapboxZoom(),
         }}
       />
 
-      <Mapbox.ShapeSource
-        id="rip-upload-points-source"
+      <ShapeSource
+        ref={shapeSourceRef}
+        id={MAPBOX_RIP_SOURCE_ID}
         shape={pointShape}
+        cluster={clustering.enabled}
+        clusterRadius={clustering.radius}
+        clusterMaxZoomLevel={clustering.maxZoom}
         hitbox={{ width: 44, height: 44 }}
         onPress={handlePointShapePress}
       >
         <Mapbox.CircleLayer
-          id="rip-upload-points-circles"
+          id={MAPBOX_RIP_LAYER_IDS.clusters}
+          filter={MAPBOX_CLUSTER_FILTER}
+          style={clusterCircleStyle}
+        />
+        <Mapbox.SymbolLayer
+          id={MAPBOX_RIP_LAYER_IDS.clusterLabels}
+          filter={MAPBOX_CLUSTER_FILTER}
+          style={clusterLabelStyle}
+        />
+        <Mapbox.CircleLayer
+          id={MAPBOX_RIP_LAYER_IDS.unclusteredPoints}
+          filter={MAPBOX_UNSELECTED_POINT_FILTER}
           style={uploadCircleStyle}
         />
-      </Mapbox.ShapeSource>
+        <Mapbox.CircleLayer
+          id={MAPBOX_RIP_LAYER_IDS.selectedPoint}
+          filter={MAPBOX_SELECTED_POINT_FILTER}
+          style={selectedUploadCircleStyle}
+        />
+      </ShapeSource>
 
       {userLocation && (
         <Mapbox.MarkerView
