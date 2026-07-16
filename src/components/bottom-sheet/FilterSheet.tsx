@@ -16,6 +16,7 @@ import type {
 interface FilterSheetProps {
   visibleLayerIds: RipMapLayerId[];
   visiblePoints: RipMapPoint[];
+  recentlyViewedPoints: RipMapPoint[];
   selectedPoint: RipMapPoint | null;
   draftCoordinate: RipCoordinate | null;
   isPinPlacementMode: boolean;
@@ -35,6 +36,7 @@ interface FilterSheetProps {
 function FilterSheet({
   visibleLayerIds,
   visiblePoints,
+  recentlyViewedPoints,
   selectedPoint,
   draftCoordinate,
   isPinPlacementMode,
@@ -80,8 +82,6 @@ function FilterSheet({
     setShowAddPopup(false);
     onClosePopup();
   };
-
-  const getSuggestedPoints = () => visiblePoints.slice(0, 6);
 
   const s = StyleSheet.create({
     bottomSheet: { zIndex: 100 },
@@ -214,9 +214,14 @@ function FilterSheet({
               </Text>
             )}
 
-            <Text style={s.sectionTitle}>Recent Uploads</Text>
+            <Text style={s.sectionTitle}>Recently Viewed</Text>
+            {recentlyViewedPoints.length === 0 && (
+              <Text style={s.statusText}>
+                Tap map uploads to build your recently viewed list.
+              </Text>
+            )}
             <View style={s.suggestedGrid}>
-              {getSuggestedPoints().map(point => (
+              {recentlyViewedPoints.map(point => (
                 <TouchableOpacity
                   key={point.id}
                   style={s.suggestedItem}

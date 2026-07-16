@@ -4,6 +4,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { MapControls, PinPlacementBanner } from '../../components/map';
 import FilterSheet from '../../components/bottom-sheet/FilterSheet';
 import { useAuth } from '../../contexts/AuthContext';
+import { useRecentlyViewedRipMapPoints } from '../../hooks/useRecentlyViewedRipMapPoints';
 import { useRipMapLocation } from '../../hooks/useRipMapLocation';
 import { useRipMapState } from '../../hooks/useRipMapState';
 import {
@@ -49,6 +50,8 @@ function MapScreen({ MapRenderer, clustering }: MapScreenProps) {
     requestCameraFocus,
   } = useRipMapState(pointsByLayer);
   const { getUserCoordinate } = useRipMapLocation();
+  const { recentlyViewedPoints, recordViewedPoint } =
+    useRecentlyViewedRipMapPoints(authUser?.uid, visiblePoints);
 
   useFocusEffect(
     useCallback(() => {
@@ -75,9 +78,10 @@ function MapScreen({ MapRenderer, clustering }: MapScreenProps) {
   const handleSelectPoint = useCallback(
     (point: RipMapPoint) => {
       setIsLayerPickerOpen(false);
+      recordViewedPoint(point);
       setSelectedPoint(point);
     },
-    [setSelectedPoint],
+    [recordViewedPoint, setSelectedPoint],
   );
 
   const handleLayersPress = useCallback(() => {
@@ -178,6 +182,7 @@ function MapScreen({ MapRenderer, clustering }: MapScreenProps) {
         selectedPoint={selectedPoint}
         visibleLayerIds={visibleLayerIds}
         visiblePoints={visiblePoints}
+        recentlyViewedPoints={recentlyViewedPoints}
         draftCoordinate={draftPin}
         isPinPlacementMode={isPinPlacementMode}
         isLoading={isLoading}

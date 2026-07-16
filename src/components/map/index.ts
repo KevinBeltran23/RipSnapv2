@@ -1,5 +1,4 @@
 export { default as MapControls } from './MapControls';
-export { default as GoogleRipMap } from './GoogleRipMap';
 export { default as MapboxRipMap } from './MapboxRipMap';
 export { default as LayerPickerGrid } from './LayerPickerGrid';
 export { default as LayerTile } from './LayerTile';
