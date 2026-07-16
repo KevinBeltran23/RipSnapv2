@@ -73,3 +73,21 @@ export interface RipMapUploadDraft {
   notes: string;
   coordinate: RipCoordinate | null;
 }
+
+export interface RipManualUploadMedia {
+  uri: string;
+  fileName?: string;
+  mimeType?: string;
+  captureType: Exclude<RipCaptureType, 'unknown'>;
+  width?: number;
+  height?: number;
+  durationMs?: number;
+}
+
+export interface RipManualUploadDraft {
+  title: string;
+  notes: string;
+  layerId: RipMapLayerId;
+  coordinate: RipCoordinate | null;
+  media: RipManualUploadMedia | null;
+}

@@ -23,7 +23,7 @@ interface PopupSheetProps {
   onClose: () => void;
   onAddPress: () => void;
   onStartPinPlacement: () => void;
-  onSubmit: (draft: { title: string; notes: string }) => Promise<boolean>;
+  onSubmit?: (draft: { title: string; notes: string }) => Promise<boolean>;
 }
 
 const formatDisplayDate = (createdAt?: string) => {
@@ -260,6 +260,7 @@ function PopupSheet({
             variant="primary"
             label={submitLabel}
             onPress={async () => {
+              if (!onSubmit) return;
               const didSubmit = await onSubmit({ title, notes });
               if (didSubmit) onClose();
             }}

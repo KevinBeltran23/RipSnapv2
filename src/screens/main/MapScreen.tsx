@@ -7,11 +7,18 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useRecentlyViewedRipMapPoints } from '../../hooks/useRecentlyViewedRipMapPoints';
 import { useRipMapLocation } from '../../hooks/useRipMapLocation';
 import { useRipMapState } from '../../hooks/useRipMapState';
+import { useRipMapPointsQuery } from '../../services/store/ripMapQueries';
+import { uploadCapture } from '../../services/firebase/captures';
 import {
-  useCreateRipMapUploadMutation,
-  useRipMapPointsQuery,
-} from '../../services/store/ripMapQueries';
-import type { RipMapClusterSelection, RipMapPoint } from '../../types/ripMap';
+  generateSessionId,
+  saveMediaFile,
+  saveMetadataFile,
+} from '../../utils/capture';
+import type {
+  RipManualUploadDraft,
+  RipMapClusterSelection,
+  RipMapPoint,
+} from '../../types/ripMap';
 import type { RipMapRendererProps } from '../../components/map/RipMapRenderer.types';
 import type { RipMapClusteringConfig } from '../../types/ripMap';
 
@@ -24,6 +31,9 @@ function MapScreen({ MapRenderer, clustering }: MapScreenProps) {
   const [isLayerPickerOpen, setIsLayerPickerOpen] = useState(false);
   const [selectedCluster, setSelectedCluster] =
     useState<RipMapClusterSelection | null>(null);
+  const [isManualUploadOpen, setIsManualUploadOpen] = useState(false);
+  const [isSubmittingManualUpload, setIsSubmittingManualUpload] =
+    useState(false);
   const { authUser } = useAuth();
   const {
     data: pointsByLayer,
@@ -31,7 +41,6 @@ function MapScreen({ MapRenderer, clustering }: MapScreenProps) {
     error,
     refetch,
   } = useRipMapPointsQuery({ enabled: Boolean(authUser) });
-  const createUploadMutation = useCreateRipMapUploadMutation();
   const {
     setViewport,
     visibleLayerIds,
@@ -83,21 +92,25 @@ function MapScreen({ MapRenderer, clustering }: MapScreenProps) {
 
   const handleSelectPoint = useCallback(
     (point: RipMapPoint) => {
+      if (isManualUploadOpen) return;
+
       setIsLayerPickerOpen(false);
       setSelectedCluster(null);
       recordViewedPoint(point);
       setSelectedPoint(point);
     },
-    [recordViewedPoint, setSelectedPoint],
+    [isManualUploadOpen, recordViewedPoint, setSelectedPoint],
   );
 
   const handleSelectCluster = useCallback(
     (cluster: RipMapClusterSelection) => {
+      if (isManualUploadOpen) return;
+
       setIsLayerPickerOpen(false);
       clearSelection();
       setSelectedCluster(cluster);
     },
-    [clearSelection],
+    [clearSelection, isManualUploadOpen],
   );
 
   const handleSelectClusterPoint = useCallback(
@@ -115,9 +128,14 @@ function MapScreen({ MapRenderer, clustering }: MapScreenProps) {
   }, []);
 
   const handleLayersPress = useCallback(() => {
+    if (isManualUploadOpen) {
+      setIsManualUploadOpen(false);
+      clearDraftPin();
+    }
+
     setSelectedCluster(null);
     setIsLayerPickerOpen(current => !current);
-  }, []);
+  }, [clearDraftPin, isManualUploadOpen]);
 
   const handleCloseLayerPicker = useCallback(() => {
     setIsLayerPickerOpen(false);
@@ -131,17 +149,21 @@ function MapScreen({ MapRenderer, clustering }: MapScreenProps) {
         placeDraftPin(coordinate);
         return;
       }
+      if (isManualUploadOpen) return;
+
       setSelectedCluster(null);
       clearSelection();
     },
-    [clearSelection, isPinPlacementMode, placeDraftPin],
+    [clearSelection, isManualUploadOpen, isPinPlacementMode, placeDraftPin],
   );
 
   const handleStartAdd = useCallback(() => {
     setIsLayerPickerOpen(false);
     setSelectedCluster(null);
     clearSelection();
-  }, [clearSelection]);
+    clearDraftPin();
+    setIsManualUploadOpen(true);
+  }, [clearDraftPin, clearSelection]);
 
   const handleStartPinPlacement = useCallback(() => {
     setIsLayerPickerOpen(false);
@@ -157,20 +179,29 @@ function MapScreen({ MapRenderer, clustering }: MapScreenProps) {
       return;
     }
 
+    setIsManualUploadOpen(false);
     setSelectedCluster(null);
     clearSelection();
     clearDraftPin();
   }, [clearDraftPin, clearSelection, selectedCluster, selectedPoint]);
 
   const handleSubmitUpload = useCallback(
-    async ({ title, notes }: { title: string; notes: string }) => {
+    async (draft: RipManualUploadDraft) => {
+      const { title, notes, layerId, coordinate, media } = draft;
       const trimmedTitle = title.trim();
       if (!trimmedTitle) {
         Alert.alert('Missing Upload Name', 'Enter a name for this upload.');
         return false;
       }
-      if (!draftPin) {
-        Alert.alert('Missing Pin', 'Place a pin on the map before submitting.');
+      if (!media) {
+        Alert.alert(
+          'Missing Media',
+          'Select a photo or video before uploading.',
+        );
+        return false;
+      }
+      if (!coordinate) {
+        Alert.alert('Missing Pin', 'Place a map pin before uploading.');
         return false;
       }
       if (!authUser) {
@@ -178,13 +209,58 @@ function MapScreen({ MapRenderer, clustering }: MapScreenProps) {
         return false;
       }
 
+      setIsSubmittingManualUpload(true);
       try {
-        await createUploadMutation.mutateAsync({
-          userId: authUser.uid,
+        const sessionId = generateSessionId();
+        const mediaExt = media.captureType === 'video' ? 'mp4' : 'jpg';
+        const mediaUri = await saveMediaFile(
+          media.uri,
+          sessionId,
+          `manual.${mediaExt}`,
+        );
+        const trimmedNotes = notes.trim();
+        const location = {
+          latitude: coordinate.latitude,
+          longitude: coordinate.longitude,
+          accuracy: null,
+          altitude: null,
+          altitudeAccuracy: null,
+          heading: null,
+          speed: null,
+          capturedAt: new Date().toISOString(),
+          providerTimestamp: new Date().toISOString(),
+          source: 'manual_map_pin' as const,
+        };
+        const metadata = {
+          sessionId,
+          captureType: media.captureType,
+          source: 'manual_media_upload',
+          timestamp: new Date().toISOString(),
+          location,
+          layerId,
           title: trimmedTitle,
-          notes,
-          coordinate: draftPin,
+          notes: trimmedNotes,
+          originalFileName: media.fileName,
+          mimeType: media.mimeType,
+          mediaWidth: media.width,
+          mediaHeight: media.height,
+          durationMs: media.durationMs,
+          frames: [],
+        };
+        const metadataUri = await saveMetadataFile(sessionId, metadata);
+
+        await uploadCapture({
+          userId: authUser.uid,
+          sessionId,
+          mediaUri,
+          metadataUri,
+          captureType: media.captureType,
+          layerId,
+          title: trimmedTitle,
+          notes: trimmedNotes,
+          location,
         });
+
         clearDraftPin();
         refetch();
         Alert.alert('Upload Saved', 'The map upload was saved successfully.');
@@ -195,9 +271,11 @@ function MapScreen({ MapRenderer, clustering }: MapScreenProps) {
           submitError?.message ?? 'Could not save the map upload.',
         );
         return false;
+      } finally {
+        setIsSubmittingManualUpload(false);
       }
     },
-    [authUser, clearDraftPin, createUploadMutation, draftPin, refetch],
+    [authUser, clearDraftPin, refetch],
   );
 
   return (
@@ -229,8 +307,9 @@ function MapScreen({ MapRenderer, clustering }: MapScreenProps) {
         recentlyViewedPoints={recentlyViewedPoints}
         draftCoordinate={draftPin}
         isPinPlacementMode={isPinPlacementMode}
+        isManualUploadOpen={isManualUploadOpen}
         isLoading={isLoading}
-        isSubmitting={createUploadMutation.isPending}
+        isSubmitting={isSubmittingManualUpload}
         isLayerPickerOpen={isLayerPickerOpen}
         error={error instanceof Error ? error.message : null}
         onSelectPoint={handleSelectPoint}

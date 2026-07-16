@@ -35,6 +35,7 @@ export interface CaptureUploadParams {
   metadataUri: string;
   captureType: 'photo' | 'video';
   layerId: RipMapLayerId;
+  title?: string;
   notes: string;
   location: CaptureLocationSnapshot;
 }
@@ -58,6 +59,7 @@ export async function uploadCapture(
     metadataUri,
     captureType,
     layerId,
+    title,
     notes,
     location,
   } = params;
@@ -92,6 +94,7 @@ export async function uploadCapture(
     metadataUrl,
     mediaStoragePath,
     metaStoragePath,
+    title: title?.trim() || null,
     notes: notes.trim(),
     location,
     latitude: location.latitude,

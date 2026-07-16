@@ -3,6 +3,7 @@ import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import BottomSheet, { BottomSheetScrollView } from '@gorhom/bottom-sheet';
 import Button from '../common/Button';
 import ClusterResultsSheetContent from './ClusterResultsSheetContent';
+import ManualUploadSheetContent from './ManualUploadSheetContent';
 import PopupSheet from './PopupSheet';
 import LayerPickerGrid from '../map/LayerPickerGrid';
 import { RIP_MAP_LAYER_BY_ID } from '../../config/mapLayers';
@@ -10,6 +11,7 @@ import { useColors } from '../../hooks/useColors';
 import { useResponsiveStyles } from '../../hooks/useResponsiveStyles';
 import type {
   RipCoordinate,
+  RipManualUploadDraft,
   RipMapClusterSelection,
   RipMapLayerId,
   RipMapPoint,
@@ -23,6 +25,7 @@ interface FilterSheetProps {
   selectedCluster: RipMapClusterSelection | null;
   draftCoordinate: RipCoordinate | null;
   isPinPlacementMode: boolean;
+  isManualUploadOpen: boolean;
   isLoading: boolean;
   isSubmitting: boolean;
   isLayerPickerOpen: boolean;
@@ -35,7 +38,7 @@ interface FilterSheetProps {
   onClosePopup: () => void;
   onCloseLayerPicker: () => void;
   onStartPinPlacement: () => void;
-  onSubmitUpload: (draft: { title: string; notes: string }) => Promise<boolean>;
+  onSubmitUpload: (draft: RipManualUploadDraft) => Promise<boolean>;
 }
 
 function FilterSheet({
@@ -46,6 +49,7 @@ function FilterSheet({
   selectedCluster,
   draftCoordinate,
   isPinPlacementMode,
+  isManualUploadOpen,
   isLoading,
   isSubmitting,
   isLayerPickerOpen,
@@ -60,7 +64,6 @@ function FilterSheet({
   onSubmitUpload,
 }: FilterSheetProps) {
   const [activeSnapIndex, setActiveSnapIndex] = useState(0);
-  const [showAddPopup, setShowAddPopup] = useState(false);
   const bottomSheetRef = useRef<BottomSheet>(null);
   const activeSnapIndexRef = useRef(0);
   const colors = useColors();
@@ -88,12 +91,10 @@ function FilterSheet({
   );
 
   const handleStartAdd = () => {
-    setShowAddPopup(true);
     onStartAdd();
   };
 
   const handleClosePopup = () => {
-    setShowAddPopup(false);
     onClosePopup();
   };
 
@@ -174,7 +175,7 @@ function FilterSheet({
       style={s.bottomSheet}
     >
       {selectedCluster &&
-      !showAddPopup &&
+      !isManualUploadOpen &&
       !selectedPoint &&
       !isLayerPickerOpen ? (
         <ClusterResultsSheetContent
@@ -188,14 +189,12 @@ function FilterSheet({
           contentContainerStyle={s.contentContainer}
           keyboardShouldPersistTaps="handled"
         >
-          {showAddPopup ? (
-            <PopupSheet
-              mode="add"
+          {isManualUploadOpen ? (
+            <ManualUploadSheetContent
               draftCoordinate={draftCoordinate}
               isPinPlacementMode={isPinPlacementMode}
               isSubmitting={isSubmitting}
               onClose={handleClosePopup}
-              onAddPress={handleStartAdd}
               onStartPinPlacement={onStartPinPlacement}
               onSubmit={onSubmitUpload}
             />
@@ -210,7 +209,6 @@ function FilterSheet({
               onClose={handleClosePopup}
               onAddPress={handleStartAdd}
               onStartPinPlacement={onStartPinPlacement}
-              onSubmit={onSubmitUpload}
             />
           ) : isLayerPickerOpen ? (
             <View>
