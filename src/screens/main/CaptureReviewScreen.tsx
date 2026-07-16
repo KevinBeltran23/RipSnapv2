@@ -50,6 +50,7 @@ export default function CaptureReviewScreen({
   const [uploading, setUploading] = useState(false);
   const [videoPlaybackMs, setVideoPlaybackMs] = useState(0);
   const [previewFullscreen, setPreviewFullscreen] = useState(false);
+  const [showDetectionOverlay, setShowDetectionOverlay] = useState(true);
   const [videoNaturalSize, setVideoNaturalSize] = useState<{
     width: number;
     height: number;
@@ -182,6 +183,13 @@ export default function CaptureReviewScreen({
   }, []);
 
   const videoControlsStyles = useMemo(() => ({ hideFullscreen: true }), []);
+  const overlayToggleLabel = showDetectionOverlay
+    ? 'Hide Overlay'
+    : 'Show Overlay';
+
+  const toggleDetectionOverlay = useCallback(() => {
+    setShowDetectionOverlay(current => !current);
+  }, []);
 
   const openPreviewFullscreen = useCallback(() => {
     setPreviewFullscreen(true);
@@ -290,15 +298,28 @@ export default function CaptureReviewScreen({
             mediaHeight={mediaHeight}
             currentMs={isVideo ? videoPlaybackMs : 0}
             isVideo={isVideo}
+            visible={showDetectionOverlay}
           />
-          <TouchableOpacity
-            style={styles.fullscreenButton}
-            onPress={openPreviewFullscreen}
-            accessibilityLabel="Open fullscreen preview"
-            accessibilityRole="button"
-          >
-            <Text style={styles.fullscreenButtonText}>Fullscreen</Text>
-          </TouchableOpacity>
+          <View style={styles.previewControls}>
+            <TouchableOpacity
+              style={styles.previewControlButton}
+              onPress={toggleDetectionOverlay}
+              accessibilityLabel={overlayToggleLabel}
+              accessibilityRole="button"
+            >
+              <Text style={styles.fullscreenButtonText}>
+                {overlayToggleLabel}
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.previewControlButton}
+              onPress={openPreviewFullscreen}
+              accessibilityLabel="Open fullscreen preview"
+              accessibilityRole="button"
+            >
+              <Text style={styles.fullscreenButtonText}>Fullscreen</Text>
+            </TouchableOpacity>
+          </View>
         </View>
 
         <Modal
@@ -345,15 +366,28 @@ export default function CaptureReviewScreen({
               mediaHeight={mediaHeight}
               currentMs={isVideo ? videoPlaybackMs : 0}
               isVideo={isVideo}
+              visible={showDetectionOverlay}
             />
-            <TouchableOpacity
-              style={styles.fullscreenCloseButton}
-              onPress={closePreviewFullscreen}
-              accessibilityLabel="Close fullscreen preview"
-              accessibilityRole="button"
-            >
-              <Text style={styles.fullscreenButtonText}>Close</Text>
-            </TouchableOpacity>
+            <View style={styles.fullscreenControls}>
+              <TouchableOpacity
+                style={styles.previewControlButton}
+                onPress={toggleDetectionOverlay}
+                accessibilityLabel={overlayToggleLabel}
+                accessibilityRole="button"
+              >
+                <Text style={styles.fullscreenButtonText}>
+                  {overlayToggleLabel}
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.previewControlButton}
+                onPress={closePreviewFullscreen}
+                accessibilityLabel="Close fullscreen preview"
+                accessibilityRole="button"
+              >
+                <Text style={styles.fullscreenButtonText}>Close</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         </Modal>
 
@@ -542,10 +576,14 @@ const styles = StyleSheet.create({
     height: 240,
     backgroundColor: '#000',
   },
-  fullscreenButton: {
+  previewControls: {
     position: 'absolute',
     right: 10,
     top: 10,
+    flexDirection: 'row',
+    gap: 8,
+  },
+  previewControlButton: {
     backgroundColor: 'rgba(0, 0, 0, 0.72)',
     borderRadius: 8,
     paddingHorizontal: 10,
@@ -560,14 +598,12 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#000',
   },
-  fullscreenCloseButton: {
+  fullscreenControls: {
     position: 'absolute',
     right: 16,
     top: 52,
-    backgroundColor: 'rgba(0, 0, 0, 0.72)',
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
+    flexDirection: 'row',
+    gap: 8,
   },
   statsRow: {
     flexDirection: 'row',
