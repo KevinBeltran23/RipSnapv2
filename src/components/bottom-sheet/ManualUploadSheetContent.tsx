@@ -19,13 +19,14 @@ import type {
   RipCoordinate,
   RipManualUploadDraft,
   RipManualUploadMedia,
+  RipManualUploadPhase,
   RipMapLayerId,
 } from '../../types/ripMap';
 
 interface ManualUploadSheetContentProps {
   draftCoordinate: RipCoordinate | null;
   isPinPlacementMode: boolean;
-  isSubmitting: boolean;
+  submitPhase: RipManualUploadPhase;
   onClose: () => void;
   onStartPinPlacement: () => void;
   onSubmit: (draft: RipManualUploadDraft) => Promise<boolean>;
@@ -50,7 +51,7 @@ const getAssetCaptureType = (
 function ManualUploadSheetContent({
   draftCoordinate,
   isPinPlacementMode,
-  isSubmitting,
+  submitPhase,
   onClose,
   onStartPinPlacement,
   onSubmit,
@@ -72,7 +73,13 @@ function ManualUploadSheetContent({
   }, []);
 
   const selectedLayer = RIP_MAP_LAYER_BY_ID[selectedLayerId];
-  const submitLabel = isSubmitting ? 'Uploading...' : 'Upload Data';
+  const isSubmitting = submitPhase !== 'idle';
+  const submitLabel =
+    submitPhase === 'analyzing'
+      ? 'Analyzing...'
+      : submitPhase === 'uploading'
+        ? 'Uploading...'
+        : 'Upload Data';
 
   const handlePickMedia = async () => {
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -87,7 +94,10 @@ function ManualUploadSheetContent({
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ['images', 'videos'],
       allowsEditing: false,
+      base64: true,
       quality: 1,
+      preferredAssetRepresentationMode:
+        ImagePicker.UIImagePickerPreferredAssetRepresentationMode.Compatible,
       videoQuality: ImagePicker.UIImagePickerControllerQualityType.High,
     });
 
@@ -108,6 +118,8 @@ function ManualUploadSheetContent({
       fileName: asset.fileName ?? undefined,
       mimeType: asset.mimeType ?? undefined,
       captureType,
+      analysisBase64:
+        captureType === 'photo' ? (asset.base64 ?? undefined) : undefined,
       width: asset.width,
       height: asset.height,
       durationMs: asset.duration ?? undefined,

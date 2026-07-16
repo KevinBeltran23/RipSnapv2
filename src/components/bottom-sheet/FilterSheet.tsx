@@ -12,6 +12,7 @@ import { useResponsiveStyles } from '../../hooks/useResponsiveStyles';
 import type {
   RipCoordinate,
   RipManualUploadDraft,
+  RipManualUploadPhase,
   RipMapClusterSelection,
   RipMapLayerId,
   RipMapPoint,
@@ -27,7 +28,7 @@ interface FilterSheetProps {
   isPinPlacementMode: boolean;
   isManualUploadOpen: boolean;
   isLoading: boolean;
-  isSubmitting: boolean;
+  manualUploadPhase: RipManualUploadPhase;
   isLayerPickerOpen: boolean;
   error: string | null;
   onSelectPoint: (point: RipMapPoint) => void;
@@ -51,7 +52,7 @@ function FilterSheet({
   isPinPlacementMode,
   isManualUploadOpen,
   isLoading,
-  isSubmitting,
+  manualUploadPhase,
   isLayerPickerOpen,
   error,
   onSelectPoint,
@@ -193,7 +194,7 @@ function FilterSheet({
             <ManualUploadSheetContent
               draftCoordinate={draftCoordinate}
               isPinPlacementMode={isPinPlacementMode}
-              isSubmitting={isSubmitting}
+              submitPhase={manualUploadPhase}
               onClose={handleClosePopup}
               onStartPinPlacement={onStartPinPlacement}
               onSubmit={onSubmitUpload}
@@ -204,7 +205,7 @@ function FilterSheet({
               point={selectedPoint}
               draftCoordinate={draftCoordinate}
               isPinPlacementMode={isPinPlacementMode}
-              isSubmitting={isSubmitting}
+              isSubmitting={false}
               closeLabel={selectedCluster ? 'Back' : 'Close'}
               onClose={handleClosePopup}
               onAddPress={handleStartAdd}

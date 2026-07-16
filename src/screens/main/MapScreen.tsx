@@ -1,14 +1,22 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { Alert, StyleSheet, View } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
+import { useTensorflowModel } from 'react-native-fast-tflite';
 import { MapControls, PinPlacementBanner } from '../../components/map';
 import FilterSheet from '../../components/bottom-sheet/FilterSheet';
 import { useAuth } from '../../contexts/AuthContext';
+import { useDetectionSettings } from '../../contexts/DetectionSettingsContext';
 import { useRecentlyViewedRipMapPoints } from '../../hooks/useRecentlyViewedRipMapPoints';
 import { useRipMapLocation } from '../../hooks/useRipMapLocation';
 import { useRipMapState } from '../../hooks/useRipMapState';
 import { useRipMapPointsQuery } from '../../services/store/ripMapQueries';
 import { uploadCapture } from '../../services/firebase/captures';
+import {
+  analyzeManualPhotoUpload,
+  createFailedManualPhotoAnalysis,
+  createSkippedManualVideoAnalysis,
+} from '../../services/detection/manualMediaAnalysis';
+import { RIP_CURRENT_MODEL } from '../../config/detection';
 import {
   generateSessionId,
   saveMediaFile,
@@ -16,6 +24,7 @@ import {
 } from '../../utils/capture';
 import type {
   RipManualUploadDraft,
+  RipManualUploadPhase,
   RipMapClusterSelection,
   RipMapPoint,
 } from '../../types/ripMap';
@@ -32,9 +41,15 @@ function MapScreen({ MapRenderer, clustering }: MapScreenProps) {
   const [selectedCluster, setSelectedCluster] =
     useState<RipMapClusterSelection | null>(null);
   const [isManualUploadOpen, setIsManualUploadOpen] = useState(false);
-  const [isSubmittingManualUpload, setIsSubmittingManualUpload] =
-    useState(false);
+  const [manualUploadPhase, setManualUploadPhase] =
+    useState<RipManualUploadPhase>('idle');
   const { authUser } = useAuth();
+  const { settings: detectionSettings } = useDetectionSettings();
+  const manualAnalysisModel = useTensorflowModel(RIP_CURRENT_MODEL.asset);
+  const manualAnalysisModelInstance = manualAnalysisModel.model;
+  const manualAnalysisModelState = manualAnalysisModel.state;
+  const manualAnalysisModelError =
+    manualAnalysisModel.state === 'error' ? manualAnalysisModel.error : null;
   const {
     data: pointsByLayer,
     isLoading,
@@ -209,8 +224,39 @@ function MapScreen({ MapRenderer, clustering }: MapScreenProps) {
         return false;
       }
 
-      setIsSubmittingManualUpload(true);
+      setManualUploadPhase('analyzing');
       try {
+        const analysisResult =
+          media.captureType === 'photo'
+            ? await (async () => {
+                try {
+                  if (!manualAnalysisModelInstance) {
+                    return createFailedManualPhotoAnalysis(
+                      manualAnalysisModelState === 'error'
+                        ? manualAnalysisModelError
+                        : 'Detection model is not loaded yet.',
+                      RIP_CURRENT_MODEL,
+                      media,
+                    );
+                  }
+
+                  return await analyzeManualPhotoUpload({
+                    media,
+                    model: manualAnalysisModelInstance,
+                    modelConfig: RIP_CURRENT_MODEL,
+                    detectionSettings,
+                  });
+                } catch (analysisError) {
+                  return createFailedManualPhotoAnalysis(
+                    analysisError,
+                    RIP_CURRENT_MODEL,
+                    media,
+                  );
+                }
+              })()
+            : createSkippedManualVideoAnalysis(media);
+
+        setManualUploadPhase('uploading');
         const sessionId = generateSessionId();
         const mediaExt = media.captureType === 'video' ? 'mp4' : 'jpg';
         const mediaUri = await saveMediaFile(
@@ -242,10 +288,17 @@ function MapScreen({ MapRenderer, clustering }: MapScreenProps) {
           notes: trimmedNotes,
           originalFileName: media.fileName,
           mimeType: media.mimeType,
-          mediaWidth: media.width,
-          mediaHeight: media.height,
+          modelName: analysisResult.modelName,
+          modelInputSize: analysisResult.modelInputSize,
+          detectionSettings,
+          screenWidth: analysisResult.mediaWidth,
+          screenHeight: analysisResult.mediaHeight,
+          mediaWidth: analysisResult.mediaWidth,
+          mediaHeight: analysisResult.mediaHeight,
           durationMs: media.durationMs,
-          frames: [],
+          totalFrames: analysisResult.frames.length,
+          frames: analysisResult.frames,
+          analysis: analysisResult.analysis,
         };
         const metadataUri = await saveMetadataFile(sessionId, metadata);
 
@@ -272,10 +325,18 @@ function MapScreen({ MapRenderer, clustering }: MapScreenProps) {
         );
         return false;
       } finally {
-        setIsSubmittingManualUpload(false);
+        setManualUploadPhase('idle');
       }
     },
-    [authUser, clearDraftPin, refetch],
+    [
+      authUser,
+      clearDraftPin,
+      detectionSettings,
+      manualAnalysisModelError,
+      manualAnalysisModelInstance,
+      manualAnalysisModelState,
+      refetch,
+    ],
   );
 
   return (
@@ -309,7 +370,7 @@ function MapScreen({ MapRenderer, clustering }: MapScreenProps) {
         isPinPlacementMode={isPinPlacementMode}
         isManualUploadOpen={isManualUploadOpen}
         isLoading={isLoading}
-        isSubmitting={isSubmittingManualUpload}
+        manualUploadPhase={manualUploadPhase}
         isLayerPickerOpen={isLayerPickerOpen}
         error={error instanceof Error ? error.message : null}
         onSelectPoint={handleSelectPoint}

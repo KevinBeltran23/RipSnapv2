@@ -79,6 +79,7 @@ export interface RipManualUploadMedia {
   fileName?: string;
   mimeType?: string;
   captureType: Exclude<RipCaptureType, 'unknown'>;
+  analysisBase64?: string;
   width?: number;
   height?: number;
   durationMs?: number;
@@ -91,3 +92,5 @@ export interface RipManualUploadDraft {
   coordinate: RipCoordinate | null;
   media: RipManualUploadMedia | null;
 }
+
+export type RipManualUploadPhase = 'idle' | 'analyzing' | 'uploading';
