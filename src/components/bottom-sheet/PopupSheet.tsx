@@ -19,6 +19,7 @@ interface PopupSheetProps {
   draftCoordinate: RipCoordinate | null;
   isPinPlacementMode: boolean;
   isSubmitting: boolean;
+  closeLabel?: string;
   onClose: () => void;
   onAddPress: () => void;
   onStartPinPlacement: () => void;
@@ -41,6 +42,7 @@ function PopupSheet({
   draftCoordinate,
   isPinPlacementMode,
   isSubmitting,
+  closeLabel = 'Close',
   onClose,
   onAddPress,
   onStartPinPlacement,
@@ -181,7 +183,7 @@ function PopupSheet({
               />
               <Button
                 variant="danger"
-                label="Close"
+                label={closeLabel}
                 onPress={onClose}
                 style={s.compactButton}
                 textStyle={s.compactButtonText}

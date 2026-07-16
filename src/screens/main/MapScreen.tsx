@@ -102,11 +102,12 @@ function MapScreen({ MapRenderer, clustering }: MapScreenProps) {
 
   const handleSelectClusterPoint = useCallback(
     (point: RipMapPoint) => {
-      setSelectedCluster(null);
-      handleSelectPoint(point);
+      setIsLayerPickerOpen(false);
+      recordViewedPoint(point);
+      setSelectedPoint(point);
       requestCameraFocus(point.coordinate);
     },
-    [handleSelectPoint, requestCameraFocus],
+    [recordViewedPoint, requestCameraFocus, setSelectedPoint],
   );
 
   const handleCloseCluster = useCallback(() => {
@@ -150,10 +151,16 @@ function MapScreen({ MapRenderer, clustering }: MapScreenProps) {
 
   const handleClosePopup = useCallback(() => {
     setIsLayerPickerOpen(false);
+    if (selectedPoint && selectedCluster) {
+      clearSelection();
+      clearDraftPin();
+      return;
+    }
+
     setSelectedCluster(null);
     clearSelection();
     clearDraftPin();
-  }, [clearDraftPin, clearSelection]);
+  }, [clearDraftPin, clearSelection, selectedCluster, selectedPoint]);
 
   const handleSubmitUpload = useCallback(
     async ({ title, notes }: { title: string; notes: string }) => {

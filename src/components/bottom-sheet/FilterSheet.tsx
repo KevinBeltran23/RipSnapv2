@@ -206,6 +206,7 @@ function FilterSheet({
               draftCoordinate={draftCoordinate}
               isPinPlacementMode={isPinPlacementMode}
               isSubmitting={isSubmitting}
+              closeLabel={selectedCluster ? 'Back' : 'Close'}
               onClose={handleClosePopup}
               onAddPress={handleStartAdd}
               onStartPinPlacement={onStartPinPlacement}
