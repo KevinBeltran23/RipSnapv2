@@ -1,6 +1,7 @@
 import type {
   RipCoordinate,
   RipMapCameraRequest,
+  RipMapClusterSelection,
   RipMapClusteringConfig,
   RipMapPoint,
   RipMapViewport,
@@ -14,6 +15,7 @@ export interface RipMapRendererProps {
   cameraRequest: RipMapCameraRequest | null;
   clustering?: RipMapClusteringConfig;
   onPointPress: (point: RipMapPoint) => void;
+  onClusterPress?: (cluster: RipMapClusterSelection) => void;
   onMapPress: (coordinate: RipCoordinate) => void;
   onViewportChange: (viewport: RipMapViewport) => void;
 }

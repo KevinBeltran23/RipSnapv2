@@ -1,7 +1,8 @@
-import React, { useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import BottomSheet, { BottomSheetScrollView } from '@gorhom/bottom-sheet';
 import Button from '../common/Button';
+import ClusterResultsSheetContent from './ClusterResultsSheetContent';
 import PopupSheet from './PopupSheet';
 import LayerPickerGrid from '../map/LayerPickerGrid';
 import { RIP_MAP_LAYER_BY_ID } from '../../config/mapLayers';
@@ -9,6 +10,7 @@ import { useColors } from '../../hooks/useColors';
 import { useResponsiveStyles } from '../../hooks/useResponsiveStyles';
 import type {
   RipCoordinate,
+  RipMapClusterSelection,
   RipMapLayerId,
   RipMapPoint,
 } from '../../types/ripMap';
@@ -18,6 +20,7 @@ interface FilterSheetProps {
   visiblePoints: RipMapPoint[];
   recentlyViewedPoints: RipMapPoint[];
   selectedPoint: RipMapPoint | null;
+  selectedCluster: RipMapClusterSelection | null;
   draftCoordinate: RipCoordinate | null;
   isPinPlacementMode: boolean;
   isLoading: boolean;
@@ -25,6 +28,8 @@ interface FilterSheetProps {
   isLayerPickerOpen: boolean;
   error: string | null;
   onSelectPoint: (point: RipMapPoint) => void;
+  onSelectClusterPoint: (point: RipMapPoint) => void;
+  onCloseCluster: () => void;
   onToggleLayer: (layerId: RipMapLayerId) => void;
   onStartAdd: () => void;
   onClosePopup: () => void;
@@ -38,6 +43,7 @@ function FilterSheet({
   visiblePoints,
   recentlyViewedPoints,
   selectedPoint,
+  selectedCluster,
   draftCoordinate,
   isPinPlacementMode,
   isLoading,
@@ -45,6 +51,8 @@ function FilterSheet({
   isLayerPickerOpen,
   error,
   onSelectPoint,
+  onSelectClusterPoint,
+  onCloseCluster,
   onToggleLayer,
   onStartAdd,
   onClosePopup,
@@ -63,6 +71,12 @@ function FilterSheet({
     () => [100, Math.round(height * 0.5), Math.round(height * 0.88)],
     [height],
   );
+
+  useEffect(() => {
+    if (selectedCluster && activeSnapIndexRef.current === 0) {
+      bottomSheetRef.current?.snapToIndex(1);
+    }
+  }, [selectedCluster]);
 
   const backgroundStyle = useMemo(
     () => ({
@@ -159,86 +173,97 @@ function FilterSheet({
       enablePanDownToClose={false}
       style={s.bottomSheet}
     >
-      <BottomSheetScrollView
-        style={s.container}
-        contentContainerStyle={s.contentContainer}
-        keyboardShouldPersistTaps="handled"
-      >
-        {showAddPopup ? (
-          <PopupSheet
-            mode="add"
-            draftCoordinate={draftCoordinate}
-            isPinPlacementMode={isPinPlacementMode}
-            isSubmitting={isSubmitting}
-            onClose={handleClosePopup}
-            onAddPress={handleStartAdd}
-            onStartPinPlacement={onStartPinPlacement}
-            onSubmit={onSubmitUpload}
-          />
-        ) : selectedPoint ? (
-          <PopupSheet
-            mode="view"
-            point={selectedPoint}
-            draftCoordinate={draftCoordinate}
-            isPinPlacementMode={isPinPlacementMode}
-            isSubmitting={isSubmitting}
-            onClose={handleClosePopup}
-            onAddPress={handleStartAdd}
-            onStartPinPlacement={onStartPinPlacement}
-            onSubmit={onSubmitUpload}
-          />
-        ) : isLayerPickerOpen ? (
-          <View>
-            <Text style={s.layerPickerTitle}>Map Layers</Text>
-            <LayerPickerGrid
-              visibleLayerIds={visibleLayerIds}
-              onToggleLayer={onToggleLayer}
+      {selectedCluster &&
+      !showAddPopup &&
+      !selectedPoint &&
+      !isLayerPickerOpen ? (
+        <ClusterResultsSheetContent
+          cluster={selectedCluster}
+          onSelectPoint={onSelectClusterPoint}
+          onClose={onCloseCluster}
+        />
+      ) : (
+        <BottomSheetScrollView
+          style={s.container}
+          contentContainerStyle={s.contentContainer}
+          keyboardShouldPersistTaps="handled"
+        >
+          {showAddPopup ? (
+            <PopupSheet
+              mode="add"
+              draftCoordinate={draftCoordinate}
+              isPinPlacementMode={isPinPlacementMode}
+              isSubmitting={isSubmitting}
+              onClose={handleClosePopup}
+              onAddPress={handleStartAdd}
+              onStartPinPlacement={onStartPinPlacement}
+              onSubmit={onSubmitUpload}
             />
-          </View>
-        ) : (
-          <>
-            <Button
-              variant="secondary"
-              label="Add Upload"
-              onPress={handleStartAdd}
-              style={s.addDataButton}
+          ) : selectedPoint ? (
+            <PopupSheet
+              mode="view"
+              point={selectedPoint}
+              draftCoordinate={draftCoordinate}
+              isPinPlacementMode={isPinPlacementMode}
+              isSubmitting={isSubmitting}
+              onClose={handleClosePopup}
+              onAddPress={handleStartAdd}
+              onStartPinPlacement={onStartPinPlacement}
+              onSubmit={onSubmitUpload}
             />
-
-            {isLoading && (
-              <Text style={s.statusText}>Loading map uploads...</Text>
-            )}
-            {error && <Text style={s.statusText}>{error}</Text>}
-            {!isLoading && !error && visiblePoints.length === 0 && (
-              <Text style={s.statusText}>
-                No visible uploads for enabled layers.
-              </Text>
-            )}
-
-            <Text style={s.sectionTitle}>Recently Viewed</Text>
-            {recentlyViewedPoints.length === 0 && (
-              <Text style={s.statusText}>
-                Tap map uploads to build your recently viewed list.
-              </Text>
-            )}
-            <View style={s.suggestedGrid}>
-              {recentlyViewedPoints.map(point => (
-                <TouchableOpacity
-                  key={point.id}
-                  style={s.suggestedItem}
-                  onPress={() => onSelectPoint(point)}
-                >
-                  <Text style={s.suggestedTitle} numberOfLines={1}>
-                    {point.title}
-                  </Text>
-                  <Text style={s.suggestedMeta} numberOfLines={1}>
-                    {RIP_MAP_LAYER_BY_ID[point.layerId].label}
-                  </Text>
-                </TouchableOpacity>
-              ))}
+          ) : isLayerPickerOpen ? (
+            <View>
+              <Text style={s.layerPickerTitle}>Map Layers</Text>
+              <LayerPickerGrid
+                visibleLayerIds={visibleLayerIds}
+                onToggleLayer={onToggleLayer}
+              />
             </View>
-          </>
-        )}
-      </BottomSheetScrollView>
+          ) : (
+            <>
+              <Button
+                variant="secondary"
+                label="Add Upload"
+                onPress={handleStartAdd}
+                style={s.addDataButton}
+              />
+
+              {isLoading && (
+                <Text style={s.statusText}>Loading map uploads...</Text>
+              )}
+              {error && <Text style={s.statusText}>{error}</Text>}
+              {!isLoading && !error && visiblePoints.length === 0 && (
+                <Text style={s.statusText}>
+                  No visible uploads for enabled layers.
+                </Text>
+              )}
+
+              <Text style={s.sectionTitle}>Recently Viewed</Text>
+              {recentlyViewedPoints.length === 0 && (
+                <Text style={s.statusText}>
+                  Tap map uploads to build your recently viewed list.
+                </Text>
+              )}
+              <View style={s.suggestedGrid}>
+                {recentlyViewedPoints.map(point => (
+                  <TouchableOpacity
+                    key={point.id}
+                    style={s.suggestedItem}
+                    onPress={() => onSelectPoint(point)}
+                  >
+                    <Text style={s.suggestedTitle} numberOfLines={1}>
+                      {point.title}
+                    </Text>
+                    <Text style={s.suggestedMeta} numberOfLines={1}>
+                      {RIP_MAP_LAYER_BY_ID[point.layerId].label}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </>
+          )}
+        </BottomSheetScrollView>
+      )}
     </BottomSheet>
   );
 }

@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { Alert, StyleSheet, View } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { MapControls, PinPlacementBanner } from '../../components/map';
@@ -11,7 +11,7 @@ import {
   useCreateRipMapUploadMutation,
   useRipMapPointsQuery,
 } from '../../services/store/ripMapQueries';
-import type { RipMapPoint } from '../../types/ripMap';
+import type { RipMapClusterSelection, RipMapPoint } from '../../types/ripMap';
 import type { RipMapRendererProps } from '../../components/map/RipMapRenderer.types';
 import type { RipMapClusteringConfig } from '../../types/ripMap';
 
@@ -22,6 +22,8 @@ interface MapScreenProps {
 
 function MapScreen({ MapRenderer, clustering }: MapScreenProps) {
   const [isLayerPickerOpen, setIsLayerPickerOpen] = useState(false);
+  const [selectedCluster, setSelectedCluster] =
+    useState<RipMapClusterSelection | null>(null);
   const { authUser } = useAuth();
   const {
     data: pointsByLayer,
@@ -61,6 +63,10 @@ function MapScreen({ MapRenderer, clustering }: MapScreenProps) {
     }, [authUser, refetch]),
   );
 
+  useEffect(() => {
+    setSelectedCluster(null);
+  }, [visiblePoints]);
+
   const handleReload = useCallback(() => {
     if (authUser) {
       refetch();
@@ -78,13 +84,37 @@ function MapScreen({ MapRenderer, clustering }: MapScreenProps) {
   const handleSelectPoint = useCallback(
     (point: RipMapPoint) => {
       setIsLayerPickerOpen(false);
+      setSelectedCluster(null);
       recordViewedPoint(point);
       setSelectedPoint(point);
     },
     [recordViewedPoint, setSelectedPoint],
   );
 
+  const handleSelectCluster = useCallback(
+    (cluster: RipMapClusterSelection) => {
+      setIsLayerPickerOpen(false);
+      clearSelection();
+      setSelectedCluster(cluster);
+    },
+    [clearSelection],
+  );
+
+  const handleSelectClusterPoint = useCallback(
+    (point: RipMapPoint) => {
+      setSelectedCluster(null);
+      handleSelectPoint(point);
+      requestCameraFocus(point.coordinate);
+    },
+    [handleSelectPoint, requestCameraFocus],
+  );
+
+  const handleCloseCluster = useCallback(() => {
+    setSelectedCluster(null);
+  }, []);
+
   const handleLayersPress = useCallback(() => {
+    setSelectedCluster(null);
     setIsLayerPickerOpen(current => !current);
   }, []);
 
@@ -96,9 +126,11 @@ function MapScreen({ MapRenderer, clustering }: MapScreenProps) {
     (coordinate: { latitude: number; longitude: number }) => {
       if (isPinPlacementMode) {
         setIsLayerPickerOpen(false);
+        setSelectedCluster(null);
         placeDraftPin(coordinate);
         return;
       }
+      setSelectedCluster(null);
       clearSelection();
     },
     [clearSelection, isPinPlacementMode, placeDraftPin],
@@ -106,16 +138,19 @@ function MapScreen({ MapRenderer, clustering }: MapScreenProps) {
 
   const handleStartAdd = useCallback(() => {
     setIsLayerPickerOpen(false);
+    setSelectedCluster(null);
     clearSelection();
   }, [clearSelection]);
 
   const handleStartPinPlacement = useCallback(() => {
     setIsLayerPickerOpen(false);
+    setSelectedCluster(null);
     startPinPlacement();
   }, [startPinPlacement]);
 
   const handleClosePopup = useCallback(() => {
     setIsLayerPickerOpen(false);
+    setSelectedCluster(null);
     clearSelection();
     clearDraftPin();
   }, [clearDraftPin, clearSelection]);
@@ -168,6 +203,7 @@ function MapScreen({ MapRenderer, clustering }: MapScreenProps) {
         cameraRequest={cameraRequest}
         clustering={clustering}
         onPointPress={handleSelectPoint}
+        onClusterPress={handleSelectCluster}
         onMapPress={handleMapPress}
         onViewportChange={setViewport}
       />
@@ -180,6 +216,7 @@ function MapScreen({ MapRenderer, clustering }: MapScreenProps) {
       {isPinPlacementMode && <PinPlacementBanner onCancel={clearDraftPin} />}
       <FilterSheet
         selectedPoint={selectedPoint}
+        selectedCluster={selectedCluster}
         visibleLayerIds={visibleLayerIds}
         visiblePoints={visiblePoints}
         recentlyViewedPoints={recentlyViewedPoints}
@@ -190,6 +227,8 @@ function MapScreen({ MapRenderer, clustering }: MapScreenProps) {
         isLayerPickerOpen={isLayerPickerOpen}
         error={error instanceof Error ? error.message : null}
         onSelectPoint={handleSelectPoint}
+        onSelectClusterPoint={handleSelectClusterPoint}
+        onCloseCluster={handleCloseCluster}
         onToggleLayer={toggleLayer}
         onStartAdd={handleStartAdd}
         onClosePopup={handleClosePopup}

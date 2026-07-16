@@ -55,6 +55,13 @@ export interface RipMapClusteringConfig {
   maxZoom: number;
 }
 
+export interface RipMapClusterSelection {
+  id: string;
+  coordinate: RipCoordinate;
+  pointCount: number;
+  points: RipMapPoint[];
+}
+
 export interface RipMapPointsByLayer {
   public: RipMapPoint[];
   admin: RipMapPoint[];

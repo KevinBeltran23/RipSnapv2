@@ -156,3 +156,30 @@ export const createClusterLabelStyle = (
 
 export const isMapboxClusterFeature = (feature?: GeoJSON.Feature | null) =>
   Boolean(feature?.properties && 'point_count' in feature.properties);
+
+export const getMapboxClusterPointCount = (feature: GeoJSON.Feature) => {
+  const pointCount = feature.properties?.point_count;
+  if (typeof pointCount === 'number') return pointCount;
+  if (typeof pointCount === 'string') {
+    const parsedPointCount = Number(pointCount);
+    return Number.isFinite(parsedPointCount) ? parsedPointCount : 0;
+  }
+  return 0;
+};
+
+export const createMapboxClusterSelectionId = (
+  coordinates: number[],
+  pointCount: number,
+) => `cluster:${coordinates[0] ?? 0}:${coordinates[1] ?? 0}:${pointCount}`;
+
+export const getRipMapPointIdsFromMapboxFeatureCollection = (
+  featureCollection: unknown,
+) => {
+  const features = (featureCollection as GeoJSON.FeatureCollection | null)
+    ?.features;
+  if (!Array.isArray(features)) return [];
+
+  return features
+    .map(feature => feature.properties?.pointId)
+    .filter((pointId): pointId is string => typeof pointId === 'string');
+};

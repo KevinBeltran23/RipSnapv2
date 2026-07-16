@@ -9,11 +9,14 @@ import { useResponsiveStyles } from '../../hooks/useResponsiveStyles';
 import type { RipMapRendererProps } from './RipMapRenderer.types';
 import {
   coordinateToPosition,
+  createMapboxClusterSelectionId,
   createClusterCircleStyle,
   createClusterLabelStyle,
   createRipMapPointFeatureCollection,
   createSelectedUploadCircleStyle,
   createUploadCircleStyle,
+  getMapboxClusterPointCount,
+  getRipMapPointIdsFromMapboxFeatureCollection,
   initialMapboxCenter,
   initialMapboxZoom,
   isMapboxClusterFeature,
@@ -46,6 +49,7 @@ function MapboxRipMap({
   cameraRequest,
   clustering = DEFAULT_MAPBOX_CLUSTERING,
   onPointPress,
+  onClusterPress,
   onMapPress,
   onViewportChange,
 }: RipMapRendererProps) {
@@ -111,32 +115,65 @@ function MapboxRipMap({
     }, 0);
   };
 
-  const handleClusterPress = useCallback(async (feature: GeoJSON.Feature) => {
-    if (feature.geometry.type !== 'Point') return;
+  const handleClusterPress = useCallback(
+    async (feature: GeoJSON.Feature) => {
+      if (feature.geometry.type !== 'Point') return;
 
-    ignoreNextMapPressRef.current = true;
-    const centerCoordinate = feature.geometry.coordinates;
+      ignoreNextMapPressRef.current = true;
+      const centerCoordinate = feature.geometry.coordinates;
+      const pointCount = getMapboxClusterPointCount(feature);
 
-    try {
-      const expansionZoom =
-        await shapeSourceRef.current?.getClusterExpansionZoom(feature);
-      cameraRef.current?.setCamera({
-        centerCoordinate,
-        zoomLevel: Math.min(expansionZoom ?? 16, 20),
-        animationDuration: 500,
-        animationMode: 'easeTo',
-      });
-    } catch {
-      cameraRef.current?.setCamera({
-        centerCoordinate,
-        zoomLevel: 16,
-        animationDuration: 500,
-        animationMode: 'easeTo',
-      });
-    } finally {
-      resetIgnoredMapPress();
-    }
-  }, []);
+      try {
+        const [leavesResult, expansionZoomResult] = await Promise.allSettled([
+          onClusterPress && pointCount > 0
+            ? shapeSourceRef.current?.getClusterLeaves(feature, pointCount, 0)
+            : Promise.resolve(null),
+          shapeSourceRef.current?.getClusterExpansionZoom(feature),
+        ]);
+
+        if (onClusterPress && leavesResult.status === 'fulfilled') {
+          const clusterPoints = getRipMapPointIdsFromMapboxFeatureCollection(
+            leavesResult.value,
+          )
+            .map(pointId => pointById.get(pointId))
+            .filter((point): point is NonNullable<typeof point> =>
+              Boolean(point),
+            );
+
+          if (clusterPoints.length > 0) {
+            onClusterPress({
+              id: createMapboxClusterSelectionId(centerCoordinate, pointCount),
+              coordinate: positionToCoordinate(centerCoordinate),
+              pointCount: pointCount || clusterPoints.length,
+              points: clusterPoints,
+            });
+          }
+        }
+
+        const expansionZoom =
+          expansionZoomResult.status === 'fulfilled'
+            ? expansionZoomResult.value
+            : 16;
+
+        cameraRef.current?.setCamera({
+          centerCoordinate,
+          zoomLevel: Math.min(expansionZoom ?? 16, 20),
+          animationDuration: 500,
+          animationMode: 'easeTo',
+        });
+      } catch {
+        cameraRef.current?.setCamera({
+          centerCoordinate,
+          zoomLevel: 16,
+          animationDuration: 500,
+          animationMode: 'easeTo',
+        });
+      } finally {
+        resetIgnoredMapPress();
+      }
+    },
+    [onClusterPress, pointById],
+  );
 
   const handlePointShapePress = (event: { features: GeoJSON.Feature[] }) => {
     const clusterFeature = event.features.find(isMapboxClusterFeature);
