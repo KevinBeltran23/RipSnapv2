@@ -241,7 +241,7 @@ export default function CaptureReviewScreen({
       <View style={[styles.header, { borderBottomColor: colors.border }]}>
         <TouchableOpacity onPress={onBack} style={styles.headerBtn}>
           <Text style={[styles.headerBtnText, { color: colors.primary }]}>
-            ← Back
+            Back
           </Text>
         </TouchableOpacity>
         <Text style={[styles.headerTitle, dynamicStyles.text]}>
@@ -258,7 +258,7 @@ export default function CaptureReviewScreen({
         {/* Instructions */}
         <View style={[styles.card, dynamicStyles.card]}>
           <Text style={[styles.cardTitle, dynamicStyles.text]}>
-            📋 Review Your Capture
+            Review Your Capture
           </Text>
           <Text style={[styles.cardBody, dynamicStyles.textSec]}>
             Preview your {isVideo ? 'video' : 'photo'} below. Add optional
@@ -473,7 +473,7 @@ export default function CaptureReviewScreen({
             {uploading ? (
               <ActivityIndicator color="#fff" size="small" />
             ) : (
-              <Text style={styles.btnTextLight}>☁ Upload to Database</Text>
+              <Text style={styles.btnTextLight}>Upload to Database</Text>
             )}
           </TouchableOpacity>
 
@@ -486,7 +486,7 @@ export default function CaptureReviewScreen({
             accessibilityRole="button"
           >
             <Text style={[styles.btnText, dynamicStyles.text]}>
-              ↗ Share {isVideo ? 'Video' : 'Photo'}
+              Share {isVideo ? 'Video' : 'Photo'}
             </Text>
           </TouchableOpacity>
 
@@ -499,7 +499,7 @@ export default function CaptureReviewScreen({
             accessibilityRole="button"
           >
             <Text style={[styles.btnText, dynamicStyles.text]}>
-              ↗ Share Metadata JSON
+              Share Metadata JSON
             </Text>
           </TouchableOpacity>
 
@@ -511,7 +511,7 @@ export default function CaptureReviewScreen({
             accessibilityLabel="Recapture"
             accessibilityRole="button"
           >
-            <Text style={styles.btnTextLight}>⟲ Recapture</Text>
+            <Text style={styles.btnTextLight}>Recapture</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>
