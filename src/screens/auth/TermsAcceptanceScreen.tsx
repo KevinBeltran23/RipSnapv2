@@ -50,9 +50,6 @@ function TermsAcceptanceScreen() {
     setIsUpdating(true);
     try {
       await updateUserTermsAcceptance(authUser.uid, true);
-      // No need to set user state here, AuthContext's onAuthStateChanged will handle it.
-      // We directly navigate to Main as per the requirement.
-      navigation.replace('Main');
     } catch (error) {
       console.error('Error accepting terms:', error);
       Alert.alert(

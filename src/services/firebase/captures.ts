@@ -5,7 +5,7 @@
  *                ripsnap_captures/{userId}/{sessionId}/metadata.json
  * Firestore:     ripsnap_captures/{docId}
  *
- * Kept separate from the legacy accessibility location routes.
+ * Capture documents are the source for the MVP RipFinder map layer.
  */
 import {
   getStorage,
@@ -19,7 +19,8 @@ import {
   serverTimestamp,
 } from '@react-native-firebase/firestore';
 import { Platform } from 'react-native';
-import * as FileSystem from 'expo-file-system/legacy';
+import type { CaptureLocationSnapshot } from '../../utils/location';
+import type { RipMapLayerId } from '../../types/ripMap';
 
 const storage = getStorage();
 const db = getFirestore();
@@ -33,10 +34,10 @@ export interface CaptureUploadParams {
   mediaUri: string;
   metadataUri: string;
   captureType: 'photo' | 'video';
+  layerId: RipMapLayerId;
+  title?: string;
   notes: string;
-  locationName: string;
-  latitude?: number;
-  longitude?: number;
+  location: CaptureLocationSnapshot;
 }
 
 export interface CaptureUploadResult {
@@ -57,10 +58,10 @@ export async function uploadCapture(
     mediaUri,
     metadataUri,
     captureType,
+    layerId,
+    title,
     notes,
-    locationName,
-    latitude,
-    longitude,
+    location,
   } = params;
 
   const mediaExt = captureType === 'video' ? 'mp4' : 'jpg';
@@ -69,9 +70,7 @@ export async function uploadCapture(
 
   // Upload media file
   const mediaFilePath =
-    Platform.OS === 'android'
-      ? mediaUri
-      : mediaUri.replace('file://', '');
+    Platform.OS === 'android' ? mediaUri : mediaUri.replace('file://', '');
   const mediaRef = ref(storage, mediaStoragePath);
   await mediaRef.putFile(mediaFilePath);
   const mediaUrl = await getDownloadURL(mediaRef);
@@ -90,14 +89,16 @@ export async function uploadCapture(
     userId,
     sessionId,
     captureType,
+    layerId,
     mediaUrl,
     metadataUrl,
     mediaStoragePath,
     metaStoragePath,
+    title: title?.trim() || null,
     notes: notes.trim(),
-    locationName: locationName.trim(),
-    latitude: latitude ?? null,
-    longitude: longitude ?? null,
+    location,
+    latitude: location.latitude,
+    longitude: location.longitude,
     createdAt: serverTimestamp(),
   });
 

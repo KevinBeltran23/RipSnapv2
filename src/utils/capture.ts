@@ -31,7 +31,9 @@ export async function saveMediaFile(
   const sessionDir = `${CAPTURE_DIR}${sessionId}/`;
   await ensureDir(sessionDir);
   const dest = `${sessionDir}${filename}`;
-  const src = sourcePath.startsWith('file://') ? sourcePath : `file://${sourcePath}`;
+  const src = sourcePath.startsWith('file://')
+    ? sourcePath
+    : `file://${sourcePath}`;
   await FileSystem.copyAsync({ from: src, to: dest });
   return dest;
 }
@@ -66,12 +68,8 @@ export async function shareSession(
   await shareFile(mediaUri);
 
   // Offer to share metadata
-  Alert.alert(
-    'Share Metadata?',
-    'Also share the detection metadata JSON?',
-    [
-      { text: 'No', style: 'cancel' },
-      { text: 'Share', onPress: () => shareFile(metadataUri) },
-    ],
-  );
+  Alert.alert('Share Metadata?', 'Also share the detection metadata JSON?', [
+    { text: 'No', style: 'cancel' },
+    { text: 'Share', onPress: () => shareFile(metadataUri) },
+  ]);
 }

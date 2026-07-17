@@ -102,9 +102,9 @@ function PrivacyPolicyScreen() {
         <Text style={dynamicStyles.paragraph}>
           We collect information you provide directly to us, such as when you
           create an account (email, display name), capture and upload media
-          (photos, videos of coastal areas), submit detection metadata
-          (bounding box data, timestamps), or provide location information. We
-          may also collect device information and usage data.
+          (photos, videos of coastal areas), submit detection metadata (bounding
+          box data, timestamps), or provide location information. We may also
+          collect device information and usage data.
         </Text>
 
         <Text style={dynamicStyles.sectionTitle}>
@@ -118,9 +118,7 @@ function PrivacyPolicyScreen() {
           advancing coastal safety research.
         </Text>
 
-        <Text style={dynamicStyles.sectionTitle}>
-          4. Research Use
-        </Text>
+        <Text style={dynamicStyles.sectionTitle}>4. Research Use</Text>
         <Text style={dynamicStyles.paragraph}>
           Data uploaded through RipSnap may be used for academic research on rip
           current detection and coastal safety. Uploaded media and detection

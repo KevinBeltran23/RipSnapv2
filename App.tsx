@@ -2,36 +2,37 @@
 import 'react-native-reanimated';
 
 import React, { useEffect } from 'react';
+import { StyleSheet } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { NavigationContainer } from '@react-navigation/native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import * as ScreenOrientation from 'expo-screen-orientation';
 import { AuthProvider } from './src/contexts/AuthContext';
 import { ThemeProvider } from './src/contexts/ThemeContext';
-import { MapUIProvider } from './src/contexts/MapUIContext';
+import { DetectionSettingsProvider } from './src/contexts/DetectionSettingsContext';
 import AppNavigator from './src/navigation/AppNavigator';
 import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client';
 import { queryClient, clientPersister } from './src/services/store/queryClient';
 
-// Provider nesting order matters — inner providers can call hooks from outer ones:
-// AuthProvider   → must wrap ThemeProvider  (ThemeContext calls useAuth)
-// MapUIProvider  → must wrap LocationProvider (LocationContext calls useMapUI)
 export default function App() {
-  // Lock to portrait on app start. LiveDetectionScreen unlocks when focused.
   useEffect(() => {
     ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP);
   }, []);
+
   return (
-    <GestureHandlerRootView style={{ flex: 1 }}>
+    <GestureHandlerRootView style={styles.root}>
       <SafeAreaProvider>
-        <PersistQueryClientProvider client={queryClient} persistOptions={{ persister: clientPersister }}>
+        <PersistQueryClientProvider
+          client={queryClient}
+          persistOptions={{ persister: clientPersister }}
+        >
           <AuthProvider>
             <ThemeProvider>
-              <MapUIProvider>
+              <DetectionSettingsProvider>
                 <NavigationContainer>
                   <AppNavigator />
                 </NavigationContainer>
-              </MapUIProvider>
+              </DetectionSettingsProvider>
             </ThemeProvider>
           </AuthProvider>
         </PersistQueryClientProvider>
@@ -39,3 +40,9 @@ export default function App() {
     </GestureHandlerRootView>
   );
 }
+
+const styles = StyleSheet.create({
+  root: {
+    flex: 1,
+  },
+});

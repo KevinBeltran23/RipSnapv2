@@ -12,7 +12,7 @@ import { useColors } from '../hooks/useColors';
 import { useResponsiveStyles } from '../hooks/useResponsiveStyles';
 
 import HomeScreen from '../screens/main/HomeScreen';
-import MapScreen from '../screens/main/MapScreen';
+import MapboxMapScreen from '../screens/main/MapboxMapScreen';
 import LiveDetectionScreen from '../screens/main/LiveDetectionScreen';
 import SettingsScreen from '../screens/main/SettingsScreen';
 
@@ -47,7 +47,7 @@ const renderCogIcon = ({ color, size }: { color: string; size: number }) => (
 
 const MapScreenWithUnmount = (props: any) => {
   const isFocused = useIsFocused();
-  return isFocused ? <MapScreen {...props} /> : null;
+  return isFocused ? <MapboxMapScreen {...props} /> : null;
 };
 
 export function MainNavigator() {

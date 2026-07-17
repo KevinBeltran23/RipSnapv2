@@ -13,9 +13,7 @@
       "enabled": true,
       "fallbackToCacheTimeout": 3000
     },
-    "runtimeVersion": {
-      "policy": "appVersion"
-    },
+    "runtimeVersion": "1.0.0",
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
@@ -40,7 +38,9 @@
       "edgeToEdgeEnabled": true,
       "permissions": [
         "android.permission.CAMERA",
-        "android.permission.RECORD_AUDIO"
+        "android.permission.RECORD_AUDIO",
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.ACCESS_COARSE_LOCATION"
       ]
     },
     "plugins": [
@@ -75,7 +75,8 @@
       [
         "expo-location",
         {
-          "locationAlwaysAndWhenInUsePermission": "Allow $(PRODUCT_NAME) to use your location."
+          "locationAlwaysAndWhenInUsePermission": "Allow $(PRODUCT_NAME) to use your location.",
+          "locationWhenInUsePermission": "Allow $(PRODUCT_NAME) to use your location when capturing rip-current media."
         }
       ],
       [

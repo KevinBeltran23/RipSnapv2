@@ -13,6 +13,7 @@ import {
   StatusBar,
   TouchableOpacity,
   useWindowDimensions,
+  LayoutChangeEvent,
 } from 'react-native';
 import { useIsFocused } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -45,6 +46,7 @@ import {
   useDetectionCapture,
   CaptureResult,
 } from '../../hooks/useDetectionCapture';
+import { useDetectionSettings } from '../../contexts/DetectionSettingsContext';
 import CaptureControls from '../../components/detection/CaptureControls';
 import CaptureReviewScreen from './CaptureReviewScreen';
 
@@ -65,11 +67,13 @@ function LiveDetectionScreen() {
 
   const [latestDetections, setLatestDetections] = useState<Detection[]>([]);
   const [reviewResult, setReviewResult] = useState<CaptureResult | null>(null);
+  const [previewLayout, setPreviewLayout] = useState({ width: 0, height: 0 });
 
   const [selectedModelName, setSelectedModelName] = useState<string>(
     RIP_CURRENT_MODEL.name,
   );
   const [isModelMenuOpen, setIsModelMenuOpen] = useState(false);
+  const { settings: detectionSettings } = useDetectionSettings();
 
   const selectedModel = useMemo(
     () =>
@@ -85,6 +89,14 @@ function LiveDetectionScreen() {
   );
 
   const pixelFormat = Platform.OS === 'ios' ? 'rgb' : 'yuv';
+  const { width: viewWidth, height: viewHeight } = useWindowDimensions();
+  const isLandscape = viewWidth > viewHeight;
+  const previewWidth = previewLayout.width || viewWidth;
+  const previewHeight = previewLayout.height || viewHeight;
+  const previewSize = useMemo(
+    () => ({ width: previewWidth, height: previewHeight }),
+    [previewHeight, previewWidth],
+  );
 
   const {
     captureMode,
@@ -96,7 +108,13 @@ function LiveDetectionScreen() {
     logFrame,
     lastVideoResult,
     clearLastVideoResult,
-  } = useDetectionCapture(cameraRef, cameraPosition, selectedModel);
+  } = useDetectionCapture(
+    cameraRef,
+    cameraPosition,
+    selectedModel,
+    detectionSettings,
+    previewSize,
+  );
 
   const isRecording = captureMode === 'recording';
 
@@ -151,9 +169,7 @@ function LiveDetectionScreen() {
   const inputHeight =
     inputTensor?.shape[1] ?? DETECTION_CONFIG.DEFAULT_INPUT_SIZE;
   const inputDataType = inputTensor?.dataType === 'uint8' ? 'uint8' : 'float32';
-
-  const { width: viewWidth, height: viewHeight } = useWindowDimensions();
-  const isLandscape = viewWidth > viewHeight;
+  const firstOutputShape = ripCurrentModel.model?.outputs[0]?.shape ?? null;
 
   const updateDetections = useCallback(
     (newDetections: Detection[]) => {
@@ -218,19 +234,22 @@ function LiveDetectionScreen() {
           1.0,
           inputWidth,
           inputHeight,
+          detectionSettings.confidenceThreshold,
+          detectionSettings.maxDetections,
+          firstOutputShape,
         );
 
         const mirror = cameraPosition === 'front';
         const mapped: Detection[] = [];
         for (let i = 0; i < processedDetections.length; i++) {
           const d = processedDetections[i];
-          let x = d.bbox[0] * viewWidth;
-          const y = d.bbox[1] * viewHeight;
-          const w = d.bbox[2] * viewWidth;
-          const h = d.bbox[3] * viewHeight;
+          let x = d.bbox[0] * previewWidth;
+          const y = d.bbox[1] * previewHeight;
+          const w = d.bbox[2] * previewWidth;
+          const h = d.bbox[3] * previewHeight;
 
           if (mirror) {
-            x = viewWidth - x - w;
+            x = previewWidth - x - w;
           }
 
           mapped.push({
@@ -257,9 +276,12 @@ function LiveDetectionScreen() {
       inputWidth,
       inputHeight,
       inputDataType,
-      viewWidth,
-      viewHeight,
+      firstOutputShape,
+      previewWidth,
+      previewHeight,
       cameraPosition,
+      detectionSettings.confidenceThreshold,
+      detectionSettings.maxDetections,
       updateDetectionsOnJS,
       logErrorOnJS,
     ],
@@ -275,7 +297,7 @@ function LiveDetectionScreen() {
 
   const boundingBoxes = useMemo(() => {
     if (!font) return [];
-    return latestDetections.slice(0, 15).map((detection, index) => ({
+    return latestDetections.map((detection, index) => ({
       id: index,
       rect: {
         x: detection.bbox[0],
@@ -289,6 +311,13 @@ function LiveDetectionScreen() {
   }, [latestDetections, font]);
 
   const detectionCount = latestDetections.length;
+
+  const handlePreviewLayout = useCallback((event: LayoutChangeEvent) => {
+    const { width, height } = event.nativeEvent.layout;
+    setPreviewLayout(prev =>
+      prev.width === width && prev.height === height ? prev : { width, height },
+    );
+  }, []);
 
   const toggleCamera = useCallback(() => {
     if (captureMode !== 'idle') return;
@@ -359,7 +388,7 @@ function LiveDetectionScreen() {
   }
 
   return (
-    <View style={styles.container}>
+    <View style={styles.container} onLayout={handlePreviewLayout}>
       <StatusBar barStyle="light-content" />
 
       <Camera

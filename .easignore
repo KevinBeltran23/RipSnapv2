@@ -6,3 +6,13 @@ calibration_image_sample_data_*.npy
 
 # Exclude dev dependencies not needed for build
 node_modules/.cache
+
+# Exclude local generated native build output. These files can contain
+# machine-specific absolute paths that break Linux EAS builders.
+android/build/
+android/.gradle/
+ios/build/
+
+# Exclude local Expo/Metro cache files
+.expo/
+.metro-health-check*

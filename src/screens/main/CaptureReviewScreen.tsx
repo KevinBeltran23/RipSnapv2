@@ -1,8 +1,8 @@
 /**
  * CaptureReviewScreen — review captured media with detection overlays,
- * add notes and location, then upload to Firebase or share locally.
+ * add notes, then upload to Firebase or share locally.
  */
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useMemo, useRef } from 'react';
 import {
   View,
   Text,
@@ -15,13 +15,20 @@ import {
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
+  Modal,
 } from 'react-native';
-import Video from 'react-native-video';
+import Video, { type VideoRef } from 'react-native-video';
 import { useColors } from '../../hooks/useColors';
 import { useAuth } from '../../contexts/AuthContext';
-import { shareFile } from '../../utils/capture';
+import { saveMetadataFile, shareFile } from '../../utils/capture';
+import { getCurrentLocationSnapshot } from '../../utils/location';
 import { uploadCapture } from '../../services/firebase/captures';
 import type { CaptureResult } from '../../hooks/useDetectionCapture';
+import ReviewDetectionOverlay from '../../components/detection/ReviewDetectionOverlay';
+import type { OnLoadData } from 'react-native-video';
+import DropdownSelector from '../../components/common/DropdownSelector';
+import { RIP_MAP_LAYERS, RIP_MAP_LAYER_BY_ID } from '../../config/mapLayers';
+import type { RipMapLayerId } from '../../types/ripMap';
 
 interface Props {
   captureResult: CaptureResult;
@@ -38,11 +45,54 @@ export default function CaptureReviewScreen({
   const { authUser } = useAuth();
 
   const [notes, setNotes] = useState('');
-  const [locationName, setLocationName] = useState('');
+  const [selectedLayerId, setSelectedLayerId] =
+    useState<RipMapLayerId>('public');
   const [uploading, setUploading] = useState(false);
+  const [videoPlaybackMs, setVideoPlaybackMs] = useState(0);
+  const [previewFullscreen, setPreviewFullscreen] = useState(false);
+  const [showDetectionOverlay, setShowDetectionOverlay] = useState(true);
+  const [videoNaturalSize, setVideoNaturalSize] = useState<{
+    width: number;
+    height: number;
+  } | null>(null);
+  const embeddedVideoRef = useRef<VideoRef>(null);
+  const fullscreenVideoRef = useRef<VideoRef>(null);
 
   const isVideo = captureResult.captureType === 'video';
   const meta = captureResult.metadata as any;
+  const metadataFrames = useMemo(() => {
+    if (!Array.isArray(meta?.frames)) return [];
+
+    return [...meta.frames]
+      .filter(frame => typeof frame?.elapsedMs === 'number')
+      .sort((a, b) => a.elapsedMs - b.elapsedMs);
+  }, [meta?.frames]);
+  const sourceWidth =
+    typeof meta?.screenWidth === 'number' && meta.screenWidth > 0
+      ? meta.screenWidth
+      : 1;
+  const sourceHeight =
+    typeof meta?.screenHeight === 'number' && meta.screenHeight > 0
+      ? meta.screenHeight
+      : 1;
+  const metadataMediaWidth =
+    typeof meta?.mediaWidth === 'number' && meta.mediaWidth > 0
+      ? meta.mediaWidth
+      : sourceWidth;
+  const metadataMediaHeight =
+    typeof meta?.mediaHeight === 'number' && meta.mediaHeight > 0
+      ? meta.mediaHeight
+      : sourceHeight;
+  const mediaWidth = isVideo
+    ? (videoNaturalSize?.width ?? metadataMediaWidth)
+    : sourceWidth;
+  const mediaHeight = isVideo
+    ? (videoNaturalSize?.height ?? metadataMediaHeight)
+    : sourceHeight;
+  const capturedLocation = meta?.location;
+  const locationLabel = capturedLocation
+    ? `${capturedLocation.latitude.toFixed(6)}, ${capturedLocation.longitude.toFixed(6)}`
+    : 'Pending GPS';
   const totalDetections = meta?.frames
     ? meta.frames.reduce(
         (sum: number, f: any) => sum + (f.detections?.length ?? 0),
@@ -50,9 +100,7 @@ export default function CaptureReviewScreen({
       )
     : 0;
   const frameCount = meta?.frames?.length ?? 0;
-  const durationSec = meta?.durationMs
-    ? Math.round(meta.durationMs / 1000)
-    : 0;
+  const durationSec = meta?.durationMs ? Math.round(meta.durationMs / 1000) : 0;
 
   /* ── Upload to Firebase ────────────────────────────────────────────── */
 
@@ -61,21 +109,40 @@ export default function CaptureReviewScreen({
       Alert.alert('Not Signed In', 'You must be signed in to upload captures.');
       return;
     }
-    if (!locationName.trim()) {
-      Alert.alert('Location Required', 'Please enter a location name for this capture.');
-      return;
-    }
 
     setUploading(true);
     try {
+      const location = meta?.location ?? (await getCurrentLocationSnapshot());
+
+      if (!location) {
+        Alert.alert(
+          'GPS Location Required',
+          'Allow location access so this capture can be uploaded with GPS coordinates.',
+        );
+        return;
+      }
+
+      const trimmedNotes = notes.trim();
+      const metadata = {
+        ...meta,
+        location,
+        layerId: selectedLayerId,
+        notes: trimmedNotes,
+      };
+      const metadataUri = await saveMetadataFile(
+        captureResult.sessionId,
+        metadata,
+      );
+
       const result = await uploadCapture({
         userId: authUser.uid,
         sessionId: captureResult.sessionId,
         mediaUri: captureResult.mediaUri,
-        metadataUri: captureResult.metadataUri,
+        metadataUri,
         captureType: captureResult.captureType,
-        notes,
-        locationName,
+        layerId: selectedLayerId,
+        notes: trimmedNotes,
+        location,
       });
 
       Alert.alert(
@@ -89,7 +156,7 @@ export default function CaptureReviewScreen({
     } finally {
       setUploading(false);
     }
-  }, [authUser, captureResult, notes, locationName, onBack]);
+  }, [authUser, captureResult, meta, notes, onBack, selectedLayerId]);
 
   /* ── Share locally ─────────────────────────────────────────────────── */
 
@@ -101,11 +168,54 @@ export default function CaptureReviewScreen({
     shareFile(captureResult.metadataUri);
   }, [captureResult.metadataUri]);
 
+  const handleVideoProgress = useCallback(
+    ({ currentTime }: { currentTime: number }) => {
+      setVideoPlaybackMs(currentTime * 1000);
+    },
+    [],
+  );
+
+  const handleVideoLoad = useCallback((event: OnLoadData) => {
+    const { width, height } = event.naturalSize;
+    if (width > 0 && height > 0) {
+      setVideoNaturalSize({ width, height });
+    }
+  }, []);
+
+  const videoControlsStyles = useMemo(() => ({ hideFullscreen: true }), []);
+  const overlayToggleLabel = showDetectionOverlay
+    ? 'Hide Overlay'
+    : 'Show Overlay';
+
+  const toggleDetectionOverlay = useCallback(() => {
+    setShowDetectionOverlay(current => !current);
+  }, []);
+
+  const openPreviewFullscreen = useCallback(() => {
+    setPreviewFullscreen(true);
+  }, []);
+
+  const closePreviewFullscreen = useCallback(() => {
+    setPreviewFullscreen(false);
+    if (isVideo) {
+      embeddedVideoRef.current?.seek(videoPlaybackMs / 1000);
+    }
+  }, [isVideo, videoPlaybackMs]);
+
+  const handleFullscreenVideoLoad = useCallback(() => {
+    if (isVideo && videoPlaybackMs > 0) {
+      fullscreenVideoRef.current?.seek(videoPlaybackMs / 1000);
+    }
+  }, [isVideo, videoPlaybackMs]);
+
   /* ── Styles ────────────────────────────────────────────────────────── */
 
   const dynamicStyles = {
     container: { backgroundColor: colors.background },
-    card: { backgroundColor: colors.backgroundSecondary, borderColor: colors.borderLight },
+    card: {
+      backgroundColor: colors.backgroundSecondary,
+      borderColor: colors.borderLight,
+    },
     text: { color: colors.textPrimary },
     textSec: { color: colors.textSecondary },
     textTer: { color: colors.textTertiary },
@@ -115,8 +225,12 @@ export default function CaptureReviewScreen({
       borderColor: colors.border,
     },
     btnPrimary: { backgroundColor: colors.primary },
-    btnSecondary: { backgroundColor: colors.backgroundTertiary, borderColor: colors.border },
+    btnSecondary: {
+      backgroundColor: colors.backgroundTertiary,
+      borderColor: colors.border,
+    },
   };
+  const selectedLayer = RIP_MAP_LAYER_BY_ID[selectedLayerId];
 
   return (
     <KeyboardAvoidingView
@@ -147,9 +261,9 @@ export default function CaptureReviewScreen({
             📋 Review Your Capture
           </Text>
           <Text style={[styles.cardBody, dynamicStyles.textSec]}>
-            Preview your {isVideo ? 'video' : 'photo'} below. Add a location
-            name and optional notes, then upload to the research database or
-            share the files directly.
+            Preview your {isVideo ? 'video' : 'photo'} below. Add optional
+            notes, then upload to the research database or share the files
+            directly.
           </Text>
         </View>
 
@@ -157,12 +271,17 @@ export default function CaptureReviewScreen({
         <View style={[styles.mediaContainer, dynamicStyles.card]}>
           {isVideo ? (
             <Video
+              ref={embeddedVideoRef}
               source={{ uri: captureResult.mediaUri }}
               style={styles.media}
               controls
+              controlsStyles={videoControlsStyles}
               resizeMode="contain"
-              paused={false}
+              paused={previewFullscreen}
               repeat
+              progressUpdateInterval={100}
+              onProgress={handleVideoProgress}
+              onLoad={handleVideoLoad}
             />
           ) : (
             <Image
@@ -171,7 +290,106 @@ export default function CaptureReviewScreen({
               resizeMode="contain"
             />
           )}
+          <ReviewDetectionOverlay
+            frames={metadataFrames}
+            sourceWidth={sourceWidth}
+            sourceHeight={sourceHeight}
+            mediaWidth={mediaWidth}
+            mediaHeight={mediaHeight}
+            currentMs={isVideo ? videoPlaybackMs : 0}
+            isVideo={isVideo}
+            visible={showDetectionOverlay}
+          />
+          <View style={styles.previewControls}>
+            <TouchableOpacity
+              style={styles.previewControlButton}
+              onPress={toggleDetectionOverlay}
+              accessibilityLabel={overlayToggleLabel}
+              accessibilityRole="button"
+            >
+              <Text style={styles.fullscreenButtonText}>
+                {overlayToggleLabel}
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.previewControlButton}
+              onPress={openPreviewFullscreen}
+              accessibilityLabel="Open fullscreen preview"
+              accessibilityRole="button"
+            >
+              <Text style={styles.fullscreenButtonText}>Fullscreen</Text>
+            </TouchableOpacity>
+          </View>
         </View>
+
+        <Modal
+          visible={previewFullscreen}
+          animationType="fade"
+          supportedOrientations={[
+            'portrait',
+            'landscape',
+            'landscape-left',
+            'landscape-right',
+          ]}
+          onRequestClose={closePreviewFullscreen}
+        >
+          <View style={styles.fullscreenRoot}>
+            {isVideo ? (
+              <Video
+                ref={fullscreenVideoRef}
+                source={{ uri: captureResult.mediaUri }}
+                style={StyleSheet.absoluteFill}
+                controls
+                controlsStyles={videoControlsStyles}
+                resizeMode="contain"
+                paused={!previewFullscreen}
+                repeat
+                progressUpdateInterval={100}
+                onProgress={handleVideoProgress}
+                onLoad={event => {
+                  handleVideoLoad(event);
+                  handleFullscreenVideoLoad();
+                }}
+              />
+            ) : (
+              <Image
+                source={{ uri: captureResult.mediaUri }}
+                style={StyleSheet.absoluteFill}
+                resizeMode="contain"
+              />
+            )}
+            <ReviewDetectionOverlay
+              frames={metadataFrames}
+              sourceWidth={sourceWidth}
+              sourceHeight={sourceHeight}
+              mediaWidth={mediaWidth}
+              mediaHeight={mediaHeight}
+              currentMs={isVideo ? videoPlaybackMs : 0}
+              isVideo={isVideo}
+              visible={showDetectionOverlay}
+            />
+            <View style={styles.fullscreenControls}>
+              <TouchableOpacity
+                style={styles.previewControlButton}
+                onPress={toggleDetectionOverlay}
+                accessibilityLabel={overlayToggleLabel}
+                accessibilityRole="button"
+              >
+                <Text style={styles.fullscreenButtonText}>
+                  {overlayToggleLabel}
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.previewControlButton}
+                onPress={closePreviewFullscreen}
+                accessibilityLabel="Close fullscreen preview"
+                accessibilityRole="button"
+              >
+                <Text style={styles.fullscreenButtonText}>Close</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
 
         {/* Stats */}
         <View style={[styles.statsRow]}>
@@ -201,23 +419,32 @@ export default function CaptureReviewScreen({
           </View>
         </View>
 
-        {/* Location input */}
-        <Text style={[styles.label, dynamicStyles.text]}>
-          Location *
-        </Text>
-        <TextInput
-          style={[styles.input, dynamicStyles.input]}
-          placeholder="e.g. Main St & 5th Ave, Santa Cruz"
-          placeholderTextColor={colors.textTertiary}
-          value={locationName}
-          onChangeText={setLocationName}
-          returnKeyType="next"
+        <View style={[styles.locationCard, dynamicStyles.card]}>
+          <Text style={[styles.locationLabel, dynamicStyles.textTer]}>
+            GPS Location
+          </Text>
+          <Text style={[styles.locationValue, dynamicStyles.text]}>
+            {locationLabel}
+          </Text>
+        </View>
+
+        <DropdownSelector
+          title="Data Layer"
+          options={RIP_MAP_LAYERS.map(layer => ({
+            label: layer.label,
+            value: layer.id,
+            icon: layer.icon,
+          }))}
+          selectedValue={selectedLayerId}
+          onValueChange={value => setSelectedLayerId(value as RipMapLayerId)}
+          placeholder="Select a data layer..."
+          buttonBackgroundColor={selectedLayer.color}
+          buttonTextColor={colors.textInverse}
+          zIndex={200}
         />
 
         {/* Notes input */}
-        <Text style={[styles.label, dynamicStyles.text]}>
-          Notes (optional)
-        </Text>
+        <Text style={[styles.label, dynamicStyles.text]}>Notes (optional)</Text>
         <TextInput
           style={[styles.input, styles.inputMultiline, dynamicStyles.input]}
           placeholder="Any observations about conditions, time of day, etc."
@@ -233,7 +460,11 @@ export default function CaptureReviewScreen({
         <View style={styles.actions}>
           {/* Upload */}
           <TouchableOpacity
-            style={[styles.btn, dynamicStyles.btnPrimary, uploading && styles.btnDisabled]}
+            style={[
+              styles.btn,
+              dynamicStyles.btnPrimary,
+              uploading && styles.btnDisabled,
+            ]}
             onPress={handleUpload}
             disabled={uploading}
             accessibilityLabel="Upload to Firebase"
@@ -248,7 +479,7 @@ export default function CaptureReviewScreen({
 
           {/* Share media */}
           <TouchableOpacity
-            style={[styles.btn, dynamicStyles.btnSecondary, { borderWidth: 1 }]}
+            style={[styles.btn, styles.btnBorder, dynamicStyles.btnSecondary]}
             onPress={handleShareMedia}
             disabled={uploading}
             accessibilityLabel={`Share ${isVideo ? 'video' : 'photo'}`}
@@ -261,7 +492,7 @@ export default function CaptureReviewScreen({
 
           {/* Share metadata */}
           <TouchableOpacity
-            style={[styles.btn, dynamicStyles.btnSecondary, { borderWidth: 1 }]}
+            style={[styles.btn, styles.btnBorder, dynamicStyles.btnSecondary]}
             onPress={handleShareMetadata}
             disabled={uploading}
             accessibilityLabel="Share metadata JSON"
@@ -335,6 +566,7 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
   mediaContainer: {
+    position: 'relative',
     borderRadius: 12,
     overflow: 'hidden',
     borderWidth: StyleSheet.hairlineWidth,
@@ -343,6 +575,35 @@ const styles = StyleSheet.create({
     width: '100%',
     height: 240,
     backgroundColor: '#000',
+  },
+  previewControls: {
+    position: 'absolute',
+    right: 10,
+    top: 10,
+    flexDirection: 'row',
+    gap: 8,
+  },
+  previewControlButton: {
+    backgroundColor: 'rgba(0, 0, 0, 0.72)',
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  fullscreenButtonText: {
+    color: '#fff',
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  fullscreenRoot: {
+    flex: 1,
+    backgroundColor: '#000',
+  },
+  fullscreenControls: {
+    position: 'absolute',
+    right: 16,
+    top: 52,
+    flexDirection: 'row',
+    gap: 8,
   },
   statsRow: {
     flexDirection: 'row',
@@ -363,6 +624,21 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '500',
     marginTop: 2,
+  },
+  locationCard: {
+    borderRadius: 12,
+    padding: 14,
+    borderWidth: StyleSheet.hairlineWidth,
+  },
+  locationLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    marginBottom: 4,
+    textTransform: 'uppercase',
+  },
+  locationValue: {
+    fontSize: 15,
+    fontWeight: '600',
   },
   label: {
     fontSize: 14,
@@ -389,6 +665,9 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  btnBorder: {
+    borderWidth: 1,
   },
   btnDisabled: {
     opacity: 0.6,

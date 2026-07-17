@@ -49,6 +49,15 @@ export const RIP_CURRENT_MODELS = [
     inputSize: 300,
     labels: RIP_CURRENT_CLASSES,
   },
+  {
+    name: 'model_bathy',
+    displayName: 'Bathy Rip Current',
+    shortName: 'Bathy',
+    architecture: 'tflite_object_detection',
+    asset: require('../../ripsnap_models/model_bathy.tflite'),
+    inputSize: 640,
+    labels: RIP_CURRENT_CLASSES,
+  },
 ] as const satisfies readonly RipCurrentModelConfig[];
 
 export const RIP_CURRENT_MODEL = RIP_CURRENT_MODELS[0];
@@ -59,3 +68,16 @@ export const DETECTION_CONFIG = {
   IOU_THRESHOLD: 0.45,
   MAX_DETECTIONS: 10,
 };
+
+export const DETECTION_SETTING_LIMITS = {
+  CONFIDENCE_THRESHOLD: {
+    MIN: 0.05,
+    MAX: 0.95,
+    STEP: 0.05,
+  },
+  MAX_DETECTIONS: {
+    MIN: 1,
+    MAX: 50,
+    STEP: 1,
+  },
+} as const;
