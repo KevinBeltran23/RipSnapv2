@@ -42,3 +42,11 @@ export const RIP_MAP_LAYER_BY_ID = RIP_MAP_LAYERS.reduce(
   },
   {} as Record<RipMapLayerId, RipMapLayer>,
 );
+
+export const getUploadableRipMapLayers = (isAdmin: boolean) =>
+  RIP_MAP_LAYERS.filter(layer => isAdmin || layer.id !== 'admin');
+
+export const canUploadToRipMapLayer = (
+  layerId: RipMapLayerId,
+  isAdmin: boolean,
+) => layerId !== 'admin' || isAdmin;

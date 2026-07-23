@@ -1,25 +1,47 @@
-  rules_version = '2';
-  service cloud.firestore {
-    match /databases/{database}/documents {
-      match /users/{userId} {
-        allow read: if request.auth != null && request.auth.uid == userId;
-        allow create: if request.auth != null && request.auth.uid == userId;
-        allow update: if request.auth != null && request.auth.uid == userId;
-        allow delete: if false;
-      }
+rules_version = '2';
 
-      match /ripsnap_captures/{captureId} {
-        allow read: if request.auth != null;
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isSignedIn() {
+      return request.auth != null;
+    }
 
-        allow create: if request.auth != null
-                      && request.resource.data.userId == request.auth.uid;
+    function isAdmin() {
+      return isSignedIn() && request.auth.token.admin == true;
+    }
 
-        allow update, delete: if request.auth != null
-                               && resource.data.userId == request.auth.uid;
-      }
+    function canUseLayer(layerId) {
+      return layerId in ['public', 'admin', 'extra']
+        && (layerId != 'admin' || isAdmin());
+    }
 
-      match /locations/{locationId} {
-        allow read, create, update, delete: if false;
-      }
+    function isCaptureOwner() {
+      return isSignedIn() && resource.data.userId == request.auth.uid;
+    }
+
+    match /users/{userId} {
+      allow read: if isSignedIn() && request.auth.uid == userId;
+      allow create: if isSignedIn() && request.auth.uid == userId;
+      allow update: if isSignedIn() && request.auth.uid == userId;
+      allow delete: if false;
+    }
+
+    match /ripsnap_captures/{captureId} {
+      allow read: if isSignedIn();
+
+      allow create: if isSignedIn()
+                    && request.resource.data.userId == request.auth.uid
+                    && canUseLayer(request.resource.data.layerId);
+
+      allow update: if isCaptureOwner()
+                    && request.resource.data.userId == resource.data.userId
+                    && canUseLayer(request.resource.data.layerId);
+
+      allow delete: if isCaptureOwner();
+    }
+
+    match /locations/{locationId} {
+      allow read, create, update, delete: if false;
     }
   }
+}

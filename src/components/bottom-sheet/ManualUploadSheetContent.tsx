@@ -12,7 +12,10 @@ import * as ImagePicker from 'expo-image-picker';
 import Video from 'react-native-video';
 import Button from '../common/Button';
 import DropdownSelector from '../common/DropdownSelector';
-import { RIP_MAP_LAYERS, RIP_MAP_LAYER_BY_ID } from '../../config/mapLayers';
+import {
+  getUploadableRipMapLayers,
+  RIP_MAP_LAYER_BY_ID,
+} from '../../config/mapLayers';
 import { useColors } from '../../hooks/useColors';
 import { useResponsiveStyles } from '../../hooks/useResponsiveStyles';
 import type {
@@ -25,6 +28,7 @@ import type {
 } from '../../types/ripMap';
 
 interface ManualUploadSheetContentProps {
+  isAdmin: boolean;
   draftCoordinate: RipCoordinate | null;
   isPinPlacementMode: boolean;
   submitPhase: RipManualUploadPhase;
@@ -51,6 +55,7 @@ const getAssetCaptureType = (
 };
 
 function ManualUploadSheetContent({
+  isAdmin,
   draftCoordinate,
   isPinPlacementMode,
   submitPhase,
@@ -67,6 +72,7 @@ function ManualUploadSheetContent({
   const [selectedLayerId, setSelectedLayerId] =
     useState<RipMapLayerId>('public');
   const [media, setMedia] = useState<RipManualUploadMedia | null>(null);
+  const uploadableLayers = getUploadableRipMapLayers(isAdmin);
 
   useEffect(() => {
     setTitle('');
@@ -74,6 +80,12 @@ function ManualUploadSheetContent({
     setSelectedLayerId('public');
     setMedia(null);
   }, []);
+
+  useEffect(() => {
+    if (!isAdmin && selectedLayerId === 'admin') {
+      setSelectedLayerId('public');
+    }
+  }, [isAdmin, selectedLayerId]);
 
   const selectedLayer = RIP_MAP_LAYER_BY_ID[selectedLayerId];
   const isSubmitting = submitPhase !== 'idle';
@@ -281,7 +293,7 @@ function ManualUploadSheetContent({
 
       <DropdownSelector
         title="Data Layer"
-        options={RIP_MAP_LAYERS.map(layer => ({
+        options={uploadableLayers.map(layer => ({
           label: layer.label,
           value: layer.id,
           icon: layer.icon,

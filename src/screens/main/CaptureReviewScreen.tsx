@@ -2,7 +2,13 @@
  * CaptureReviewScreen — review captured media with detection overlays,
  * add notes, then upload to Firebase or share locally.
  */
-import React, { useState, useCallback, useMemo, useRef } from 'react';
+import React, {
+  useState,
+  useCallback,
+  useMemo,
+  useRef,
+  useEffect,
+} from 'react';
 import {
   View,
   Text,
@@ -27,7 +33,11 @@ import type { CaptureResult } from '../../hooks/useDetectionCapture';
 import ReviewDetectionOverlay from '../../components/detection/ReviewDetectionOverlay';
 import type { OnLoadData } from 'react-native-video';
 import DropdownSelector from '../../components/common/DropdownSelector';
-import { RIP_MAP_LAYERS, RIP_MAP_LAYER_BY_ID } from '../../config/mapLayers';
+import {
+  canUploadToRipMapLayer,
+  getUploadableRipMapLayers,
+  RIP_MAP_LAYER_BY_ID,
+} from '../../config/mapLayers';
 import type { RipMapLayerId } from '../../types/ripMap';
 
 interface Props {
@@ -42,7 +52,7 @@ export default function CaptureReviewScreen({
   onRecapture,
 }: Props) {
   const colors = useColors();
-  const { authUser } = useAuth();
+  const { authUser, isAdmin } = useAuth();
 
   const [notes, setNotes] = useState('');
   const [selectedLayerId, setSelectedLayerId] =
@@ -57,6 +67,16 @@ export default function CaptureReviewScreen({
   } | null>(null);
   const embeddedVideoRef = useRef<VideoRef>(null);
   const fullscreenVideoRef = useRef<VideoRef>(null);
+  const uploadableLayers = useMemo(
+    () => getUploadableRipMapLayers(isAdmin),
+    [isAdmin],
+  );
+
+  useEffect(() => {
+    if (!isAdmin && selectedLayerId === 'admin') {
+      setSelectedLayerId('public');
+    }
+  }, [isAdmin, selectedLayerId]);
 
   const isVideo = captureResult.captureType === 'video';
   const meta = captureResult.metadata as any;
@@ -109,6 +129,13 @@ export default function CaptureReviewScreen({
       Alert.alert('Not Signed In', 'You must be signed in to upload captures.');
       return;
     }
+    if (!canUploadToRipMapLayer(selectedLayerId, isAdmin)) {
+      Alert.alert(
+        'Admin Access Required',
+        'Only administrators can upload to the Admin layer.',
+      );
+      return;
+    }
 
     setUploading(true);
     try {
@@ -156,7 +183,7 @@ export default function CaptureReviewScreen({
     } finally {
       setUploading(false);
     }
-  }, [authUser, captureResult, meta, notes, onBack, selectedLayerId]);
+  }, [authUser, captureResult, isAdmin, meta, notes, onBack, selectedLayerId]);
 
   /* ── Share locally ─────────────────────────────────────────────────── */
 
@@ -430,7 +457,7 @@ export default function CaptureReviewScreen({
 
         <DropdownSelector
           title="Data Layer"
-          options={RIP_MAP_LAYERS.map(layer => ({
+          options={uploadableLayers.map(layer => ({
             label: layer.label,
             value: layer.id,
             icon: layer.icon,

@@ -24,6 +24,7 @@ const userStorage = createMMKV({ id: 'user-profile-cache' });
 interface AuthContextType {
   authUser: FirebaseAuthTypes.User | null;
   user: User | null;
+  isAdmin: boolean;
   loading: boolean;
   signIn: (email: string, password: string) => Promise<void>;
   signUp: (
@@ -53,6 +54,7 @@ const auth = getAuth();
 
 export function AuthProvider({ children }: AuthProviderProps) {
   const [authUser, setAuthUser] = useState<FirebaseAuthTypes.User | null>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
 
   // Attempt to load the user synchronously from MMKV on boot
   const [user, setUser] = useState<User | null>(() => {
@@ -75,6 +77,15 @@ export function AuthProvider({ children }: AuthProviderProps) {
         firestoreUnsubscribeRef.current = null;
       }
       if (firebaseUser) {
+        setIsAdmin(false);
+        try {
+          const tokenResult = await firebaseUser.getIdTokenResult(true);
+          setIsAdmin(tokenResult.claims.admin === true);
+        } catch (error) {
+          console.error('Failed to load admin claim:', error);
+          setIsAdmin(false);
+        }
+
         // Only trigger the hard loading spinner on boot if we didn't have a cached profile ready
         if (!userStorage.getString('cached-user')) {
           setLoading(true);
@@ -109,6 +120,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
         );
         firestoreUnsubscribeRef.current = firestoreUnsubscribe;
       } else {
+        setIsAdmin(false);
         setUser(null);
         userStorage.remove('cached-user');
         setLoading(false);
@@ -197,6 +209,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       value={{
         authUser,
         user,
+        isAdmin,
         loading,
         signIn,
         signUp,

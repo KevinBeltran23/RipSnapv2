@@ -20,6 +20,7 @@ import type {
 } from '../../types/ripMap';
 
 interface FilterSheetProps {
+  isAdmin: boolean;
   visibleLayerIds: RipMapLayerId[];
   visiblePoints: RipMapPoint[];
   recentlyViewedPoints: RipMapPoint[];
@@ -45,6 +46,7 @@ interface FilterSheetProps {
 }
 
 function FilterSheet({
+  isAdmin,
   visibleLayerIds,
   visiblePoints,
   recentlyViewedPoints,
@@ -195,6 +197,7 @@ function FilterSheet({
         >
           {isManualUploadOpen ? (
             <ManualUploadSheetContent
+              isAdmin={isAdmin}
               draftCoordinate={draftCoordinate}
               isPinPlacementMode={isPinPlacementMode}
               submitPhase={manualUploadPhase}

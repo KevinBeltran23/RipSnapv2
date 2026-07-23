@@ -17,6 +17,7 @@ import { useRipMapLocation } from '../../hooks/useRipMapLocation';
 import { useRipMapState } from '../../hooks/useRipMapState';
 import { useRipMapPointsQuery } from '../../services/store/ripMapQueries';
 import { uploadCapture } from '../../services/firebase/captures';
+import { canUploadToRipMapLayer } from '../../config/mapLayers';
 import {
   analyzeManualPhotoUpload,
   analyzeManualVideoUpload,
@@ -54,7 +55,7 @@ function MapScreen({ MapRenderer, clustering }: MapScreenProps) {
   const [manualUploadProgress, setManualUploadProgress] =
     useState<RipManualUploadProgress | null>(null);
   const manualUploadRunRef = useRef(0);
-  const { authUser } = useAuth();
+  const { authUser, isAdmin } = useAuth();
   const { settings: detectionSettings } = useDetectionSettings();
   const selectedModel = useMemo(
     () =>
@@ -259,6 +260,13 @@ function MapScreen({ MapRenderer, clustering }: MapScreenProps) {
         Alert.alert('Not Signed In', 'Sign in before adding a map upload.');
         return false;
       }
+      if (!canUploadToRipMapLayer(layerId, isAdmin)) {
+        Alert.alert(
+          'Admin Access Required',
+          'Only administrators can upload to the Admin layer.',
+        );
+        return false;
+      }
 
       const uploadRunId = ++manualUploadRunRef.current;
       setManualUploadPhase('analyzing');
@@ -382,6 +390,7 @@ function MapScreen({ MapRenderer, clustering }: MapScreenProps) {
     },
     [
       authUser,
+      isAdmin,
       clearDraftPin,
       detectionSettings,
       manualAnalysisModelError,
@@ -416,6 +425,7 @@ function MapScreen({ MapRenderer, clustering }: MapScreenProps) {
       />
       {isPinPlacementMode && <PinPlacementBanner onCancel={clearDraftPin} />}
       <FilterSheet
+        isAdmin={isAdmin}
         selectedPoint={selectedPoint}
         selectedCluster={selectedCluster}
         visibleLayerIds={visibleLayerIds}

@@ -1,8 +1,8 @@
 /**
  * Firebase service for RipSnap detection captures.
  *
- * Storage path:  ripsnap_captures/{userId}/{sessionId}/media.{ext}
- *                ripsnap_captures/{userId}/{sessionId}/metadata.json
+ * Storage path:  ripsnap_captures/{userId}/{layerId}/{sessionId}/media.{ext}
+ *                ripsnap_captures/{userId}/{layerId}/{sessionId}/metadata.json
  * Firestore:     ripsnap_captures/{docId}
  *
  * Capture documents are the source for the MVP RipFinder map layer.
@@ -71,8 +71,8 @@ export async function uploadCapture(
 
   const mediaExt =
     mediaExtension ?? getMediaExtension(undefined, mediaMimeType, captureType);
-  const mediaStoragePath = `${CAPTURES_STORAGE_PATH}/${userId}/${sessionId}/media.${mediaExt}`;
-  const metaStoragePath = `${CAPTURES_STORAGE_PATH}/${userId}/${sessionId}/metadata.json`;
+  const mediaStoragePath = `${CAPTURES_STORAGE_PATH}/${userId}/${layerId}/${sessionId}/media.${mediaExt}`;
+  const metaStoragePath = `${CAPTURES_STORAGE_PATH}/${userId}/${layerId}/${sessionId}/metadata.json`;
 
   // Upload media file
   const mediaFilePath =
