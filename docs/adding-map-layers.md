@@ -47,10 +47,15 @@ Add one object to `RIP_MAP_LAYERS`:
   description: 'Winter season upload locations.',
   icon: 'snowflake',
   color: '#38BDF8',
+  markerGlyph: 'W',
+  markerTextColor: '#0F172A',
+  stylePreset: 'outdoors',
 }
 ```
 
-This controls the layer toggle label and marker color.
+This controls the layer toggle label, marker treatment, and base-map preset.
+Set `EXPO_PUBLIC_MAPBOX_<LAYER>_STYLE_URL` to override the preset with a
+Mapbox Studio style URL.
 
 ## 3. Add An Empty Array For The Layer
 
@@ -216,7 +221,7 @@ yarn lint
 Then manually check:
 
 - The layer appears in the layer toggle sheet.
-- Toggling it hides/shows its pings.
+- Selecting it makes it the only active map layer.
 - Tapping a ping opens the detail sheet.
 - The marker color matches `src/config/mapLayers.ts`.
 

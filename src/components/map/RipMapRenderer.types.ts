@@ -3,12 +3,14 @@ import type {
   RipMapCameraRequest,
   RipMapClusterSelection,
   RipMapClusteringConfig,
+  RipMapLayerId,
   RipMapPoint,
   RipMapViewport,
 } from '../../types/ripMap';
 
 export interface RipMapRendererProps {
   points: RipMapPoint[];
+  activeLayerId: RipMapLayerId;
   selectedPointId: string | null;
   userLocation: RipCoordinate | null;
   draftPin: RipCoordinate | null;

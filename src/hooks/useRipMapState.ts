@@ -36,12 +36,10 @@ export function useRipMapState(pointsByLayer?: RipMapPointsByLayer) {
     return visiblePoints.find(point => point.id === selectedPointId) ?? null;
   }, [selectedPointId, visiblePoints]);
 
-  const toggleLayer = useCallback((layerId: RipMapLayerId) => {
+  const selectLayer = useCallback((layerId: RipMapLayerId) => {
     setVisibleLayerIds(current => {
-      if (current.includes(layerId)) {
-        return current.filter(id => id !== layerId);
-      }
-      return [...current, layerId];
+      if (current.length === 1 && current[0] === layerId) return current;
+      return [layerId];
     });
     setSelectedPointId(null);
   }, []);
@@ -88,7 +86,7 @@ export function useRipMapState(pointsByLayer?: RipMapPointsByLayer) {
     viewport,
     setViewport,
     visibleLayerIds,
-    toggleLayer,
+    selectLayer,
     selectedPoint,
     selectedPointId,
     selectPoint,

@@ -36,7 +36,7 @@ interface FilterSheetProps {
   onSelectPoint: (point: RipMapPoint) => void;
   onSelectClusterPoint: (point: RipMapPoint) => void;
   onCloseCluster: () => void;
-  onToggleLayer: (layerId: RipMapLayerId) => void;
+  onSelectLayer: (layerId: RipMapLayerId) => void;
   onStartAdd: () => void;
   onClosePopup: () => void;
   onCloseLayerPicker: () => void;
@@ -61,7 +61,7 @@ function FilterSheet({
   onSelectPoint,
   onSelectClusterPoint,
   onCloseCluster,
-  onToggleLayer,
+  onSelectLayer,
   onStartAdd,
   onClosePopup,
   onStartPinPlacement,
@@ -220,7 +220,7 @@ function FilterSheet({
               <Text style={s.layerPickerTitle}>Map Layers</Text>
               <LayerPickerGrid
                 visibleLayerIds={visibleLayerIds}
-                onToggleLayer={onToggleLayer}
+                onSelectLayer={onSelectLayer}
               />
             </View>
           ) : (

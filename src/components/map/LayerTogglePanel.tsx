@@ -9,13 +9,13 @@ import type { RipMapLayerId, RipMapPointsByLayer } from '../../types/ripMap';
 interface LayerTogglePanelProps {
   visibleLayerIds: RipMapLayerId[];
   pointsByLayer: RipMapPointsByLayer;
-  onToggleLayer: (layerId: RipMapLayerId) => void;
+  onSelectLayer: (layerId: RipMapLayerId) => void;
 }
 
 function LayerTogglePanel({
   visibleLayerIds,
   pointsByLayer,
-  onToggleLayer,
+  onSelectLayer,
 }: LayerTogglePanelProps) {
   const colors = useColors();
   const { scaleFont } = useResponsiveStyles();
@@ -39,7 +39,7 @@ function LayerTogglePanel({
                   : colors.background,
               },
             ]}
-            onPress={() => onToggleLayer(layer.id)}
+            onPress={() => onSelectLayer(layer.id)}
           >
             <View style={styles.layerIdentity}>
               <View
@@ -75,7 +75,7 @@ function LayerTogglePanel({
                 {pointCount}
               </Text>
               <Icon
-                name={isVisible ? 'checkbox-marked' : 'checkbox-blank-outline'}
+                name={isVisible ? 'radiobox-marked' : 'radiobox-blank'}
                 size={22}
                 color={isVisible ? colors.primary : colors.textTertiary}
               />

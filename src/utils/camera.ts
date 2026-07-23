@@ -6,7 +6,68 @@ import {
   CameraDevice,
   CameraDeviceFormat,
   Frame,
+  type Orientation,
 } from 'react-native-vision-camera';
+
+export type ResizeRotation = '0deg' | '90deg' | '180deg' | '270deg';
+
+const orientationToDegrees = (orientation: Orientation): number => {
+  'worklet';
+
+  switch (orientation) {
+    case 'portrait':
+      return 0;
+    case 'landscape-left':
+      return 90;
+    case 'portrait-upside-down':
+      return 180;
+    case 'landscape-right':
+      return 270;
+  }
+};
+
+/** Returns the frame rotation relative to the orientation rendered by the preview. */
+export function getRelativeFrameOrientation(
+  frameOrientation: Orientation,
+  previewOrientation: Orientation,
+): Orientation {
+  'worklet';
+
+  const difference =
+    (orientationToDegrees(frameOrientation) -
+      orientationToDegrees(previewOrientation) +
+      360) %
+    360;
+
+  switch (difference) {
+    case 0:
+      return 'portrait';
+    case 90:
+      return 'landscape-left';
+    case 180:
+      return 'portrait-upside-down';
+    default:
+      return 'landscape-right';
+  }
+}
+
+export function getResizeRotation(
+  frameOrientation: Orientation,
+  previewOrientation: Orientation,
+): ResizeRotation {
+  'worklet';
+
+  switch (getRelativeFrameOrientation(frameOrientation, previewOrientation)) {
+    case 'portrait':
+      return '0deg';
+    case 'landscape-left':
+      return '270deg';
+    case 'portrait-upside-down':
+      return '180deg';
+    case 'landscape-right':
+      return '90deg';
+  }
+}
 
 export function getBestFormat(
   device: CameraDevice,
@@ -19,6 +80,92 @@ export function getBestFormat(
     const prevDiff = Math.abs(size - prev.videoWidth * prev.videoHeight);
     return diff < prevDiff ? curr : prev;
   }, device.formats[0]);
+}
+
+/**
+ * Maps a model box back through the resize plugin's center crop and the
+ * camera preview's cover transform.
+ */
+export function mapDetectionToPreview(
+  bbox: [number, number, number, number],
+  frameWidth: number,
+  frameHeight: number,
+  frameOrientation: Orientation,
+  previewOrientation: Orientation,
+  modelInputWidth: number,
+  modelInputHeight: number,
+  previewWidth: number,
+  previewHeight: number,
+  mirror: boolean,
+): [number, number, number, number] {
+  'worklet';
+
+  if (
+    frameWidth <= 0 ||
+    frameHeight <= 0 ||
+    modelInputWidth <= 0 ||
+    modelInputHeight <= 0 ||
+    previewWidth <= 0 ||
+    previewHeight <= 0
+  ) {
+    return [0, 0, 0, 0];
+  }
+
+  const relativeOrientation = getRelativeFrameOrientation(
+    frameOrientation,
+    previewOrientation,
+  );
+  const quarterTurn =
+    relativeOrientation === 'landscape-left' ||
+    relativeOrientation === 'landscape-right';
+  const frameAspect = frameWidth / frameHeight;
+  const modelAspect = modelInputWidth / modelInputHeight;
+
+  // This mirrors the resize plugin's automatic center-crop calculation.
+  let cropWidth = frameWidth;
+  let cropHeight = frameHeight;
+  if (frameAspect > modelAspect) {
+    cropWidth = frameHeight * modelAspect;
+  } else {
+    cropHeight = frameWidth / modelAspect;
+  }
+
+  // The plugin rotates after cropping, so the crop dimensions swap for a
+  // quarter-turn. The models currently used by RipSnap are square, but this
+  // keeps the transform correct if a rectangular model is added later.
+  const sourceWidth = quarterTurn ? frameHeight : frameWidth;
+  const sourceHeight = quarterTurn ? frameWidth : frameHeight;
+  const sourceCropWidth = quarterTurn ? cropHeight : cropWidth;
+  const sourceCropHeight = quarterTurn ? cropWidth : cropHeight;
+  const cropLeft = (sourceWidth - sourceCropWidth) / 2;
+  const cropTop = (sourceHeight - sourceCropHeight) / 2;
+
+  const sourceX = cropLeft + bbox[0] * sourceCropWidth;
+  const sourceY = cropTop + bbox[1] * sourceCropHeight;
+  const sourceBoxWidth = bbox[2] * sourceCropWidth;
+  const sourceBoxHeight = bbox[3] * sourceCropHeight;
+
+  // Camera preview uses `cover`: preserve the source aspect ratio and crop
+  // whichever axis exceeds the preview bounds.
+  const coverScale = Math.max(
+    previewWidth / sourceWidth,
+    previewHeight / sourceHeight,
+  );
+  const renderedWidth = sourceWidth * coverScale;
+  const renderedHeight = sourceHeight * coverScale;
+  const offsetX = (previewWidth - renderedWidth) / 2;
+  const offsetY = (previewHeight - renderedHeight) / 2;
+
+  let previewX = offsetX + sourceX * coverScale;
+  const previewY = offsetY + sourceY * coverScale;
+  const previewBoxWidth = sourceBoxWidth * coverScale;
+  const previewBoxHeight = sourceBoxHeight * coverScale;
+
+  if (mirror) {
+    previewX = previewWidth - previewX - previewBoxWidth;
+  }
+
+  return [previewX, previewY, previewBoxWidth, previewBoxHeight];
 }
 
 // Cache array to prevent constant re-allocation in the worklet

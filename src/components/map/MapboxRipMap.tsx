@@ -6,12 +6,15 @@ import Mapbox, {
 } from '@rnmapbox/maps';
 import { useColors } from '../../hooks/useColors';
 import { useResponsiveStyles } from '../../hooks/useResponsiveStyles';
+import { RIP_MAP_LAYER_BY_ID } from '../../config/mapLayers';
 import type { RipMapRendererProps } from './RipMapRenderer.types';
+import type { RipMapLayerId, RipMapStylePreset } from '../../types/ripMap';
 import {
   coordinateToPosition,
   createMapboxClusterSelectionId,
   createClusterCircleStyle,
   createClusterLabelStyle,
+  createPointLabelStyle,
   createRipMapPointFeatureCollection,
   createSelectedUploadCircleStyle,
   createUploadCircleStyle,
@@ -21,9 +24,11 @@ import {
   initialMapboxZoom,
   isMapboxClusterFeature,
   MAPBOX_CLUSTER_FILTER,
+  MAPBOX_CLUSTER_PROPERTIES,
   MAPBOX_RIP_LAYER_IDS,
   MAPBOX_RIP_SOURCE_ID,
   MAPBOX_SELECTED_POINT_FILTER,
+  MAPBOX_UNCLUSTERED_FILTER,
   MAPBOX_UNSELECTED_POINT_FILTER,
   positionToCoordinate,
   zoomFromLongitudeDelta,
@@ -41,8 +46,29 @@ const DEFAULT_MAPBOX_CLUSTERING = {
   maxZoom: 14,
 };
 
+const MAPBOX_STYLE_URL_BY_PRESET: Record<RipMapStylePreset, string> = {
+  light: Mapbox.StyleURL.Light,
+  outdoors: Mapbox.StyleURL.Outdoors,
+  satelliteStreet: Mapbox.StyleURL.SatelliteStreet,
+};
+
+const MAPBOX_STYLE_URL_OVERRIDES: Record<RipMapLayerId, string | undefined> = {
+  public: process.env.EXPO_PUBLIC_MAPBOX_PUBLIC_STYLE_URL,
+  admin: process.env.EXPO_PUBLIC_MAPBOX_ADMIN_STYLE_URL,
+  extra: process.env.EXPO_PUBLIC_MAPBOX_EXTRA_STYLE_URL,
+};
+
+const getLayerStyleUrl = (layerId: RipMapLayerId) => {
+  const layer = RIP_MAP_LAYER_BY_ID[layerId];
+  return (
+    MAPBOX_STYLE_URL_OVERRIDES[layerId] ??
+    MAPBOX_STYLE_URL_BY_PRESET[layer.stylePreset]
+  );
+};
+
 function MapboxRipMap({
   points,
+  activeLayerId,
   selectedPointId,
   userLocation,
   draftPin,
@@ -66,13 +92,8 @@ function MapboxRipMap({
   );
 
   const pointShape = useMemo(
-    () =>
-      createRipMapPointFeatureCollection(
-        points,
-        selectedPointId,
-        colors.accent,
-      ),
-    [colors.accent, points, selectedPointId],
+    () => createRipMapPointFeatureCollection(points, selectedPointId),
+    [points, selectedPointId],
   );
 
   useEffect(() => {
@@ -95,19 +116,31 @@ function MapboxRipMap({
   );
 
   const selectedUploadCircleStyle = useMemo(
-    () => createSelectedUploadCircleStyle(colors.accent, colors.background),
-    [colors.accent, colors.background],
+    () => createSelectedUploadCircleStyle(colors.accent),
+    [colors.accent],
   );
 
   const clusterCircleStyle = useMemo(
-    () => createClusterCircleStyle(colors.primary, colors.background),
-    [colors.background, colors.primary],
+    () =>
+      createClusterCircleStyle(colors.background, colors.gray700, {
+        public: RIP_MAP_LAYER_BY_ID.public.color,
+        admin: RIP_MAP_LAYER_BY_ID.admin.color,
+        extra: RIP_MAP_LAYER_BY_ID.extra.color,
+      }),
+    [colors.background, colors.gray700],
   );
 
   const clusterLabelStyle = useMemo(
-    () => createClusterLabelStyle(colors.background),
-    [colors.background],
+    () =>
+      createClusterLabelStyle(colors.textInverse, {
+        public: RIP_MAP_LAYER_BY_ID.public.markerTextColor,
+        admin: RIP_MAP_LAYER_BY_ID.admin.markerTextColor,
+        extra: RIP_MAP_LAYER_BY_ID.extra.markerTextColor,
+      }),
+    [colors.textInverse],
   );
+
+  const pointLabelStyle = useMemo(() => createPointLabelStyle(), []);
 
   const resetIgnoredMapPress = () => {
     setTimeout(() => {
@@ -234,7 +267,7 @@ function MapboxRipMap({
   return (
     <Mapbox.MapView
       style={styles.map}
-      styleURL={Mapbox.StyleURL.Outdoors}
+      styleURL={getLayerStyleUrl(activeLayerId)}
       compassEnabled={false}
       logoEnabled
       attributionEnabled
@@ -256,6 +289,7 @@ function MapboxRipMap({
         cluster={clustering.enabled}
         clusterRadius={clustering.radius}
         clusterMaxZoomLevel={clustering.maxZoom}
+        clusterProperties={MAPBOX_CLUSTER_PROPERTIES}
         hitbox={{ width: 44, height: 44 }}
         onPress={handlePointShapePress}
       >
@@ -278,6 +312,11 @@ function MapboxRipMap({
           id={MAPBOX_RIP_LAYER_IDS.selectedPoint}
           filter={MAPBOX_SELECTED_POINT_FILTER}
           style={selectedUploadCircleStyle}
+        />
+        <Mapbox.SymbolLayer
+          id={MAPBOX_RIP_LAYER_IDS.pointLabels}
+          filter={MAPBOX_UNCLUSTERED_FILTER}
+          style={pointLabelStyle}
         />
       </ShapeSource>
 

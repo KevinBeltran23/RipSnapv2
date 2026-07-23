@@ -13,6 +13,11 @@ export interface RipMapFeatureProperties {
   pointId: string;
   layerId: RipMapLayerId;
   color: string;
+  markerGlyph: string;
+  markerTextColor: string;
+  publicCount: number;
+  adminCount: number;
+  extraCount: number;
   isSelected: boolean;
   title: string;
 }
@@ -23,7 +28,23 @@ export const MAPBOX_RIP_LAYER_IDS = {
   clusterLabels: 'rip-upload-cluster-labels',
   unclusteredPoints: 'rip-upload-unclustered-points',
   selectedPoint: 'rip-upload-selected-point',
+  pointLabels: 'rip-upload-point-labels',
 } as const;
+
+export const MAPBOX_CLUSTER_PROPERTIES = {
+  publicCount: [
+    ['+', ['accumulated'], ['get', 'publicCount']],
+    ['case', ['==', ['get', 'layerId'], 'public'], 1, 0],
+  ],
+  adminCount: [
+    ['+', ['accumulated'], ['get', 'adminCount']],
+    ['case', ['==', ['get', 'layerId'], 'admin'], 1, 0],
+  ],
+  extraCount: [
+    ['+', ['accumulated'], ['get', 'extraCount']],
+    ['case', ['==', ['get', 'layerId'], 'extra'], 1, 0],
+  ],
+} as any;
 
 export const MAPBOX_CLUSTER_FILTER = ['has', 'point_count'] as any;
 export const MAPBOX_UNCLUSTERED_FILTER = ['!', ['has', 'point_count']] as any;
@@ -68,7 +89,6 @@ export const initialMapboxZoom = () =>
 export const createRipMapPointFeatureCollection = (
   points: RipMapPoint[],
   selectedPointId: string | null,
-  selectedColor: string,
 ): GeoJSON.FeatureCollection<GeoJSON.Point, RipMapFeatureProperties> => ({
   type: 'FeatureCollection',
   features: points.map(point => {
@@ -84,7 +104,12 @@ export const createRipMapPointFeatureCollection = (
       properties: {
         pointId: point.id,
         layerId: point.layerId,
-        color: point.id === selectedPointId ? selectedColor : layer.color,
+        color: layer.color,
+        markerGlyph: layer.markerGlyph,
+        markerTextColor: layer.markerTextColor,
+        publicCount: point.layerId === 'public' ? 1 : 0,
+        adminCount: point.layerId === 'admin' ? 1 : 0,
+        extraCount: point.layerId === 'extra' ? 1 : 0,
         isSelected: point.id === selectedPointId,
         title: point.title,
       },
@@ -104,29 +129,43 @@ export const createUploadCircleStyle = (
 
 export const createSelectedUploadCircleStyle = (
   accentColor: string,
-  backgroundColor: string,
 ): CircleLayerStyle => ({
-  circleColor: accentColor,
+  circleColor: ['get', 'color'] as any,
   circleOpacity: 1,
   circleRadius: 11,
-  circleStrokeColor: backgroundColor,
-  circleStrokeWidth: 3,
+  circleStrokeColor: accentColor,
+  circleStrokeWidth: 4,
 });
 
 export const createClusterCircleStyle = (
-  primaryColor: string,
   backgroundColor: string,
+  mixedColor: string,
+  layerColors: Record<RipMapLayerId, string>,
 ): CircleLayerStyle => ({
   circleColor: [
-    'step',
-    ['get', 'point_count'],
-    primaryColor,
-    10,
-    '#2563EB',
-    30,
-    '#7C3AED',
-    75,
-    '#DC2626',
+    'case',
+    [
+      'all',
+      ['>', ['get', 'publicCount'], 0],
+      ['==', ['get', 'adminCount'], 0],
+      ['==', ['get', 'extraCount'], 0],
+    ],
+    layerColors.public,
+    [
+      'all',
+      ['==', ['get', 'publicCount'], 0],
+      ['>', ['get', 'adminCount'], 0],
+      ['==', ['get', 'extraCount'], 0],
+    ],
+    layerColors.admin,
+    [
+      'all',
+      ['==', ['get', 'publicCount'], 0],
+      ['==', ['get', 'adminCount'], 0],
+      ['>', ['get', 'extraCount'], 0],
+    ],
+    layerColors.extra,
+    mixedColor,
   ] as any,
   circleOpacity: 0.92,
   circleRadius: [
@@ -146,10 +185,43 @@ export const createClusterCircleStyle = (
 
 export const createClusterLabelStyle = (
   textColor: string,
+  layerTextColors: Record<RipMapLayerId, string>,
 ): SymbolLayerStyle => ({
   textField: ['get', 'point_count_abbreviated'] as any,
   textSize: 13,
-  textColor,
+  textColor: [
+    'case',
+    [
+      'all',
+      ['>', ['get', 'publicCount'], 0],
+      ['==', ['get', 'adminCount'], 0],
+      ['==', ['get', 'extraCount'], 0],
+    ],
+    layerTextColors.public,
+    [
+      'all',
+      ['==', ['get', 'publicCount'], 0],
+      ['>', ['get', 'adminCount'], 0],
+      ['==', ['get', 'extraCount'], 0],
+    ],
+    layerTextColors.admin,
+    [
+      'all',
+      ['==', ['get', 'publicCount'], 0],
+      ['==', ['get', 'adminCount'], 0],
+      ['>', ['get', 'extraCount'], 0],
+    ],
+    layerTextColors.extra,
+    textColor,
+  ] as any,
+  textAllowOverlap: true,
+  textIgnorePlacement: true,
+});
+
+export const createPointLabelStyle = (): SymbolLayerStyle => ({
+  textField: ['get', 'markerGlyph'] as any,
+  textSize: ['case', ['get', 'isSelected'], 10, 9] as any,
+  textColor: ['get', 'markerTextColor'] as any,
   textAllowOverlap: true,
   textIgnorePlacement: true,
 });

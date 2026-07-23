@@ -77,7 +77,7 @@ function MapScreen({ MapRenderer, clustering }: MapScreenProps) {
   const {
     setViewport,
     visibleLayerIds,
-    toggleLayer,
+    selectLayer,
     selectedPoint,
     selectedPointId,
     selectPoint: setSelectedPoint,
@@ -397,6 +397,7 @@ function MapScreen({ MapRenderer, clustering }: MapScreenProps) {
     <View style={styles.container}>
       <MapRenderer
         points={visiblePoints}
+        activeLayerId={visibleLayerIds[0] ?? 'public'}
         selectedPointId={selectedPointId}
         userLocation={userLocation}
         draftPin={draftPin}
@@ -431,7 +432,7 @@ function MapScreen({ MapRenderer, clustering }: MapScreenProps) {
         onSelectPoint={handleSelectPoint}
         onSelectClusterPoint={handleSelectClusterPoint}
         onCloseCluster={handleCloseCluster}
-        onToggleLayer={toggleLayer}
+        onSelectLayer={selectLayer}
         onStartAdd={handleStartAdd}
         onClosePopup={handleClosePopup}
         onCloseLayerPicker={handleCloseLayerPicker}

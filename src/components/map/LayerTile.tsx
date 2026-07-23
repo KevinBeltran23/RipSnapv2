@@ -65,7 +65,8 @@ function LayerTile({ layer, isActive, onPress }: LayerTileProps) {
     <TouchableOpacity
       style={s.tile}
       onPress={() => onPress(layer.id)}
-      accessibilityLabel={`${layer.label}, ${isActive ? 'active' : 'inactive'}`}
+      accessibilityLabel={`${layer.label}, ${isActive ? 'selected' : 'not selected'}`}
+      accessibilityState={{ selected: isActive }}
       accessibilityRole="button"
     >
       {isActive && (

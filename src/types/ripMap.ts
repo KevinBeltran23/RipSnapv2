@@ -5,6 +5,8 @@ export interface RipCoordinate {
 
 export type RipMapLayerId = 'public' | 'admin' | 'extra';
 
+export type RipMapStylePreset = 'light' | 'outdoors' | 'satelliteStreet';
+
 export type RipCaptureType = 'photo' | 'video' | 'unknown';
 
 export interface RipMediaReference {
@@ -34,6 +36,9 @@ export interface RipMapLayer {
   description: string;
   icon: string;
   color: string;
+  markerGlyph: string;
+  markerTextColor: string;
+  stylePreset: RipMapStylePreset;
 }
 
 export interface RipMapViewport {

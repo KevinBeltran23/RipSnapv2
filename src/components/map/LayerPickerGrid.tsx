@@ -7,12 +7,12 @@ import LayerTile from './LayerTile';
 
 interface LayerPickerGridProps {
   visibleLayerIds: RipMapLayerId[];
-  onToggleLayer: (layerId: RipMapLayerId) => void;
+  onSelectLayer: (layerId: RipMapLayerId) => void;
 }
 
 function LayerPickerGrid({
   visibleLayerIds,
-  onToggleLayer,
+  onSelectLayer,
 }: LayerPickerGridProps) {
   const { scaleHeight } = useResponsiveStyles();
 
@@ -32,7 +32,7 @@ function LayerPickerGrid({
           key={layer.id}
           layer={layer}
           isActive={visibleLayerIds.includes(layer.id)}
-          onPress={onToggleLayer}
+          onPress={onSelectLayer}
         />
       ))}
     </View>
