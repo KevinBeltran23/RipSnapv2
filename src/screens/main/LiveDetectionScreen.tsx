@@ -69,11 +69,10 @@ function LiveDetectionScreen() {
   const [reviewResult, setReviewResult] = useState<CaptureResult | null>(null);
   const [previewLayout, setPreviewLayout] = useState({ width: 0, height: 0 });
 
-  const [selectedModelName, setSelectedModelName] = useState<string>(
-    RIP_CURRENT_MODEL.name,
-  );
   const [isModelMenuOpen, setIsModelMenuOpen] = useState(false);
-  const { settings: detectionSettings } = useDetectionSettings();
+  const { settings: detectionSettings, updateSettings } =
+    useDetectionSettings();
+  const selectedModelName = detectionSettings.modelName;
 
   const selectedModel = useMemo(
     () =>
@@ -332,10 +331,10 @@ function LiveDetectionScreen() {
   const selectModel = useCallback(
     (modelName: string) => {
       if (captureMode !== 'idle') return;
-      setSelectedModelName(modelName);
+      updateSettings({ modelName });
       setIsModelMenuOpen(false);
     },
-    [captureMode],
+    [captureMode, updateSettings],
   );
 
   const handlePhoto = useCallback(async () => {

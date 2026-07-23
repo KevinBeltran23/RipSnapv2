@@ -20,6 +20,7 @@ import {
 } from '@react-native-firebase/firestore';
 import { Platform } from 'react-native';
 import type { CaptureLocationSnapshot } from '../../utils/location';
+import { getMediaExtension } from '../../utils/capture';
 import type { RipMapLayerId } from '../../types/ripMap';
 
 const storage = getStorage();
@@ -34,6 +35,8 @@ export interface CaptureUploadParams {
   mediaUri: string;
   metadataUri: string;
   captureType: 'photo' | 'video';
+  mediaExtension?: string;
+  mediaMimeType?: string;
   layerId: RipMapLayerId;
   title?: string;
   notes: string;
@@ -58,13 +61,16 @@ export async function uploadCapture(
     mediaUri,
     metadataUri,
     captureType,
+    mediaExtension,
+    mediaMimeType,
     layerId,
     title,
     notes,
     location,
   } = params;
 
-  const mediaExt = captureType === 'video' ? 'mp4' : 'jpg';
+  const mediaExt =
+    mediaExtension ?? getMediaExtension(undefined, mediaMimeType, captureType);
   const mediaStoragePath = `${CAPTURES_STORAGE_PATH}/${userId}/${sessionId}/media.${mediaExt}`;
   const metaStoragePath = `${CAPTURES_STORAGE_PATH}/${userId}/${sessionId}/metadata.json`;
 
@@ -72,7 +78,9 @@ export async function uploadCapture(
   const mediaFilePath =
     Platform.OS === 'android' ? mediaUri : mediaUri.replace('file://', '');
   const mediaRef = ref(storage, mediaStoragePath);
-  await mediaRef.putFile(mediaFilePath);
+  await mediaRef.putFile(mediaFilePath, {
+    contentType: mediaMimeType ?? undefined,
+  });
   const mediaUrl = await getDownloadURL(mediaRef);
 
   // Upload metadata JSON

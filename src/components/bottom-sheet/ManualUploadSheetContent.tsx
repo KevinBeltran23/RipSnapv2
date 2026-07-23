@@ -20,6 +20,7 @@ import type {
   RipManualUploadDraft,
   RipManualUploadMedia,
   RipManualUploadPhase,
+  RipManualUploadProgress,
   RipMapLayerId,
 } from '../../types/ripMap';
 
@@ -27,6 +28,7 @@ interface ManualUploadSheetContentProps {
   draftCoordinate: RipCoordinate | null;
   isPinPlacementMode: boolean;
   submitPhase: RipManualUploadPhase;
+  analysisProgress: RipManualUploadProgress | null;
   onClose: () => void;
   onStartPinPlacement: () => void;
   onSubmit: (draft: RipManualUploadDraft) => Promise<boolean>;
@@ -52,6 +54,7 @@ function ManualUploadSheetContent({
   draftCoordinate,
   isPinPlacementMode,
   submitPhase,
+  analysisProgress,
   onClose,
   onStartPinPlacement,
   onSubmit,
@@ -76,7 +79,9 @@ function ManualUploadSheetContent({
   const isSubmitting = submitPhase !== 'idle';
   const submitLabel =
     submitPhase === 'analyzing'
-      ? 'Analyzing...'
+      ? analysisProgress
+        ? `Analyzing ${analysisProgress.processedFrames}/${analysisProgress.totalFrames}...`
+        : 'Analyzing...'
       : submitPhase === 'uploading'
         ? 'Uploading...'
         : 'Upload Data';
@@ -236,6 +241,7 @@ function ManualUploadSheetContent({
           variant="danger"
           label="Close"
           onPress={onClose}
+          disabled={isSubmitting}
           style={s.compactButton}
           textStyle={s.compactButtonText}
         />

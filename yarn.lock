@@ -5749,6 +5749,15 @@ __metadata:
   languageName: node
   linkType: hard
 
+"expo-video-thumbnails@npm:~10.0.8":
+  version: 10.0.8
+  resolution: "expo-video-thumbnails@npm:10.0.8"
+  peerDependencies:
+    expo: "*"
+  checksum: 10c0/3738a784a770891148135b079408c2475a880947e866a267b18721fac653ea02d907c0d4805bdf2fb676004a4c01fe86fc55f077fb9aaa733b6b1af155e2b5a9
+  languageName: node
+  linkType: hard
+
 "expo@npm:~54.0.36":
   version: 54.0.36
   resolution: "expo@npm:54.0.36"
@@ -8055,6 +8064,7 @@ __metadata:
     expo-screen-orientation: "npm:~9.0.9"
     expo-status-bar: "npm:~3.0.9"
     expo-updates: "npm:~29.0.19"
+    expo-video-thumbnails: "npm:~10.0.8"
     husky: "npm:^9.1.7"
     lint-staged: "npm:^16.2.7"
     md5: "npm:^2.3.0"

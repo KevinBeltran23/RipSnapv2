@@ -94,3 +94,8 @@ export interface RipManualUploadDraft {
 }
 
 export type RipManualUploadPhase = 'idle' | 'analyzing' | 'uploading';
+
+export interface RipManualUploadProgress {
+  processedFrames: number;
+  totalFrames: number;
+}

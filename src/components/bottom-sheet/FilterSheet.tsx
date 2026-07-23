@@ -13,6 +13,7 @@ import type {
   RipCoordinate,
   RipManualUploadDraft,
   RipManualUploadPhase,
+  RipManualUploadProgress,
   RipMapClusterSelection,
   RipMapLayerId,
   RipMapPoint,
@@ -29,6 +30,7 @@ interface FilterSheetProps {
   isManualUploadOpen: boolean;
   isLoading: boolean;
   manualUploadPhase: RipManualUploadPhase;
+  manualUploadProgress: RipManualUploadProgress | null;
   isLayerPickerOpen: boolean;
   error: string | null;
   onSelectPoint: (point: RipMapPoint) => void;
@@ -53,6 +55,7 @@ function FilterSheet({
   isManualUploadOpen,
   isLoading,
   manualUploadPhase,
+  manualUploadProgress,
   isLayerPickerOpen,
   error,
   onSelectPoint,
@@ -195,6 +198,7 @@ function FilterSheet({
               draftCoordinate={draftCoordinate}
               isPinPlacementMode={isPinPlacementMode}
               submitPhase={manualUploadPhase}
+              analysisProgress={manualUploadProgress}
               onClose={handleClosePopup}
               onStartPinPlacement={onStartPinPlacement}
               onSubmit={onSubmitUpload}

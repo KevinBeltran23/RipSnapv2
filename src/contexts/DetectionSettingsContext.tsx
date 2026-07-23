@@ -10,11 +10,14 @@ import { createMMKV } from 'react-native-mmkv';
 import {
   DETECTION_CONFIG,
   DETECTION_SETTING_LIMITS,
+  RIP_CURRENT_MODEL,
+  RIP_CURRENT_MODELS,
 } from '../config/detection';
 
 export interface DetectionSettings {
   confidenceThreshold: number;
   maxDetections: number;
+  modelName: string;
 }
 
 interface DetectionSettingsContextValue {
@@ -28,11 +31,13 @@ const storage = createMMKV({ id: 'detection-settings-cache' });
 const STORAGE_KEYS = {
   confidenceThreshold: 'confidenceThreshold',
   maxDetections: 'maxDetections',
+  modelName: 'modelName',
 } as const;
 
 export const DEFAULT_DETECTION_SETTINGS: DetectionSettings = {
   confidenceThreshold: DETECTION_CONFIG.CONFIDENCE_THRESHOLD,
   maxDetections: DETECTION_CONFIG.MAX_DETECTIONS,
+  modelName: RIP_CURRENT_MODEL.name,
 };
 
 const roundToStep = (value: number, step: number): number =>
@@ -46,6 +51,11 @@ const sanitizeSettings = (
 ): DetectionSettings => {
   const thresholdLimits = DETECTION_SETTING_LIMITS.CONFIDENCE_THRESHOLD;
   const maxDetectionsLimits = DETECTION_SETTING_LIMITS.MAX_DETECTIONS;
+  const modelName =
+    typeof settings.modelName === 'string' &&
+    RIP_CURRENT_MODELS.some(model => model.name === settings.modelName)
+      ? settings.modelName
+      : DEFAULT_DETECTION_SETTINGS.modelName;
 
   return {
     confidenceThreshold: Number(
@@ -66,6 +76,7 @@ const sanitizeSettings = (
         maxDetectionsLimits.MAX,
       ),
     ),
+    modelName,
   };
 };
 
@@ -77,11 +88,15 @@ const readSettings = (): DetectionSettings =>
     maxDetections:
       storage.getNumber(STORAGE_KEYS.maxDetections) ??
       DEFAULT_DETECTION_SETTINGS.maxDetections,
+    modelName:
+      storage.getString(STORAGE_KEYS.modelName) ??
+      DEFAULT_DETECTION_SETTINGS.modelName,
   });
 
 const writeSettings = (settings: DetectionSettings) => {
   storage.set(STORAGE_KEYS.confidenceThreshold, settings.confidenceThreshold);
   storage.set(STORAGE_KEYS.maxDetections, settings.maxDetections);
+  storage.set(STORAGE_KEYS.modelName, settings.modelName);
 };
 
 const DetectionSettingsContext =

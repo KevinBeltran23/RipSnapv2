@@ -95,6 +95,7 @@ export function useDetectionCapture(
         const metadata = {
           sessionId,
           captureType: 'photo' as const,
+          coordinateSpace: 'preview-pixels',
           timestamp: new Date().toISOString(),
           location,
           modelName: modelConfig.name,
@@ -186,6 +187,7 @@ export function useDetectionCapture(
           const metadata = {
             sessionId,
             captureType: 'video' as const,
+            coordinateSpace: 'preview-pixels',
             startTime: new Date(startTimeRef.current).toISOString(),
             endTime: new Date().toISOString(),
             durationMs: Date.now() - startTimeRef.current,
