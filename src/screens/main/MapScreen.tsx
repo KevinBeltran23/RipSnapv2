@@ -73,6 +73,8 @@ function MapScreen({ MapRenderer, clustering }: MapScreenProps) {
     data: pointsByLayer,
     isLoading,
     error,
+    isFetching,
+    isStale,
     refetch,
   } = useRipMapPointsQuery({ enabled: Boolean(authUser) });
   const {
@@ -100,10 +102,10 @@ function MapScreen({ MapRenderer, clustering }: MapScreenProps) {
 
   useFocusEffect(
     useCallback(() => {
-      if (authUser) {
+      if (authUser && isStale && !isFetching) {
         refetch();
       }
-    }, [authUser, refetch]),
+    }, [authUser, isFetching, isStale, refetch]),
   );
 
   useEffect(() => {
