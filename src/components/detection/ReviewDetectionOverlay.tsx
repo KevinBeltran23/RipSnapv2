@@ -6,17 +6,9 @@ import {
   View,
   ViewStyle,
 } from 'react-native';
+import type { DetectionMetadataFrame } from '../../types/media';
 
-type DetectionRecord = {
-  className: string;
-  confidence: number;
-  bbox: [number, number, number, number];
-};
-
-type DetectionFrame = {
-  elapsedMs: number;
-  detections?: DetectionRecord[];
-};
+type DetectionFrame = DetectionMetadataFrame;
 
 interface ReviewDetectionOverlayProps {
   frames: DetectionFrame[];

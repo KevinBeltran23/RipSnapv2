@@ -2,37 +2,30 @@
  * CaptureReviewScreen — review captured media with detection overlays,
  * add notes, then upload to Firebase or share locally.
  */
-import React, {
-  useState,
-  useCallback,
-  useMemo,
-  useRef,
-  useEffect,
-} from 'react';
+import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
   TextInput,
-  Image,
   TouchableOpacity,
   Alert,
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
-  Modal,
 } from 'react-native';
-import Video, { type VideoRef } from 'react-native-video';
 import { useColors } from '../../hooks/useColors';
 import { useAuth } from '../../contexts/AuthContext';
 import { saveMetadataFile, shareFile } from '../../utils/capture';
-import { getCurrentLocationSnapshot } from '../../utils/location';
+import {
+  getCurrentLocationSnapshot,
+  type CaptureLocationSnapshot,
+} from '../../utils/location';
 import { getUserFacingMessage } from '../../services/errorHandler';
 import { uploadCapture } from '../../services/firebase/captures';
 import type { CaptureResult } from '../../hooks/useDetectionCapture';
-import ReviewDetectionOverlay from '../../components/detection/ReviewDetectionOverlay';
-import type { OnLoadData } from 'react-native-video';
+import CaptureMediaPreview from '../../components/detection/CaptureMediaPreview';
 import DropdownSelector from '../../components/common/DropdownSelector';
 import {
   canUploadToRipMapLayer,
@@ -40,6 +33,7 @@ import {
   RIP_MAP_LAYER_BY_ID,
 } from '../../config/mapLayers';
 import type { RipMapLayerId } from '../../types/ripMap';
+import type { CaptureMetadata } from '../../types/media';
 
 interface Props {
   captureResult: CaptureResult;
@@ -59,15 +53,6 @@ export default function CaptureReviewScreen({
   const [selectedLayerId, setSelectedLayerId] =
     useState<RipMapLayerId>('public');
   const [uploading, setUploading] = useState(false);
-  const [videoPlaybackMs, setVideoPlaybackMs] = useState(0);
-  const [previewFullscreen, setPreviewFullscreen] = useState(false);
-  const [showDetectionOverlay, setShowDetectionOverlay] = useState(true);
-  const [videoNaturalSize, setVideoNaturalSize] = useState<{
-    width: number;
-    height: number;
-  } | null>(null);
-  const embeddedVideoRef = useRef<VideoRef>(null);
-  const fullscreenVideoRef = useRef<VideoRef>(null);
   const uploadableLayers = useMemo(
     () => getUploadableRipMapLayers(isAdmin),
     [isAdmin],
@@ -80,46 +65,16 @@ export default function CaptureReviewScreen({
   }, [isAdmin, selectedLayerId]);
 
   const isVideo = captureResult.captureType === 'video';
-  const meta = captureResult.metadata as any;
-  const metadataFrames = useMemo(() => {
-    if (!Array.isArray(meta?.frames)) return [];
-
-    return [...meta.frames]
-      .filter(frame => typeof frame?.elapsedMs === 'number')
-      .sort((a, b) => a.elapsedMs - b.elapsedMs);
-  }, [meta?.frames]);
-  const sourceWidth =
-    typeof meta?.screenWidth === 'number' && meta.screenWidth > 0
-      ? meta.screenWidth
-      : 1;
-  const sourceHeight =
-    typeof meta?.screenHeight === 'number' && meta.screenHeight > 0
-      ? meta.screenHeight
-      : 1;
-  const metadataMediaWidth =
-    typeof meta?.mediaWidth === 'number' && meta.mediaWidth > 0
-      ? meta.mediaWidth
-      : sourceWidth;
-  const metadataMediaHeight =
-    typeof meta?.mediaHeight === 'number' && meta.mediaHeight > 0
-      ? meta.mediaHeight
-      : sourceHeight;
-  const mediaWidth = isVideo
-    ? (videoNaturalSize?.width ?? metadataMediaWidth)
-    : sourceWidth;
-  const mediaHeight = isVideo
-    ? (videoNaturalSize?.height ?? metadataMediaHeight)
-    : sourceHeight;
+  const meta = captureResult.metadata as CaptureMetadata;
   const capturedLocation = meta?.location;
   const locationLabel = capturedLocation
-    ? `${capturedLocation.latitude.toFixed(6)}, ${capturedLocation.longitude.toFixed(6)}`
+    ? `${capturedLocation.latitude?.toFixed(6) ?? 'Unknown'}, ${capturedLocation.longitude?.toFixed(6) ?? 'Unknown'}`
     : 'Pending GPS';
-  const totalDetections = meta?.frames
-    ? meta.frames.reduce(
-        (sum: number, f: any) => sum + (f.detections?.length ?? 0),
-        0,
-      )
-    : 0;
+  const totalDetections =
+    meta?.frames?.reduce(
+      (sum, frame) => sum + (frame.detections?.length ?? 0),
+      0,
+    ) ?? 0;
   const frameCount = meta?.frames?.length ?? 0;
   const durationSec = meta?.durationMs ? Math.round(meta.durationMs / 1000) : 0;
 
@@ -140,7 +95,9 @@ export default function CaptureReviewScreen({
 
     setUploading(true);
     try {
-      const location = meta?.location ?? (await getCurrentLocationSnapshot());
+      const location =
+        (meta?.location as CaptureLocationSnapshot | null | undefined) ??
+        (await getCurrentLocationSnapshot());
 
       if (!location) {
         Alert.alert(
@@ -215,53 +172,6 @@ export default function CaptureReviewScreen({
     }
   }, [captureResult.metadataUri]);
 
-  const handlePreviewError = useCallback((_error: unknown) => {
-    Alert.alert(
-      'Preview Unavailable',
-      'This capture could not be played or displayed on this device.',
-    );
-  }, []);
-
-  const handleVideoProgress = useCallback(
-    ({ currentTime }: { currentTime: number }) => {
-      setVideoPlaybackMs(currentTime * 1000);
-    },
-    [],
-  );
-
-  const handleVideoLoad = useCallback((event: OnLoadData) => {
-    const { width, height } = event.naturalSize;
-    if (width > 0 && height > 0) {
-      setVideoNaturalSize({ width, height });
-    }
-  }, []);
-
-  const videoControlsStyles = useMemo(() => ({ hideFullscreen: true }), []);
-  const overlayToggleLabel = showDetectionOverlay
-    ? 'Hide Overlay'
-    : 'Show Overlay';
-
-  const toggleDetectionOverlay = useCallback(() => {
-    setShowDetectionOverlay(current => !current);
-  }, []);
-
-  const openPreviewFullscreen = useCallback(() => {
-    setPreviewFullscreen(true);
-  }, []);
-
-  const closePreviewFullscreen = useCallback(() => {
-    setPreviewFullscreen(false);
-    if (isVideo) {
-      embeddedVideoRef.current?.seek(videoPlaybackMs / 1000);
-    }
-  }, [isVideo, videoPlaybackMs]);
-
-  const handleFullscreenVideoLoad = useCallback(() => {
-    if (isVideo && videoPlaybackMs > 0) {
-      fullscreenVideoRef.current?.seek(videoPlaybackMs / 1000);
-    }
-  }, [isVideo, videoPlaybackMs]);
-
   /* ── Styles ────────────────────────────────────────────────────────── */
 
   const dynamicStyles = {
@@ -322,132 +232,11 @@ export default function CaptureReviewScreen({
         </View>
 
         {/* Media preview */}
-        <View style={[styles.mediaContainer, dynamicStyles.card]}>
-          {isVideo ? (
-            <Video
-              ref={embeddedVideoRef}
-              source={{ uri: captureResult.mediaUri }}
-              style={styles.media}
-              controls
-              controlsStyles={videoControlsStyles}
-              resizeMode="contain"
-              paused={previewFullscreen}
-              repeat
-              progressUpdateInterval={100}
-              onProgress={handleVideoProgress}
-              onLoad={handleVideoLoad}
-              onError={handlePreviewError}
-            />
-          ) : (
-            <Image
-              source={{ uri: captureResult.mediaUri }}
-              style={styles.media}
-              resizeMode="contain"
-              onError={handlePreviewError}
-            />
-          )}
-          <ReviewDetectionOverlay
-            frames={metadataFrames}
-            sourceWidth={sourceWidth}
-            sourceHeight={sourceHeight}
-            mediaWidth={mediaWidth}
-            mediaHeight={mediaHeight}
-            currentMs={isVideo ? videoPlaybackMs : 0}
-            isVideo={isVideo}
-            visible={showDetectionOverlay}
-          />
-          <View style={styles.previewControls}>
-            <TouchableOpacity
-              style={styles.previewControlButton}
-              onPress={toggleDetectionOverlay}
-              accessibilityLabel={overlayToggleLabel}
-              accessibilityRole="button"
-            >
-              <Text style={styles.fullscreenButtonText}>
-                {overlayToggleLabel}
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.previewControlButton}
-              onPress={openPreviewFullscreen}
-              accessibilityLabel="Open fullscreen preview"
-              accessibilityRole="button"
-            >
-              <Text style={styles.fullscreenButtonText}>Fullscreen</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-
-        <Modal
-          visible={previewFullscreen}
-          animationType="fade"
-          supportedOrientations={[
-            'portrait',
-            'landscape',
-            'landscape-left',
-            'landscape-right',
-          ]}
-          onRequestClose={closePreviewFullscreen}
-        >
-          <View style={styles.fullscreenRoot}>
-            {isVideo ? (
-              <Video
-                ref={fullscreenVideoRef}
-                source={{ uri: captureResult.mediaUri }}
-                style={StyleSheet.absoluteFill}
-                controls
-                controlsStyles={videoControlsStyles}
-                resizeMode="contain"
-                paused={!previewFullscreen}
-                repeat
-                progressUpdateInterval={100}
-                onProgress={handleVideoProgress}
-                onLoad={event => {
-                  handleVideoLoad(event);
-                  handleFullscreenVideoLoad();
-                }}
-                onError={handlePreviewError}
-              />
-            ) : (
-              <Image
-                source={{ uri: captureResult.mediaUri }}
-                style={StyleSheet.absoluteFill}
-                resizeMode="contain"
-                onError={handlePreviewError}
-              />
-            )}
-            <ReviewDetectionOverlay
-              frames={metadataFrames}
-              sourceWidth={sourceWidth}
-              sourceHeight={sourceHeight}
-              mediaWidth={mediaWidth}
-              mediaHeight={mediaHeight}
-              currentMs={isVideo ? videoPlaybackMs : 0}
-              isVideo={isVideo}
-              visible={showDetectionOverlay}
-            />
-            <View style={styles.fullscreenControls}>
-              <TouchableOpacity
-                style={styles.previewControlButton}
-                onPress={toggleDetectionOverlay}
-                accessibilityLabel={overlayToggleLabel}
-                accessibilityRole="button"
-              >
-                <Text style={styles.fullscreenButtonText}>
-                  {overlayToggleLabel}
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.previewControlButton}
-                onPress={closePreviewFullscreen}
-                accessibilityLabel="Close fullscreen preview"
-                accessibilityRole="button"
-              >
-                <Text style={styles.fullscreenButtonText}>Close</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </Modal>
+        <CaptureMediaPreview
+          mediaUri={captureResult.mediaUri}
+          captureType={captureResult.captureType}
+          metadata={meta}
+        />
 
         {/* Stats */}
         <View style={[styles.statsRow]}>
@@ -622,46 +411,6 @@ const styles = StyleSheet.create({
   cardBody: {
     fontSize: 14,
     lineHeight: 20,
-  },
-  mediaContainer: {
-    position: 'relative',
-    borderRadius: 12,
-    overflow: 'hidden',
-    borderWidth: StyleSheet.hairlineWidth,
-  },
-  media: {
-    width: '100%',
-    height: 240,
-    backgroundColor: '#000',
-  },
-  previewControls: {
-    position: 'absolute',
-    right: 10,
-    top: 10,
-    flexDirection: 'row',
-    gap: 8,
-  },
-  previewControlButton: {
-    backgroundColor: 'rgba(0, 0, 0, 0.72)',
-    borderRadius: 8,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-  },
-  fullscreenButtonText: {
-    color: '#fff',
-    fontSize: 13,
-    fontWeight: '700',
-  },
-  fullscreenRoot: {
-    flex: 1,
-    backgroundColor: '#000',
-  },
-  fullscreenControls: {
-    position: 'absolute',
-    right: 16,
-    top: 52,
-    flexDirection: 'row',
-    gap: 8,
   },
   statsRow: {
     flexDirection: 'row',

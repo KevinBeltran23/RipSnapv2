@@ -9,6 +9,7 @@ import {
   View,
 } from 'react-native';
 import Button from '../common/Button';
+import UploadedCaptureSheetContent from './UploadedCaptureSheetContent';
 import { RIP_MAP_LAYER_BY_ID } from '../../config/mapLayers';
 import { useColors } from '../../hooks/useColors';
 import { useResponsiveStyles } from '../../hooks/useResponsiveStyles';
@@ -204,6 +205,10 @@ function PopupSheet({
               />
             </View>
           </View>
+
+          {(point.media?.url || point.media?.metadataUrl) && (
+            <UploadedCaptureSheetContent point={point} />
+          )}
 
           <Text style={s.label}>Layer</Text>
           <Text style={s.detailText}>
