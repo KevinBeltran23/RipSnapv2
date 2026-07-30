@@ -254,3 +254,53 @@ yarn start
 
 You need `google-services.json` and `GoogleService-Info.plist` in the root
 directory, plus the project `.env` file.
+
+## Admin Access
+
+Admin-layer uploads are protected by a Firebase Authentication custom claim.
+An administrator must have the following claim in their Firebase ID token:
+
+```json
+{
+  "admin": true
+}
+```
+
+The claim is managed outside the mobile app. Do not add `admin` to a Firestore
+user profile: users can update their own profile documents, while custom claims
+are enforced by Firestore and Storage rules.
+
+### Grant or Revoke Admin Access
+
+Set `GOOGLE_APPLICATION_CREDENTIALS` to a trusted Firebase service-account JSON
+file, then build the Functions utilities:
+
+```powershell
+$env:GOOGLE_APPLICATION_CREDENTIALS="C:\path\to\service-account.json"
+npm.cmd --prefix functions run build
+```
+
+Grant access by Firebase Auth email:
+
+```powershell
+node functions/lib/scripts/setAdminClaim.js --email admin@example.com --admin true
+```
+
+The same command accepts `--uid` instead of `--email`. Revoke access with
+`--admin false`. The user must sign out and back in after a claim change so the
+mobile app receives a refreshed ID token.
+
+### Deploy Firebase Rules
+
+The mobile app hides the Admin upload option for non-admins, but Firebase rules
+are the authoritative security boundary. Deploy the current Firestore and
+Storage rules to the configured project before using Admin uploads in a shared
+environment:
+
+```sh
+firebase deploy --only firestore:rules,storage
+```
+
+All authenticated users can still read the Admin map layer. Admin-layer
+deletion is not enabled yet; deletion remains owner-only until the admin delete
+workflow is implemented.

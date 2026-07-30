@@ -9,23 +9,16 @@ import {
   StyleSheet,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import type { NativeStackNavigationProp } from '@react-navigation/native-stack'; // Import this
 import { useAuth } from '../../contexts/AuthContext';
 import { getUserFacingMessage } from '../../services/errorHandler';
 import { useColors } from '../../hooks/useColors';
 import { useResponsiveStyles } from '../../hooks/useResponsiveStyles';
-import { RootStackParamList } from '../../navigation/types'; // Import RootStackParamList
 import Button from '../../components/common/Button';
 
 interface SignUpFormProps {
   onSignUp: (email: any, password: any, displayName: any) => Promise<void>;
   onNavigateBack: () => void;
 }
-
-type SignUpScreenNavigationProp = NativeStackNavigationProp<
-  RootStackParamList,
-  'SignUp'
->; // Define the type for navigation prop
 
 const SignUpForm: React.FC<SignUpFormProps> = ({
   onSignUp,
@@ -38,7 +31,6 @@ const SignUpForm: React.FC<SignUpFormProps> = ({
   const [isLoading, setIsLoading] = useState(false);
   const colors = useColors();
   const { scaleHeight, proportionalSize, scaleFont } = useResponsiveStyles();
-  const navigation = useNavigation<SignUpScreenNavigationProp>();
 
   const handleSignUp = async () => {
     if (!email || !password || !confirmPassword) {
@@ -54,7 +46,6 @@ const SignUpForm: React.FC<SignUpFormProps> = ({
     setIsLoading(true);
     try {
       await onSignUp(email, password, displayName);
-      navigation.replace('Main');
     } catch (error) {
       Alert.alert('Sign Up Error', getUserFacingMessage(error));
     } finally {

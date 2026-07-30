@@ -10,7 +10,7 @@ export interface CaptureLocationSnapshot {
   speed: number | null;
   capturedAt: string;
   providerTimestamp: string;
-  source: 'device_gps';
+  source: 'device_gps' | 'manual_map_pin';
 }
 
 const toLocationSnapshot = (

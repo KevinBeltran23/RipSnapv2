@@ -1,11 +1,11 @@
 /**
  * Firebase service for RipSnap detection captures.
  *
- * Storage path:  ripsnap_captures/{userId}/{sessionId}/media.{ext}
- *                ripsnap_captures/{userId}/{sessionId}/metadata.json
+ * Storage path:  ripsnap_captures/{userId}/{layerId}/{sessionId}/media.{ext}
+ *                ripsnap_captures/{userId}/{layerId}/{sessionId}/metadata.json
  * Firestore:     ripsnap_captures/{docId}
  *
- * Kept separate from the legacy accessibility location routes.
+ * Capture documents are the source for the MVP RipFinder map layer.
  */
 import {
   getStorage,
@@ -20,6 +20,8 @@ import {
 } from '@react-native-firebase/firestore';
 import { Platform } from 'react-native';
 import type { CaptureLocationSnapshot } from '../../utils/location';
+import { getMediaExtension } from '../../utils/capture';
+import type { RipMapLayerId } from '../../types/ripMap';
 
 const storage = getStorage();
 const db = getFirestore();
@@ -33,6 +35,10 @@ export interface CaptureUploadParams {
   mediaUri: string;
   metadataUri: string;
   captureType: 'photo' | 'video';
+  mediaExtension?: string;
+  mediaMimeType?: string;
+  layerId: RipMapLayerId;
+  title?: string;
   notes: string;
   location: CaptureLocationSnapshot;
 }
@@ -55,19 +61,26 @@ export async function uploadCapture(
     mediaUri,
     metadataUri,
     captureType,
+    mediaExtension,
+    mediaMimeType,
+    layerId,
+    title,
     notes,
     location,
   } = params;
 
-  const mediaExt = captureType === 'video' ? 'mp4' : 'jpg';
-  const mediaStoragePath = `${CAPTURES_STORAGE_PATH}/${userId}/${sessionId}/media.${mediaExt}`;
-  const metaStoragePath = `${CAPTURES_STORAGE_PATH}/${userId}/${sessionId}/metadata.json`;
+  const mediaExt =
+    mediaExtension ?? getMediaExtension(undefined, mediaMimeType, captureType);
+  const mediaStoragePath = `${CAPTURES_STORAGE_PATH}/${userId}/${layerId}/${sessionId}/media.${mediaExt}`;
+  const metaStoragePath = `${CAPTURES_STORAGE_PATH}/${userId}/${layerId}/${sessionId}/metadata.json`;
 
   // Upload media file
   const mediaFilePath =
     Platform.OS === 'android' ? mediaUri : mediaUri.replace('file://', '');
   const mediaRef = ref(storage, mediaStoragePath);
-  await mediaRef.putFile(mediaFilePath);
+  await mediaRef.putFile(mediaFilePath, {
+    contentType: mediaMimeType ?? undefined,
+  });
   const mediaUrl = await getDownloadURL(mediaRef);
 
   // Upload metadata JSON
@@ -84,12 +97,16 @@ export async function uploadCapture(
     userId,
     sessionId,
     captureType,
+    layerId,
     mediaUrl,
     metadataUrl,
     mediaStoragePath,
     metaStoragePath,
+    title: title?.trim() || null,
     notes: notes.trim(),
     location,
+    latitude: location.latitude,
+    longitude: location.longitude,
     createdAt: serverTimestamp(),
   });
 

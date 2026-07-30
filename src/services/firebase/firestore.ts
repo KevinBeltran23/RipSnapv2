@@ -1,8 +1,8 @@
 /**
  * Barrel re-export for backward compatibility.
  * Prefer importing directly from:
- *   - ./locations  for location CRUD and queries
+ *   - ./ripMapCaptures for map capture reads
  *   - ./users      for user profile operations
  */
-export * from './locations';
+export * from './ripMapCaptures';
 export * from './users';

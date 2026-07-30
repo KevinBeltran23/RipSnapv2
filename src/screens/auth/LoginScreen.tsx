@@ -10,7 +10,7 @@ import {
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { RootStackParamList } from '../../navigation/types';
+import type { RootStackParamList } from '../../navigation/types';
 import { useAuth } from '../../contexts/AuthContext';
 import { getUserFacingMessage } from '../../services/errorHandler';
 import { useColors } from '../../hooks/useColors';
@@ -24,7 +24,6 @@ interface LoginFormProps {
   onLoginWithGoogle: () => Promise<void>;
   onNavigateToSignUp: () => void;
   onNavigateToForgotPassword: () => void;
-  navigation: LoginScreenNavigationProp;
 }
 
 const LoginForm: React.FC<LoginFormProps> = ({
@@ -32,7 +31,6 @@ const LoginForm: React.FC<LoginFormProps> = ({
   onLoginWithGoogle,
   onNavigateToSignUp,
   onNavigateToForgotPassword,
-  navigation,
 }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -49,7 +47,6 @@ const LoginForm: React.FC<LoginFormProps> = ({
     setIsLoading(true);
     try {
       await onLogin(email, password);
-      navigation.replace('Main');
     } catch (error) {
       Alert.alert('Login Failed', getUserFacingMessage(error));
     } finally {
@@ -61,7 +58,6 @@ const LoginForm: React.FC<LoginFormProps> = ({
     setIsLoading(true);
     try {
       await onLoginWithGoogle();
-      navigation.replace('Main');
     } catch (error) {
       Alert.alert('Google Sign-In Failed', getUserFacingMessage(error));
     } finally {
@@ -185,7 +181,6 @@ function LoginScreen() {
       onLoginWithGoogle={signInWithGoogle}
       onNavigateToSignUp={() => navigation.navigate('SignUp')}
       onNavigateToForgotPassword={() => navigation.navigate('ForgotPassword')}
-      navigation={navigation}
     />
   );
 }

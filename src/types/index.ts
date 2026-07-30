@@ -1,4 +1,3 @@
-export * from './location';
 export * from './media';
-export * from './severity';
+export * from './ripMap';
 export * from './user';

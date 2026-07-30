@@ -1,4 +1,7 @@
-export { default as Legend } from './Legend';
 export { default as MapControls } from './MapControls';
-export { default as LocationMarker } from './LocationMarker';
+export { default as MapboxRipMap } from './MapboxRipMap';
+export { default as LayerPickerGrid } from './LayerPickerGrid';
+export { default as LayerTile } from './LayerTile';
+export { default as LayerTogglePanel } from './LayerTogglePanel';
 export { default as PinPlacementBanner } from './PinPlacementBanner';
+export type { RipMapRendererProps } from './RipMapRenderer.types';

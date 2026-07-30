@@ -8,6 +8,48 @@ import { Share, Platform, Alert } from 'react-native';
 /** Base directory for all capture data. */
 const CAPTURE_DIR = `${FileSystem.documentDirectory}captures/`;
 
+const MIME_TO_EXTENSION: Record<string, string> = {
+  'image/jpeg': 'jpg',
+  'image/jpg': 'jpg',
+  'image/png': 'png',
+  'image/heic': 'heic',
+  'image/heif': 'heif',
+  'video/mp4': 'mp4',
+  'video/quicktime': 'mov',
+  'video/x-m4v': 'm4v',
+  'video/webm': 'webm',
+};
+
+const ALLOWED_EXTENSIONS = new Set([
+  'jpg',
+  'jpeg',
+  'png',
+  'heic',
+  'heif',
+  'mp4',
+  'mov',
+  'm4v',
+  'webm',
+]);
+
+export function getMediaExtension(
+  fileName: string | undefined,
+  mimeType: string | undefined,
+  captureType: 'photo' | 'video',
+): string {
+  const fileExtension = fileName?.split('.').pop()?.toLowerCase();
+  if (fileExtension && ALLOWED_EXTENSIONS.has(fileExtension)) {
+    return fileExtension === 'jpeg' ? 'jpg' : fileExtension;
+  }
+
+  const mimeExtension = mimeType
+    ? MIME_TO_EXTENSION[mimeType.toLowerCase()]
+    : undefined;
+  if (mimeExtension) return mimeExtension;
+
+  return captureType === 'video' ? 'mp4' : 'jpg';
+}
+
 async function ensureDir(dir: string): Promise<void> {
   const info = await FileSystem.getInfoAsync(dir);
   if (!info.exists) {
@@ -31,7 +73,9 @@ export async function saveMediaFile(
   const sessionDir = `${CAPTURE_DIR}${sessionId}/`;
   await ensureDir(sessionDir);
   const dest = `${sessionDir}${filename}`;
-  const src = sourcePath.startsWith('file://') ? sourcePath : `file://${sourcePath}`;
+  const src = sourcePath.startsWith('file://')
+    ? sourcePath
+    : `file://${sourcePath}`;
   await FileSystem.copyAsync({ from: src, to: dest });
   return dest;
 }
@@ -66,12 +110,8 @@ export async function shareSession(
   await shareFile(mediaUri);
 
   // Offer to share metadata
-  Alert.alert(
-    'Share Metadata?',
-    'Also share the detection metadata JSON?',
-    [
-      { text: 'No', style: 'cancel' },
-      { text: 'Share', onPress: () => shareFile(metadataUri) },
-    ],
-  );
+  Alert.alert('Share Metadata?', 'Also share the detection metadata JSON?', [
+    { text: 'No', style: 'cancel' },
+    { text: 'Share', onPress: () => shareFile(metadataUri) },
+  ]);
 }

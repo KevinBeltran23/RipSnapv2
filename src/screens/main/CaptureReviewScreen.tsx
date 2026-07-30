@@ -2,7 +2,13 @@
  * CaptureReviewScreen — review captured media with detection overlays,
  * add notes, then upload to Firebase or share locally.
  */
-import React, { useState, useCallback, useMemo, useRef } from 'react';
+import React, {
+  useState,
+  useCallback,
+  useMemo,
+  useRef,
+  useEffect,
+} from 'react';
 import {
   View,
   Text,
@@ -26,6 +32,13 @@ import { uploadCapture } from '../../services/firebase/captures';
 import type { CaptureResult } from '../../hooks/useDetectionCapture';
 import ReviewDetectionOverlay from '../../components/detection/ReviewDetectionOverlay';
 import type { OnLoadData } from 'react-native-video';
+import DropdownSelector from '../../components/common/DropdownSelector';
+import {
+  canUploadToRipMapLayer,
+  getUploadableRipMapLayers,
+  RIP_MAP_LAYER_BY_ID,
+} from '../../config/mapLayers';
+import type { RipMapLayerId } from '../../types/ripMap';
 
 interface Props {
   captureResult: CaptureResult;
@@ -39,18 +52,31 @@ export default function CaptureReviewScreen({
   onRecapture,
 }: Props) {
   const colors = useColors();
-  const { authUser } = useAuth();
+  const { authUser, isAdmin } = useAuth();
 
   const [notes, setNotes] = useState('');
+  const [selectedLayerId, setSelectedLayerId] =
+    useState<RipMapLayerId>('public');
   const [uploading, setUploading] = useState(false);
   const [videoPlaybackMs, setVideoPlaybackMs] = useState(0);
   const [previewFullscreen, setPreviewFullscreen] = useState(false);
+  const [showDetectionOverlay, setShowDetectionOverlay] = useState(true);
   const [videoNaturalSize, setVideoNaturalSize] = useState<{
     width: number;
     height: number;
   } | null>(null);
   const embeddedVideoRef = useRef<VideoRef>(null);
   const fullscreenVideoRef = useRef<VideoRef>(null);
+  const uploadableLayers = useMemo(
+    () => getUploadableRipMapLayers(isAdmin),
+    [isAdmin],
+  );
+
+  useEffect(() => {
+    if (!isAdmin && selectedLayerId === 'admin') {
+      setSelectedLayerId('public');
+    }
+  }, [isAdmin, selectedLayerId]);
 
   const isVideo = captureResult.captureType === 'video';
   const meta = captureResult.metadata as any;
@@ -103,6 +129,13 @@ export default function CaptureReviewScreen({
       Alert.alert('Not Signed In', 'You must be signed in to upload captures.');
       return;
     }
+    if (!canUploadToRipMapLayer(selectedLayerId, isAdmin)) {
+      Alert.alert(
+        'Admin Access Required',
+        'Only administrators can upload to the Admin layer.',
+      );
+      return;
+    }
 
     setUploading(true);
     try {
@@ -120,6 +153,7 @@ export default function CaptureReviewScreen({
       const metadata = {
         ...meta,
         location,
+        layerId: selectedLayerId,
         notes: trimmedNotes,
       };
       const metadataUri = await saveMetadataFile(
@@ -133,6 +167,7 @@ export default function CaptureReviewScreen({
         mediaUri: captureResult.mediaUri,
         metadataUri,
         captureType: captureResult.captureType,
+        layerId: selectedLayerId,
         notes: trimmedNotes,
         location,
       });
@@ -148,7 +183,7 @@ export default function CaptureReviewScreen({
     } finally {
       setUploading(false);
     }
-  }, [authUser, captureResult, meta, notes, onBack]);
+  }, [authUser, captureResult, isAdmin, meta, notes, onBack, selectedLayerId]);
 
   /* ── Share locally ─────────────────────────────────────────────────── */
 
@@ -175,6 +210,13 @@ export default function CaptureReviewScreen({
   }, []);
 
   const videoControlsStyles = useMemo(() => ({ hideFullscreen: true }), []);
+  const overlayToggleLabel = showDetectionOverlay
+    ? 'Hide Overlay'
+    : 'Show Overlay';
+
+  const toggleDetectionOverlay = useCallback(() => {
+    setShowDetectionOverlay(current => !current);
+  }, []);
 
   const openPreviewFullscreen = useCallback(() => {
     setPreviewFullscreen(true);
@@ -215,6 +257,7 @@ export default function CaptureReviewScreen({
       borderColor: colors.border,
     },
   };
+  const selectedLayer = RIP_MAP_LAYER_BY_ID[selectedLayerId];
 
   return (
     <KeyboardAvoidingView
@@ -225,7 +268,7 @@ export default function CaptureReviewScreen({
       <View style={[styles.header, { borderBottomColor: colors.border }]}>
         <TouchableOpacity onPress={onBack} style={styles.headerBtn}>
           <Text style={[styles.headerBtnText, { color: colors.primary }]}>
-            ← Back
+            Back
           </Text>
         </TouchableOpacity>
         <Text style={[styles.headerTitle, dynamicStyles.text]}>
@@ -242,7 +285,7 @@ export default function CaptureReviewScreen({
         {/* Instructions */}
         <View style={[styles.card, dynamicStyles.card]}>
           <Text style={[styles.cardTitle, dynamicStyles.text]}>
-            📋 Review Your Capture
+            Review Your Capture
           </Text>
           <Text style={[styles.cardBody, dynamicStyles.textSec]}>
             Preview your {isVideo ? 'video' : 'photo'} below. Add optional
@@ -282,15 +325,28 @@ export default function CaptureReviewScreen({
             mediaHeight={mediaHeight}
             currentMs={isVideo ? videoPlaybackMs : 0}
             isVideo={isVideo}
+            visible={showDetectionOverlay}
           />
-          <TouchableOpacity
-            style={styles.fullscreenButton}
-            onPress={openPreviewFullscreen}
-            accessibilityLabel="Open fullscreen preview"
-            accessibilityRole="button"
-          >
-            <Text style={styles.fullscreenButtonText}>Fullscreen</Text>
-          </TouchableOpacity>
+          <View style={styles.previewControls}>
+            <TouchableOpacity
+              style={styles.previewControlButton}
+              onPress={toggleDetectionOverlay}
+              accessibilityLabel={overlayToggleLabel}
+              accessibilityRole="button"
+            >
+              <Text style={styles.fullscreenButtonText}>
+                {overlayToggleLabel}
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.previewControlButton}
+              onPress={openPreviewFullscreen}
+              accessibilityLabel="Open fullscreen preview"
+              accessibilityRole="button"
+            >
+              <Text style={styles.fullscreenButtonText}>Fullscreen</Text>
+            </TouchableOpacity>
+          </View>
         </View>
 
         <Modal
@@ -337,15 +393,28 @@ export default function CaptureReviewScreen({
               mediaHeight={mediaHeight}
               currentMs={isVideo ? videoPlaybackMs : 0}
               isVideo={isVideo}
+              visible={showDetectionOverlay}
             />
-            <TouchableOpacity
-              style={styles.fullscreenCloseButton}
-              onPress={closePreviewFullscreen}
-              accessibilityLabel="Close fullscreen preview"
-              accessibilityRole="button"
-            >
-              <Text style={styles.fullscreenButtonText}>Close</Text>
-            </TouchableOpacity>
+            <View style={styles.fullscreenControls}>
+              <TouchableOpacity
+                style={styles.previewControlButton}
+                onPress={toggleDetectionOverlay}
+                accessibilityLabel={overlayToggleLabel}
+                accessibilityRole="button"
+              >
+                <Text style={styles.fullscreenButtonText}>
+                  {overlayToggleLabel}
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.previewControlButton}
+                onPress={closePreviewFullscreen}
+                accessibilityLabel="Close fullscreen preview"
+                accessibilityRole="button"
+              >
+                <Text style={styles.fullscreenButtonText}>Close</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         </Modal>
 
@@ -386,6 +455,21 @@ export default function CaptureReviewScreen({
           </Text>
         </View>
 
+        <DropdownSelector
+          title="Data Layer"
+          options={uploadableLayers.map(layer => ({
+            label: layer.label,
+            value: layer.id,
+            icon: layer.icon,
+          }))}
+          selectedValue={selectedLayerId}
+          onValueChange={value => setSelectedLayerId(value as RipMapLayerId)}
+          placeholder="Select a data layer..."
+          buttonBackgroundColor={selectedLayer.color}
+          buttonTextColor={colors.textInverse}
+          zIndex={200}
+        />
+
         {/* Notes input */}
         <Text style={[styles.label, dynamicStyles.text]}>Notes (optional)</Text>
         <TextInput
@@ -416,7 +500,7 @@ export default function CaptureReviewScreen({
             {uploading ? (
               <ActivityIndicator color="#fff" size="small" />
             ) : (
-              <Text style={styles.btnTextLight}>☁ Upload to Database</Text>
+              <Text style={styles.btnTextLight}>Upload to Database</Text>
             )}
           </TouchableOpacity>
 
@@ -429,7 +513,7 @@ export default function CaptureReviewScreen({
             accessibilityRole="button"
           >
             <Text style={[styles.btnText, dynamicStyles.text]}>
-              ↗ Share {isVideo ? 'Video' : 'Photo'}
+              Share {isVideo ? 'Video' : 'Photo'}
             </Text>
           </TouchableOpacity>
 
@@ -442,7 +526,7 @@ export default function CaptureReviewScreen({
             accessibilityRole="button"
           >
             <Text style={[styles.btnText, dynamicStyles.text]}>
-              ↗ Share Metadata JSON
+              Share Metadata JSON
             </Text>
           </TouchableOpacity>
 
@@ -454,7 +538,7 @@ export default function CaptureReviewScreen({
             accessibilityLabel="Recapture"
             accessibilityRole="button"
           >
-            <Text style={styles.btnTextLight}>⟲ Recapture</Text>
+            <Text style={styles.btnTextLight}>Recapture</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>
@@ -519,10 +603,14 @@ const styles = StyleSheet.create({
     height: 240,
     backgroundColor: '#000',
   },
-  fullscreenButton: {
+  previewControls: {
     position: 'absolute',
     right: 10,
     top: 10,
+    flexDirection: 'row',
+    gap: 8,
+  },
+  previewControlButton: {
     backgroundColor: 'rgba(0, 0, 0, 0.72)',
     borderRadius: 8,
     paddingHorizontal: 10,
@@ -537,14 +625,12 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#000',
   },
-  fullscreenCloseButton: {
+  fullscreenControls: {
     position: 'absolute',
     right: 16,
     top: 52,
-    backgroundColor: 'rgba(0, 0, 0, 0.72)',
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
+    flexDirection: 'row',
+    gap: 8,
   },
   statsRow: {
     flexDirection: 'row',

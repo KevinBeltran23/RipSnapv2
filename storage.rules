@@ -2,21 +2,34 @@ rules_version = '2';
 
 service firebase.storage {
   match /b/{bucket}/o {
-    // Legacy paths — keep locked down
+    // Legacy paths - keep locked down.
     match /{allPaths=**} {
       allow read, write: if false;
     }
 
-    // Legacy location media — authenticated users can read/write
+    // Legacy location media - authenticated users can read/write.
     match /locations/{locationId}/{allPaths=**} {
       allow read: if request.auth != null;
       allow write: if request.auth != null;
     }
 
-    // RipSnap captures — authenticated users can write to their own folder
+    // RipSnap capture reads remain available to authenticated users.
     match /ripsnap_captures/{userId}/{allPaths=**} {
       allow read: if request.auth != null;
+    }
+
+    // Legacy capture paths used by released clients.
+    match /ripsnap_captures/{userId}/{sessionId}/{fileName} {
       allow write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // New capture paths include the layer so Storage enforces the same
+    // boundary as Firestore before media is written.
+    match /ripsnap_captures/{userId}/{layerId}/{sessionId}/{fileName} {
+      allow write: if request.auth != null
+                   && request.auth.uid == userId
+                   && layerId in ['public', 'admin', 'extra']
+                   && (layerId != 'admin' || request.auth.token.admin == true);
     }
   }
 }

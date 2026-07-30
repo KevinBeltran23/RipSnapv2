@@ -1,9 +1,8 @@
 /**
  * useCurrentLocation — shared location permission + current-position hook.
- * Used by MapScreen (via useMapScreen) and any other screen needing device GPS.
+ * Used by screens that need device GPS.
  */
 import { useCallback } from 'react';
-import { Alert } from 'react-native';
 import * as ExpoLocation from 'expo-location';
 
 interface Coordinate {
@@ -31,10 +30,6 @@ export function useCurrentLocation() {
         };
       } catch (error) {
         console.error('Error getting location:', error);
-        Alert.alert(
-          'Location Error',
-          'Unable to get your current location. Please check device settings.',
-        );
         return null;
       }
     }, [requestPermission]);

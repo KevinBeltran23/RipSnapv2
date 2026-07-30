@@ -24,6 +24,7 @@ import {
   useCameraDevice,
   useCameraPermission,
   useFrameProcessor,
+  type Orientation,
 } from 'react-native-vision-camera';
 import {
   Canvas,
@@ -34,7 +35,11 @@ import {
 import { useSharedValue } from 'react-native-reanimated';
 import * as ScreenOrientation from 'expo-screen-orientation';
 import Icon from '@expo/vector-icons/MaterialCommunityIcons';
-import { getBestFormat } from '../../utils/camera';
+import {
+  getBestFormat,
+  getResizeRotation,
+  mapDetectionToPreview,
+} from '../../utils/camera';
 import { processObjectDetectionOutputs, Detection } from '../../utils';
 import {
   DETECTION_CONFIG,
@@ -69,11 +74,10 @@ function LiveDetectionScreen() {
   const [reviewResult, setReviewResult] = useState<CaptureResult | null>(null);
   const [previewLayout, setPreviewLayout] = useState({ width: 0, height: 0 });
 
-  const [selectedModelName, setSelectedModelName] = useState<string>(
-    RIP_CURRENT_MODEL.name,
-  );
   const [isModelMenuOpen, setIsModelMenuOpen] = useState(false);
-  const { settings: detectionSettings } = useDetectionSettings();
+  const { settings: detectionSettings, updateSettings } =
+    useDetectionSettings();
+  const selectedModelName = detectionSettings.modelName;
 
   const selectedModel = useMemo(
     () =>
@@ -91,6 +95,9 @@ function LiveDetectionScreen() {
   const pixelFormat = Platform.OS === 'ios' ? 'rgb' : 'yuv';
   const { width: viewWidth, height: viewHeight } = useWindowDimensions();
   const isLandscape = viewWidth > viewHeight;
+  const [previewOrientation, setPreviewOrientation] = useState<Orientation>(
+    isLandscape ? 'landscape-right' : 'portrait',
+  );
   const previewWidth = previewLayout.width || viewWidth;
   const previewHeight = previewLayout.height || viewHeight;
   const previewSize = useMemo(
@@ -204,21 +211,10 @@ function LiveDetectionScreen() {
       processingFrame.value = true;
 
       try {
-        let resizeRotation: '0deg' | '90deg' | '180deg' | '270deg' = '0deg';
-        switch (frame.orientation) {
-          case 'portrait':
-            resizeRotation = '0deg';
-            break;
-          case 'landscape-left':
-            resizeRotation = '270deg';
-            break;
-          case 'portrait-upside-down':
-            resizeRotation = '180deg';
-            break;
-          case 'landscape-right':
-            resizeRotation = '90deg';
-            break;
-        }
+        const resizeRotation = getResizeRotation(
+          frame.orientation,
+          previewOrientation,
+        );
 
         const resizedFrame = resize(frame, {
           scale: { width: inputWidth, height: inputHeight },
@@ -243,18 +239,22 @@ function LiveDetectionScreen() {
         const mapped: Detection[] = [];
         for (let i = 0; i < processedDetections.length; i++) {
           const d = processedDetections[i];
-          let x = d.bbox[0] * previewWidth;
-          const y = d.bbox[1] * previewHeight;
-          const w = d.bbox[2] * previewWidth;
-          const h = d.bbox[3] * previewHeight;
-
-          if (mirror) {
-            x = previewWidth - x - w;
-          }
+          const previewBbox = mapDetectionToPreview(
+            d.bbox,
+            frame.width,
+            frame.height,
+            frame.orientation,
+            previewOrientation,
+            inputWidth,
+            inputHeight,
+            previewWidth,
+            previewHeight,
+            mirror,
+          );
 
           mapped.push({
             ...d,
-            bbox: [x, y, w, h] as [number, number, number, number],
+            bbox: previewBbox,
           });
         }
 
@@ -279,6 +279,7 @@ function LiveDetectionScreen() {
       firstOutputShape,
       previewWidth,
       previewHeight,
+      previewOrientation,
       cameraPosition,
       detectionSettings.confidenceThreshold,
       detectionSettings.maxDetections,
@@ -319,6 +320,13 @@ function LiveDetectionScreen() {
     );
   }, []);
 
+  const handlePreviewOrientationChanged = useCallback(
+    (orientation: Orientation) => {
+      setPreviewOrientation(orientation);
+    },
+    [],
+  );
+
   const toggleCamera = useCallback(() => {
     if (captureMode !== 'idle') return;
     setCameraPosition(prev => (prev === 'back' ? 'front' : 'back'));
@@ -332,10 +340,10 @@ function LiveDetectionScreen() {
   const selectModel = useCallback(
     (modelName: string) => {
       if (captureMode !== 'idle') return;
-      setSelectedModelName(modelName);
+      updateSettings({ modelName });
       setIsModelMenuOpen(false);
     },
-    [captureMode],
+    [captureMode, updateSettings],
   );
 
   const handlePhoto = useCallback(async () => {
@@ -400,7 +408,9 @@ function LiveDetectionScreen() {
         fps={30}
         format={format}
         pixelFormat={pixelFormat}
+        resizeMode="cover"
         outputOrientation="device"
+        onPreviewOrientationChanged={handlePreviewOrientationChanged}
         photo={true}
         video={true}
         audio={false}

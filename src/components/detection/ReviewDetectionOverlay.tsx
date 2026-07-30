@@ -26,6 +26,7 @@ interface ReviewDetectionOverlayProps {
   mediaHeight: number;
   currentMs: number;
   isVideo: boolean;
+  visible?: boolean;
 }
 
 const MAX_VIDEO_DETECTION_AGE_MS = 500;
@@ -65,6 +66,7 @@ export default function ReviewDetectionOverlay({
   mediaHeight,
   currentMs,
   isVideo,
+  visible = true,
 }: ReviewDetectionOverlayProps) {
   const [layout, setLayout] = useState({ width: 0, height: 0 });
 
@@ -75,7 +77,8 @@ export default function ReviewDetectionOverlay({
       sourceWidth <= 0 ||
       sourceHeight <= 0 ||
       mediaWidth <= 0 ||
-      mediaHeight <= 0
+      mediaHeight <= 0 ||
+      !visible
     ) {
       return [];
     }
@@ -119,6 +122,7 @@ export default function ReviewDetectionOverlay({
     mediaWidth,
     sourceHeight,
     sourceWidth,
+    visible,
   ]);
 
   const handleLayout = (event: LayoutChangeEvent) => {

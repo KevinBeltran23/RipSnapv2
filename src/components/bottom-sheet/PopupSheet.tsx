@@ -1,491 +1,275 @@
-﻿import React from 'react';
+import React, { useEffect, useState } from 'react';
 import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  Modal,
   Linking,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
-import BottomSheet, { BottomSheetScrollView } from '@gorhom/bottom-sheet';
-import { LocationData } from '../../types/location';
-import SearchBar from '../common/SearchBar';
-import MediaUploader from '../media/MediaUploader';
-import MediaViewer from '../common/MediaViewer';
 import Button from '../common/Button';
-import {
-  BOTTOM_SHEET_SNAP_POINTS,
-  CATEGORY_OPTIONS,
-} from '../../config/constants';
-import GalleryGrid from '../common/GalleryGrid';
+import { RIP_MAP_LAYER_BY_ID } from '../../config/mapLayers';
 import { useColors } from '../../hooks/useColors';
-import DropdownSelector from '../common/DropdownSelector';
 import { useResponsiveStyles } from '../../hooks/useResponsiveStyles';
-import { usePopupSheet } from './usePopupSheet';
+import type { RipCoordinate, RipMapPoint } from '../../types/ripMap';
 
 interface PopupSheetProps {
   mode: 'view' | 'add';
-  location?: LocationData;
+  point?: RipMapPoint | null;
+  draftCoordinate: RipCoordinate | null;
+  isPinPlacementMode: boolean;
+  isSubmitting: boolean;
+  closeLabel?: string;
   onClose: () => void;
-  index: number;
-  onChange: (index: number) => void;
-  initialCategory?: number | null;
+  onAddPress: () => void;
+  onStartPinPlacement: () => void;
+  onSubmit?: (draft: { title: string; notes: string }) => Promise<boolean>;
 }
+
+const formatDisplayDate = (createdAt?: string) => {
+  if (!createdAt) return 'Unknown time';
+  const date = new Date(createdAt);
+  if (Number.isNaN(date.getTime())) return createdAt;
+  return date.toLocaleString();
+};
+
+const formatCoordinate = (coordinate: RipCoordinate) =>
+  `${coordinate.latitude.toFixed(6)}, ${coordinate.longitude.toFixed(6)}`;
 
 function PopupSheet({
   mode,
-  location,
+  point,
+  draftCoordinate,
+  isPinPlacementMode,
+  isSubmitting,
+  closeLabel = 'Close',
   onClose,
-  index,
-  onChange,
+  onAddPress,
+  onStartPinPlacement,
+  onSubmit,
 }: PopupSheetProps) {
   const colors = useColors();
   const { scaleHeight, scaleWidth, proportionalSize, scaleFont } =
     useResponsiveStyles();
+  const [title, setTitle] = useState('');
+  const [notes, setNotes] = useState('');
 
-  const {
-    bottomSheetRef,
-    newLocationName,
-    selectedCategory,
-    uploadCategory,
-    uploadedMedia,
-    isSubmitting,
-    visibleMedia,
-    hasMoreMedia,
-    modalMedia,
-    contextSelectedLocation,
-    firestoreLocationMetadata,
-    isPinPlacementMode,
-    handleSheetChanges,
-    handleMediaSelected,
-    handleCategorySelect,
-    handleUploadCategorySelect,
-    handleSelectLocation,
-    handlePlacePinOnMap,
-    handleLocationNameChange,
-    handleSubmit,
-    openGoogleMaps,
-    handleAddDataPress,
-    handleClose,
-    handleLoadMoreMedia,
-    handleImagePress,
-    closeModal,
-    handleDeleteMedia,
-  } = usePopupSheet({ mode, location, onClose, onChange });
+  useEffect(() => {
+    if (mode === 'add') {
+      setTitle('');
+      setNotes('');
+    }
+  }, [mode]);
+
+  const handleOpenMaps = () => {
+    if (!point) return;
+    const { latitude, longitude } = point.coordinate;
+    Linking.openURL(`https://maps.google.com/?q=${latitude},${longitude}`);
+  };
+
+  const submitLabel = isSubmitting ? 'Saving...' : 'Submit Upload';
 
   const s = StyleSheet.create({
-    bottomSheet: { zIndex: 1000 },
-    container: { flex: 1 },
-    contentContainer: { padding: proportionalSize(16) },
     header: {
       flexDirection: 'row',
       justifyContent: 'space-between',
       alignItems: 'center',
-      marginBottom: scaleHeight(16),
+      marginBottom: scaleHeight(14),
+      gap: scaleWidth(8),
     },
-    headerButtons: { flexDirection: 'row', alignItems: 'center' },
-    locationName: {
-      fontSize: scaleFont(18),
-      fontWeight: 'bold',
+    title: {
       flex: 1,
-      marginRight: scaleWidth(8),
       color: colors.textPrimary,
+      fontSize: scaleFont(18),
+      fontWeight: '800',
     },
-    searchHeaderContainer: {
+    headerButtons: {
       flexDirection: 'row',
-      justifyContent: 'space-between',
       alignItems: 'center',
+      gap: scaleWidth(6),
     },
-    headerBtn: {
+    compactButton: {
       paddingVertical: scaleHeight(6),
       paddingHorizontal: scaleWidth(10),
-      marginRight: scaleWidth(6),
     },
-    headerBtnText: { fontSize: scaleFont(12) },
-    content: { flex: 1 },
-    accessibilityDetails: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      alignItems: 'center',
+    compactButtonText: { fontSize: scaleFont(12) },
+    sectionTitle: {
+      color: colors.textPrimary,
+      fontSize: scaleFont(16),
+      fontWeight: '700',
+      marginTop: scaleHeight(12),
       marginBottom: scaleHeight(8),
     },
     detailText: {
+      color: colors.textPrimary,
       fontSize: scaleFont(14),
       lineHeight: scaleFont(20),
-      marginBottom: scaleHeight(4),
-      flex: 1,
-      paddingRight: scaleWidth(16),
+      marginBottom: scaleHeight(6),
+    },
+    label: {
+      color: colors.textTertiary,
+      fontSize: scaleFont(11),
+      fontWeight: '800',
+      textTransform: 'uppercase',
+      marginBottom: scaleHeight(3),
+    },
+    input: {
+      backgroundColor: colors.backgroundSecondary,
+      borderRadius: proportionalSize(8),
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: colors.border,
       color: colors.textPrimary,
+      padding: proportionalSize(12),
+      fontSize: scaleFont(15),
+      marginBottom: scaleHeight(12),
     },
-    circle: {
-      width: scaleWidth(40),
-      height: scaleHeight(40),
-      borderRadius: proportionalSize(20),
-    },
-    largeCircle: {
-      width: scaleWidth(50),
-      height: scaleHeight(50),
-      borderRadius: proportionalSize(25),
+    multilineInput: {
+      minHeight: scaleHeight(88),
+      textAlignVertical: 'top',
     },
     placePin: {
-      backgroundColor: colors.backgroundSecondary,
+      backgroundColor: isPinPlacementMode
+        ? colors.primaryLight
+        : colors.backgroundSecondary,
       padding: proportionalSize(16),
       borderRadius: proportionalSize(8),
       alignItems: 'center',
-      marginVertical: scaleHeight(16),
-      borderWidth: proportionalSize(1),
-      borderColor: colors.border,
-    },
-    placePinActive: {
-      backgroundColor: colors.primaryLight,
-      borderColor: colors.primary,
+      marginVertical: scaleHeight(12),
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: isPinPlacementMode ? colors.primary : colors.border,
     },
     placePinText: {
       color: colors.primary,
-      fontWeight: '600',
+      fontWeight: '700',
       fontSize: scaleFont(16),
     },
-    placePinTextActive: { color: colors.primary, fontWeight: 'bold' },
     coordinatesContainer: {
       backgroundColor: colors.secondaryLight,
-      padding: proportionalSize(8),
-      borderRadius: proportionalSize(6),
-      marginVertical: scaleHeight(8),
+      padding: proportionalSize(10),
+      borderRadius: proportionalSize(8),
+      marginBottom: scaleHeight(12),
     },
     coordinatesText: {
-      fontSize: scaleFont(12),
       color: colors.secondaryDark,
+      fontSize: scaleFont(13),
+      fontWeight: '700',
       textAlign: 'center',
     },
-    mediaPreviewContainer: { marginTop: scaleHeight(16) },
-    mediaPreviewItem: {
-      marginBottom: scaleHeight(8),
-      borderRadius: proportionalSize(8),
-      overflow: 'hidden',
-    },
-    mediaPreview: {
-      width: '100%',
-      height: scaleHeight(120),
-      borderRadius: proportionalSize(8),
-    },
-    mediaName: {
-      fontSize: scaleFont(12),
-      color: colors.textPrimary,
-      marginTop: scaleHeight(4),
-      textAlign: 'center',
-    },
-    noMediaText: {
-      color: colors.textPrimary,
-      marginTop: scaleHeight(8),
-      textAlign: 'center',
-      fontStyle: 'italic',
-      fontSize: scaleFont(14),
-    },
-    loadMoreButton: {
-      backgroundColor: colors.backgroundSecondary,
-      marginVertical: scaleHeight(16),
-    },
-    submitButton: { marginTop: scaleHeight(16) },
-    sectionTitle: {
-      fontSize: scaleFont(16),
-      fontWeight: '600',
-      marginTop: scaleHeight(16),
-      marginBottom: scaleHeight(8),
-      color: colors.textPrimary,
-    },
-    modalContainer: {
-      flex: 1,
-      justifyContent: 'center',
-      alignItems: 'center',
-      backgroundColor: colors.overlay,
-    },
-    modalBackdrop: { ...StyleSheet.absoluteFillObject },
-    modalContent: {
-      backgroundColor: colors.background,
-      padding: proportionalSize(20),
-      borderRadius: proportionalSize(16),
-      width: '90%',
-      maxHeight: '80%',
-      alignItems: 'center',
-    },
-    modalButtonsContainer: {
-      flexDirection: 'row',
-      marginTop: scaleHeight(20),
-      justifyContent: 'space-between',
-      width: '100%',
-    },
-    commonModalButtonBase: {
-      minWidth: scaleWidth(90),
-      flexGrow: 1,
-      marginHorizontal: scaleWidth(4),
-    },
-    closeButton: {
-      paddingVertical: scaleHeight(6),
-      paddingHorizontal: scaleWidth(10),
-    },
+    submitButton: { marginTop: scaleHeight(8) },
   });
 
   return (
-    <BottomSheet
-      ref={bottomSheetRef}
-      index={index}
-      snapPoints={BOTTOM_SHEET_SNAP_POINTS}
-      onChange={handleSheetChanges}
-      backgroundStyle={{
-        backgroundColor: colors.background,
-        borderTopLeftRadius: proportionalSize(24),
-        borderTopRightRadius: proportionalSize(24),
-      }}
-      handleIndicatorStyle={{
-        backgroundColor: colors.gray300,
-        width: scaleWidth(40),
-      }}
-      enablePanDownToClose={false}
-      style={s.bottomSheet}
-    >
-      <BottomSheetScrollView
-        style={s.container}
-        contentContainerStyle={s.contentContainer}
-      >
-        {mode === 'view' && (
+    <>
+      {mode === 'view' && point && (
+        <>
           <View style={s.header}>
-            <Text style={s.locationName} numberOfLines={1} ellipsizeMode="tail">
-              {location?.name || 'Location'}
+            <Text style={s.title} numberOfLines={1}>
+              {point.title}
             </Text>
             <View style={s.headerButtons}>
               <Button
                 variant="secondary"
-                label="Add Data"
-                onPress={handleAddDataPress}
-                style={s.headerBtn}
-                textStyle={s.headerBtnText}
+                label="Add"
+                onPress={onAddPress}
+                style={s.compactButton}
+                textStyle={s.compactButtonText}
               />
               <Button
                 variant="primary"
                 label="Maps"
-                onPress={openGoogleMaps}
-                style={s.headerBtn}
-                textStyle={s.headerBtnText}
+                onPress={handleOpenMaps}
+                style={s.compactButton}
+                textStyle={s.compactButtonText}
               />
               <Button
                 variant="danger"
-                label="Close"
-                onPress={handleClose}
-                style={s.closeButton}
-                textStyle={s.headerBtnText}
+                label={closeLabel}
+                onPress={onClose}
+                style={s.compactButton}
+                textStyle={s.compactButtonText}
               />
             </View>
           </View>
-        )}
 
-        <View style={s.content}>
-          {mode === 'add' && (
-            <>
-              <View style={s.searchHeaderContainer}>
-                <Text style={s.sectionTitle}>Location Name</Text>
-                <Button
-                  variant="danger"
-                  label="Close"
-                  onPress={handleClose}
-                  style={s.closeButton}
-                  textStyle={s.headerBtnText}
-                />
-              </View>
-              <SearchBar
-                onSelectLocation={handleSelectLocation}
-                placeholder="Search for a location or enter new name"
-                initialValue={newLocationName}
-                showResults={true}
-                onTextChange={handleLocationNameChange}
-              />
-            </>
-          )}
+          <Text style={s.label}>Layer</Text>
+          <Text style={s.detailText}>
+            {RIP_MAP_LAYER_BY_ID[point.layerId].label}
+          </Text>
+          <Text style={s.label}>Captured</Text>
+          <Text style={s.detailText}>{formatDisplayDate(point.createdAt)}</Text>
+          <Text style={s.label}>Coordinates</Text>
+          <Text style={s.detailText}>{formatCoordinate(point.coordinate)}</Text>
+          <Text style={s.label}>Capture type</Text>
+          <Text style={s.detailText}>{point.captureType}</Text>
+          <Text style={s.label}>Notes</Text>
+          <Text style={s.detailText}>{point.notes ?? 'No notes'}</Text>
+        </>
+      )}
 
-          <DropdownSelector
-            title="Filter by Category"
-            options={CATEGORY_OPTIONS.map(cat => ({
-              label: cat.label,
-              value: cat.id,
-              icon: cat.icon,
-            }))}
-            selectedValue={mode === 'add' ? uploadCategory : selectedCategory}
-            onValueChange={
-              mode === 'add' ? handleUploadCategorySelect : handleCategorySelect
-            }
-            placeholder="Select a category..."
-            buttonBackgroundColor={colors.primary}
-            buttonTextColor={colors.textInverse}
-          />
-
-          {mode === 'view' ? (
-            <>
-              <Text style={s.sectionTitle}>Accessibility Details</Text>
-              <View style={s.accessibilityDetails}>
-                <Text style={s.detailText}>
-                  {location?.accessibilityDetails ||
-                    'No details available for this category.'}
-                </Text>
-                <View
-                  style={[
-                    s.circle,
-                    s.largeCircle,
-                    {
-                      backgroundColor:
-                        colors[
-                          location?.severityColor || 'unknownAccessibility'
-                        ],
-                    },
-                  ]}
-                />
-              </View>
-              {location?.analysis && (
-                <Text style={s.detailText}>{location.analysis}</Text>
-              )}
-              {location?.chatOption && (
-                <Text style={s.detailText}>
-                  Maybe an option to chat w the model
-                </Text>
-              )}
-            </>
-          ) : (
-            <>
-              <TouchableOpacity
-                style={[s.placePin, isPinPlacementMode && s.placePinActive]}
-                onPress={handlePlacePinOnMap}
-              >
-                <Text
-                  style={[
-                    s.placePinText,
-                    isPinPlacementMode && s.placePinTextActive,
-                  ]}
-                >
-                  {isPinPlacementMode
-                    ? 'Select Location on Map'
-                    : contextSelectedLocation?.id.startsWith('temp-')
-                      ? 'Pin Placed - Tap to Change'
-                      : 'Place Pin on Map'}
-                </Text>
-              </TouchableOpacity>
-              {firestoreLocationMetadata?.latitude &&
-                firestoreLocationMetadata?.longitude && (
-                  <View style={s.coordinatesContainer}>
-                    <Text style={s.coordinatesText}>
-                      📍 {firestoreLocationMetadata.latitude.toFixed(6)},{' '}
-                      {firestoreLocationMetadata.longitude.toFixed(6)}
-                    </Text>
-                  </View>
-                )}
-            </>
-          )}
-
-          {mode === 'view' && visibleMedia.length > 0 ? (
-            <>
-              <Text style={s.sectionTitle}>Media</Text>
-              <GalleryGrid
-                media={visibleMedia.map(item => ({
-                  url: item.url,
-                  type: item.type,
-                }))}
-                onImagePress={handleImagePress}
-              />
-              {hasMoreMedia && (
-                <Button
-                  variant="ghost"
-                  label="Load More"
-                  onPress={handleLoadMoreMedia}
-                  style={s.loadMoreButton}
-                />
-              )}
-            </>
-          ) : (
-            mode === 'view' && (
-              <>
-                <Text style={s.sectionTitle}>Media</Text>
-                <Text style={s.noMediaText}>
-                  No media files found for this location.
-                </Text>
-              </>
-            )
-          )}
-
-          {mode === 'add' && (
-            <>
-              <Text style={s.sectionTitle}>Add Media</Text>
-              <MediaUploader onMediaSelected={handleMediaSelected} />
-              <View style={s.mediaPreviewContainer}>
-                {uploadedMedia.map((mediaItem, mediaIdx) => (
-                  <View key={mediaIdx} style={s.mediaPreviewItem}>
-                    <MediaViewer
-                      source={mediaItem.path}
-                      type={mediaItem.type}
-                      style={s.mediaPreview}
-                    />
-                    {mediaItem.path && (
-                      <Text style={s.mediaName}>
-                        {mediaItem.path.split('/').pop()}
-                      </Text>
-                    )}
-                  </View>
-                ))}
-              </View>
-              <Button
-                variant="primary"
-                label={isSubmitting ? 'Saving...' : 'Submit'}
-                onPress={handleSubmit}
-                disabled={isSubmitting}
-                style={s.submitButton}
-              />
-            </>
-          )}
-        </View>
-      </BottomSheetScrollView>
-
-      <Modal
-        visible={!!modalMedia}
-        transparent={true}
-        animationType="fade"
-        onRequestClose={closeModal}
-      >
-        <View style={s.modalContainer}>
-          <TouchableOpacity
-            style={s.modalBackdrop}
-            activeOpacity={1}
-            onPress={closeModal}
-          />
-          <View style={s.modalContent}>
-            {modalMedia && (
-              <MediaViewer source={modalMedia.url} type={modalMedia.type} />
-            )}
-            <View style={s.modalButtonsContainer}>
-              {(modalMedia?.type === 'pdf' ||
-                modalMedia?.type === 'image' ||
-                modalMedia?.type === 'video') && (
-                <Button
-                  variant="secondary"
-                  label="Download"
-                  onPress={() => Linking.openURL(modalMedia.url)}
-                  style={s.commonModalButtonBase}
-                />
-              )}
-              <Button
-                variant="primary"
-                label="Close"
-                onPress={closeModal}
-                style={s.commonModalButtonBase}
-              />
-              {modalMedia && (
-                <Button
-                  variant="danger"
-                  label="Delete"
-                  onPress={handleDeleteMedia}
-                  style={s.commonModalButtonBase}
-                />
-              )}
-            </View>
+      {mode === 'add' && (
+        <>
+          <View style={s.header}>
+            <Text style={s.title}>Add Map Upload</Text>
+            <Button
+              variant="danger"
+              label="Close"
+              onPress={onClose}
+              style={s.compactButton}
+              textStyle={s.compactButtonText}
+            />
           </View>
-        </View>
-      </Modal>
-    </BottomSheet>
+
+          <Text style={s.sectionTitle}>Upload Name</Text>
+          <TextInput
+            style={s.input}
+            placeholder="e.g. Rip observation near main beach"
+            placeholderTextColor={colors.textTertiary}
+            value={title}
+            onChangeText={setTitle}
+          />
+
+          <Text style={s.sectionTitle}>Notes</Text>
+          <TextInput
+            style={[s.input, s.multilineInput]}
+            placeholder="Optional details about conditions or context"
+            placeholderTextColor={colors.textTertiary}
+            value={notes}
+            onChangeText={setNotes}
+            multiline
+          />
+
+          <TouchableOpacity style={s.placePin} onPress={onStartPinPlacement}>
+            <Text style={s.placePinText}>
+              {isPinPlacementMode
+                ? 'Select Location on Map'
+                : draftCoordinate
+                  ? 'Pin Placed - Tap to Change'
+                  : 'Place Pin on Map'}
+            </Text>
+          </TouchableOpacity>
+
+          {draftCoordinate && (
+            <View style={s.coordinatesContainer}>
+              <Text style={s.coordinatesText}>
+                {formatCoordinate(draftCoordinate)}
+              </Text>
+            </View>
+          )}
+
+          <Button
+            variant="primary"
+            label={submitLabel}
+            onPress={async () => {
+              if (!onSubmit) return;
+              const didSubmit = await onSubmit({ title, notes });
+              if (didSubmit) onClose();
+            }}
+            disabled={isSubmitting}
+            style={s.submitButton}
+          />
+        </>
+      )}
+    </>
   );
 }
 

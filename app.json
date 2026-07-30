@@ -13,9 +13,7 @@
       "enabled": true,
       "fallbackToCacheTimeout": 3000
     },
-    "runtimeVersion": {
-      "policy": "appVersion"
-    },
+    "runtimeVersion": "1.0.0",
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",

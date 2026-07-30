@@ -4,7 +4,6 @@
 import React from 'react';
 import { useWindowDimensions } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { useIsFocused } from '@react-navigation/native';
 import Icon from '@expo/vector-icons/MaterialCommunityIcons';
 import * as ScreenOrientation from 'expo-screen-orientation';
 import { MainTabParamList } from './types';
@@ -12,7 +11,7 @@ import { useColors } from '../hooks/useColors';
 import { useResponsiveStyles } from '../hooks/useResponsiveStyles';
 
 import HomeScreen from '../screens/main/HomeScreen';
-import MapScreen from '../screens/main/MapScreen';
+import MapboxMapScreen from '../screens/main/MapboxMapScreen';
 import LiveDetectionScreen from '../screens/main/LiveDetectionScreen';
 import SettingsScreen from '../screens/main/SettingsScreen';
 
@@ -44,11 +43,6 @@ const renderCameraIcon = ({ color, size }: { color: string; size: number }) => (
 const renderCogIcon = ({ color, size }: { color: string; size: number }) => (
   <TabBarIcon name="cog" color={color} size={size} />
 );
-
-const MapScreenWithUnmount = (props: any) => {
-  const isFocused = useIsFocused();
-  return isFocused ? <MapScreen {...props} /> : null;
-};
 
 export function MainNavigator() {
   const colors = useColors();
@@ -95,7 +89,7 @@ export function MainNavigator() {
       />
       <Tab.Screen
         name="MapTab"
-        component={MapScreenWithUnmount}
+        component={MapboxMapScreen}
         listeners={{ focus: lockPortrait }}
         options={{
           title: 'Map',
