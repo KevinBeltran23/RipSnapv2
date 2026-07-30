@@ -81,6 +81,7 @@ function MapboxRipMap({
 }: RipMapRendererProps) {
   const colors = useColors();
   const { scaleFont } = useResponsiveStyles();
+  const [mapLoadFailed, setMapLoadFailed] = React.useState(false);
   const cameraRef = useRef<MapboxCameraRef>(null);
   const shapeSourceRef = useRef<ShapeSource>(null);
   const lastCameraRequestId = useRef<number | null>(null);
@@ -250,7 +251,7 @@ function MapboxRipMap({
     return (
       <View style={[styles.map, styles.missingTokenContainer]}>
         <Text style={[styles.missingTokenTitle, { color: colors.textPrimary }]}>
-          Mapbox token required
+          Map unavailable
         </Text>
         <Text
           style={[
@@ -258,108 +259,139 @@ function MapboxRipMap({
             { color: colors.textSecondary, fontSize: scaleFont(14) },
           ]}
         >
-          Set EXPO_PUBLIC_MAPBOX_ACCESS_TOKEN and rebuild the dev client.
+          The map service is not available right now. Please try again later.
         </Text>
       </View>
     );
   }
 
   return (
-    <Mapbox.MapView
-      style={styles.map}
-      styleURL={getLayerStyleUrl(activeLayerId)}
-      compassEnabled={false}
-      logoEnabled
-      attributionEnabled
-      onPress={handleMapPress}
-      onMapIdle={handleMapIdle}
-    >
-      <Mapbox.Camera
-        ref={cameraRef}
-        defaultSettings={{
-          centerCoordinate: initialMapboxCenter(),
-          zoomLevel: initialMapboxZoom(),
-        }}
-      />
-
-      <ShapeSource
-        ref={shapeSourceRef}
-        id={MAPBOX_RIP_SOURCE_ID}
-        shape={pointShape}
-        cluster={clustering.enabled}
-        clusterRadius={clustering.radius}
-        clusterMaxZoomLevel={clustering.maxZoom}
-        clusterProperties={MAPBOX_CLUSTER_PROPERTIES}
-        hitbox={{ width: 44, height: 44 }}
-        onPress={handlePointShapePress}
+    <View style={styles.mapContainer}>
+      <Mapbox.MapView
+        style={styles.map}
+        styleURL={getLayerStyleUrl(activeLayerId)}
+        compassEnabled={false}
+        logoEnabled
+        attributionEnabled
+        onPress={handleMapPress}
+        onMapIdle={handleMapIdle}
+        onMapLoadingError={() => setMapLoadFailed(true)}
+        onDidFinishLoadingMap={() => setMapLoadFailed(false)}
       >
-        <Mapbox.CircleLayer
-          id={MAPBOX_RIP_LAYER_IDS.clusters}
-          filter={MAPBOX_CLUSTER_FILTER}
-          style={clusterCircleStyle}
+        <Mapbox.Camera
+          ref={cameraRef}
+          defaultSettings={{
+            centerCoordinate: initialMapboxCenter(),
+            zoomLevel: initialMapboxZoom(),
+          }}
         />
-        <Mapbox.SymbolLayer
-          id={MAPBOX_RIP_LAYER_IDS.clusterLabels}
-          filter={MAPBOX_CLUSTER_FILTER}
-          style={clusterLabelStyle}
-        />
-        <Mapbox.CircleLayer
-          id={MAPBOX_RIP_LAYER_IDS.unclusteredPoints}
-          filter={MAPBOX_UNSELECTED_POINT_FILTER}
-          style={uploadCircleStyle}
-        />
-        <Mapbox.CircleLayer
-          id={MAPBOX_RIP_LAYER_IDS.selectedPoint}
-          filter={MAPBOX_SELECTED_POINT_FILTER}
-          style={selectedUploadCircleStyle}
-        />
-        <Mapbox.SymbolLayer
-          id={MAPBOX_RIP_LAYER_IDS.pointLabels}
-          filter={MAPBOX_UNCLUSTERED_FILTER}
-          style={pointLabelStyle}
-        />
-      </ShapeSource>
 
-      {userLocation && (
-        <Mapbox.MarkerView
-          coordinate={coordinateToPosition(userLocation)}
-          anchor={{ x: 0.5, y: 0.5 }}
-          allowOverlap
+        <ShapeSource
+          ref={shapeSourceRef}
+          id={MAPBOX_RIP_SOURCE_ID}
+          shape={pointShape}
+          cluster={clustering.enabled}
+          clusterRadius={clustering.radius}
+          clusterMaxZoomLevel={clustering.maxZoom}
+          clusterProperties={MAPBOX_CLUSTER_PROPERTIES}
+          hitbox={{ width: 44, height: 44 }}
+          onPress={handlePointShapePress}
         >
-          <View
-            style={[
-              styles.userDot,
-              {
-                backgroundColor: colors.primary,
-                borderColor: colors.background,
-              },
-            ]}
+          <Mapbox.CircleLayer
+            id={MAPBOX_RIP_LAYER_IDS.clusters}
+            filter={MAPBOX_CLUSTER_FILTER}
+            style={clusterCircleStyle}
           />
-        </Mapbox.MarkerView>
-      )}
+          <Mapbox.SymbolLayer
+            id={MAPBOX_RIP_LAYER_IDS.clusterLabels}
+            filter={MAPBOX_CLUSTER_FILTER}
+            style={clusterLabelStyle}
+          />
+          <Mapbox.CircleLayer
+            id={MAPBOX_RIP_LAYER_IDS.unclusteredPoints}
+            filter={MAPBOX_UNSELECTED_POINT_FILTER}
+            style={uploadCircleStyle}
+          />
+          <Mapbox.CircleLayer
+            id={MAPBOX_RIP_LAYER_IDS.selectedPoint}
+            filter={MAPBOX_SELECTED_POINT_FILTER}
+            style={selectedUploadCircleStyle}
+          />
+          <Mapbox.SymbolLayer
+            id={MAPBOX_RIP_LAYER_IDS.pointLabels}
+            filter={MAPBOX_UNCLUSTERED_FILTER}
+            style={pointLabelStyle}
+          />
+        </ShapeSource>
 
-      {draftPin && (
-        <Mapbox.MarkerView
-          coordinate={coordinateToPosition(draftPin)}
-          anchor={{ x: 0.5, y: 1 }}
-          allowOverlap
+        {userLocation && (
+          <Mapbox.MarkerView
+            coordinate={coordinateToPosition(userLocation)}
+            anchor={{ x: 0.5, y: 0.5 }}
+            allowOverlap
+          >
+            <View
+              style={[
+                styles.userDot,
+                {
+                  backgroundColor: colors.primary,
+                  borderColor: colors.background,
+                },
+              ]}
+            />
+          </Mapbox.MarkerView>
+        )}
+
+        {draftPin && (
+          <Mapbox.MarkerView
+            coordinate={coordinateToPosition(draftPin)}
+            anchor={{ x: 0.5, y: 1 }}
+            allowOverlap
+          >
+            <View
+              style={[
+                styles.draftPin,
+                {
+                  backgroundColor: colors.accent,
+                  borderColor: colors.background,
+                },
+              ]}
+            />
+          </Mapbox.MarkerView>
+        )}
+      </Mapbox.MapView>
+
+      {mapLoadFailed && (
+        <View
+          pointerEvents="none"
+          style={[
+            styles.mapErrorOverlay,
+            { backgroundColor: colors.background },
+          ]}
         >
-          <View
+          <Text
+            style={[styles.missingTokenTitle, { color: colors.textPrimary }]}
+          >
+            Map unavailable
+          </Text>
+          <Text
             style={[
-              styles.draftPin,
-              {
-                backgroundColor: colors.accent,
-                borderColor: colors.background,
-              },
+              styles.missingTokenBody,
+              { color: colors.textSecondary, fontSize: scaleFont(14) },
             ]}
-          />
-        </Mapbox.MarkerView>
+          >
+            Check your connection and try again.
+          </Text>
+        </View>
       )}
-    </Mapbox.MapView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  mapContainer: {
+    flex: 1,
+  },
   map: {
     ...StyleSheet.absoluteFillObject,
   },
@@ -389,6 +421,12 @@ const styles = StyleSheet.create({
   missingTokenBody: {
     fontWeight: '600',
     textAlign: 'center',
+  },
+  mapErrorOverlay: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...StyleSheet.absoluteFillObject,
+    padding: 24,
   },
 });
 

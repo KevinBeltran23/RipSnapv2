@@ -4,6 +4,7 @@
  */
 import * as FileSystem from 'expo-file-system/legacy';
 import { Share, Platform, Alert } from 'react-native';
+import { getUserFacingMessage } from '../services/errorHandler';
 
 /** Base directory for all capture data. */
 const CAPTURE_DIR = `${FileSystem.documentDirectory}captures/`;
@@ -106,12 +107,31 @@ export async function shareSession(
   mediaUri: string,
   metadataUri: string,
 ): Promise<void> {
-  // Share media first
-  await shareFile(mediaUri);
+  try {
+    await shareFile(mediaUri);
+  } catch (error) {
+    Alert.alert(
+      'Share Failed',
+      getUserFacingMessage(error, 'Could not share this capture.'),
+    );
+    return;
+  }
 
-  // Offer to share metadata
   Alert.alert('Share Metadata?', 'Also share the detection metadata JSON?', [
     { text: 'No', style: 'cancel' },
-    { text: 'Share', onPress: () => shareFile(metadataUri) },
+    {
+      text: 'Share',
+      onPress: () => {
+        shareFile(metadataUri).catch(error => {
+          Alert.alert(
+            'Share Failed',
+            getUserFacingMessage(
+              error,
+              'Could not share the capture metadata.',
+            ),
+          );
+        });
+      },
+    },
   ]);
 }

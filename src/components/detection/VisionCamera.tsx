@@ -28,7 +28,9 @@ function VisionCamera({
   const device = useCameraDevice(cameraPosition);
 
   useEffect(() => {
-    if (!hasPermission) requestPermission();
+    if (!hasPermission) {
+      requestPermission().catch(() => undefined);
+    }
   }, [hasPermission, requestPermission]);
 
   if (!device || !hasPermission) {

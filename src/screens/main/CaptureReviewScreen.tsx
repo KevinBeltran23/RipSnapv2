@@ -28,6 +28,7 @@ import { useColors } from '../../hooks/useColors';
 import { useAuth } from '../../contexts/AuthContext';
 import { saveMetadataFile, shareFile } from '../../utils/capture';
 import { getCurrentLocationSnapshot } from '../../utils/location';
+import { getUserFacingMessage } from '../../services/errorHandler';
 import { uploadCapture } from '../../services/firebase/captures';
 import type { CaptureResult } from '../../hooks/useDetectionCapture';
 import ReviewDetectionOverlay from '../../components/detection/ReviewDetectionOverlay';
@@ -178,8 +179,13 @@ export default function CaptureReviewScreen({
         [{ text: 'OK', onPress: onBack }],
       );
     } catch (e: any) {
-      console.error('Upload failed:', e);
-      Alert.alert('Upload Failed', e?.message ?? 'Could not upload capture.');
+      Alert.alert(
+        'Upload Failed',
+        getUserFacingMessage(
+          e,
+          'Could not upload this capture. Check your connection and try again.',
+        ),
+      );
     } finally {
       setUploading(false);
     }
@@ -187,13 +193,34 @@ export default function CaptureReviewScreen({
 
   /* ── Share locally ─────────────────────────────────────────────────── */
 
-  const handleShareMedia = useCallback(() => {
-    shareFile(captureResult.mediaUri);
+  const handleShareMedia = useCallback(async () => {
+    try {
+      await shareFile(captureResult.mediaUri);
+    } catch (error) {
+      Alert.alert(
+        'Share Failed',
+        getUserFacingMessage(error, 'Could not share this capture.'),
+      );
+    }
   }, [captureResult.mediaUri]);
 
-  const handleShareMetadata = useCallback(() => {
-    shareFile(captureResult.metadataUri);
+  const handleShareMetadata = useCallback(async () => {
+    try {
+      await shareFile(captureResult.metadataUri);
+    } catch (error) {
+      Alert.alert(
+        'Share Failed',
+        getUserFacingMessage(error, 'Could not share the capture metadata.'),
+      );
+    }
   }, [captureResult.metadataUri]);
+
+  const handlePreviewError = useCallback((_error: unknown) => {
+    Alert.alert(
+      'Preview Unavailable',
+      'This capture could not be played or displayed on this device.',
+    );
+  }, []);
 
   const handleVideoProgress = useCallback(
     ({ currentTime }: { currentTime: number }) => {
@@ -309,12 +336,14 @@ export default function CaptureReviewScreen({
               progressUpdateInterval={100}
               onProgress={handleVideoProgress}
               onLoad={handleVideoLoad}
+              onError={handlePreviewError}
             />
           ) : (
             <Image
               source={{ uri: captureResult.mediaUri }}
               style={styles.media}
               resizeMode="contain"
+              onError={handlePreviewError}
             />
           )}
           <ReviewDetectionOverlay
@@ -377,12 +406,14 @@ export default function CaptureReviewScreen({
                   handleVideoLoad(event);
                   handleFullscreenVideoLoad();
                 }}
+                onError={handlePreviewError}
               />
             ) : (
               <Image
                 source={{ uri: captureResult.mediaUri }}
                 style={StyleSheet.absoluteFill}
                 resizeMode="contain"
+                onError={handlePreviewError}
               />
             )}
             <ReviewDetectionOverlay

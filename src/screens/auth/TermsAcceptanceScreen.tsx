@@ -15,6 +15,7 @@ import { useResponsiveStyles } from '../../hooks/useResponsiveStyles';
 import { RootStackParamList } from '../../navigation/types';
 import { useAuth } from '../../contexts/AuthContext';
 import { updateUserTermsAcceptance } from '../../services/firebase/users';
+import { getUserFacingMessage } from '../../services/errorHandler';
 import Button from '../../components/common/Button';
 
 type TermsAcceptanceScreenNavigationProp = NativeStackNavigationProp<
@@ -41,8 +42,8 @@ function TermsAcceptanceScreen() {
 
     if (!authUser || !user) {
       Alert.alert(
-        'Error',
-        'User not authenticated. Please try logging in again.',
+        'Session Unavailable',
+        'Your session is no longer available. Please sign in again.',
       );
       return;
     }
@@ -51,10 +52,12 @@ function TermsAcceptanceScreen() {
     try {
       await updateUserTermsAcceptance(authUser.uid, true);
     } catch (error) {
-      console.error('Error accepting terms:', error);
       Alert.alert(
-        'Error',
-        'Failed to update terms acceptance. Please try again.',
+        'Could Not Continue',
+        getUserFacingMessage(
+          error,
+          'We could not save your acceptance. Please try again.',
+        ),
       );
     } finally {
       setIsUpdating(false);

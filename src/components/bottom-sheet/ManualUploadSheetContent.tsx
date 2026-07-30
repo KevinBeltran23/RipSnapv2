@@ -18,6 +18,7 @@ import {
 } from '../../config/mapLayers';
 import { useColors } from '../../hooks/useColors';
 import { useResponsiveStyles } from '../../hooks/useResponsiveStyles';
+import { getUserFacingMessage } from '../../services/errorHandler';
 import type {
   RipCoordinate,
   RipManualUploadDraft,
@@ -99,48 +100,66 @@ function ManualUploadSheetContent({
         : 'Upload Data';
 
   const handlePickMedia = async () => {
-    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (!permission.granted) {
+    try {
+      const permission =
+        await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!permission.granted) {
+        Alert.alert(
+          'Media Access Needed',
+          'Allow photo library access to select pre-captured media.',
+        );
+        return;
+      }
+
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images', 'videos'],
+        allowsEditing: false,
+        base64: true,
+        quality: 1,
+        preferredAssetRepresentationMode:
+          ImagePicker.UIImagePickerPreferredAssetRepresentationMode.Compatible,
+        videoQuality: ImagePicker.UIImagePickerControllerQualityType.High,
+      });
+
+      if (result.canceled) return;
+
+      const asset = result.assets[0];
+      const captureType = asset ? getAssetCaptureType(asset) : null;
+      if (!asset || !captureType) {
+        Alert.alert(
+          'Unsupported Media',
+          'Select a photo or video file for this upload.',
+        );
+        return;
+      }
+
+      setMedia({
+        uri: asset.uri,
+        fileName: asset.fileName ?? undefined,
+        mimeType: asset.mimeType ?? undefined,
+        captureType,
+        analysisBase64:
+          captureType === 'photo' ? (asset.base64 ?? undefined) : undefined,
+        width: asset.width,
+        height: asset.height,
+        durationMs: asset.duration ?? undefined,
+      });
+    } catch (error) {
       Alert.alert(
-        'Media Access Needed',
-        'Allow photo library access to select pre-captured media.',
+        'Could Not Select Media',
+        getUserFacingMessage(
+          error,
+          'We could not open your media library. Please try again.',
+        ),
       );
-      return;
     }
+  };
 
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ['images', 'videos'],
-      allowsEditing: false,
-      base64: true,
-      quality: 1,
-      preferredAssetRepresentationMode:
-        ImagePicker.UIImagePickerPreferredAssetRepresentationMode.Compatible,
-      videoQuality: ImagePicker.UIImagePickerControllerQualityType.High,
-    });
-
-    if (result.canceled) return;
-
-    const asset = result.assets[0];
-    const captureType = getAssetCaptureType(asset);
-    if (!captureType) {
-      Alert.alert(
-        'Unsupported Media',
-        'Select a photo or video file for this upload.',
-      );
-      return;
-    }
-
-    setMedia({
-      uri: asset.uri,
-      fileName: asset.fileName ?? undefined,
-      mimeType: asset.mimeType ?? undefined,
-      captureType,
-      analysisBase64:
-        captureType === 'photo' ? (asset.base64 ?? undefined) : undefined,
-      width: asset.width,
-      height: asset.height,
-      durationMs: asset.duration ?? undefined,
-    });
+  const handlePreviewError = (_error: unknown) => {
+    Alert.alert(
+      'Preview Unavailable',
+      'This media could not be previewed. You can still choose another file.',
+    );
   };
 
   const s = StyleSheet.create({
@@ -268,6 +287,7 @@ function ManualUploadSheetContent({
                 source={{ uri: media.uri }}
                 style={s.mediaPreview}
                 resizeMode="cover"
+                onError={handlePreviewError}
               />
             ) : (
               <Video
@@ -276,6 +296,7 @@ function ManualUploadSheetContent({
                 resizeMode="cover"
                 paused
                 muted
+                onError={handlePreviewError}
               />
             )}
             <Text style={s.mediaMeta} numberOfLines={1}>
@@ -347,14 +368,24 @@ function ManualUploadSheetContent({
         variant="primary"
         label={submitLabel}
         onPress={async () => {
-          const didSubmit = await onSubmit({
-            title,
-            notes,
-            layerId: selectedLayerId,
-            coordinate: draftCoordinate,
-            media,
-          });
-          if (didSubmit) onClose();
+          try {
+            const didSubmit = await onSubmit({
+              title,
+              notes,
+              layerId: selectedLayerId,
+              coordinate: draftCoordinate,
+              media,
+            });
+            if (didSubmit) onClose();
+          } catch (error) {
+            Alert.alert(
+              'Upload Failed',
+              getUserFacingMessage(
+                error,
+                'Could not upload this media. Please try again.',
+              ),
+            );
+          }
         }}
         disabled={isSubmitting}
         style={s.submitButton}

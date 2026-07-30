@@ -36,7 +36,6 @@ export const signInWithGoogle = async () => {
       console.log('Play services not available or outdated');
       return null;
     } else {
-      console.error('Something else went wrong', error);
       throw error;
     }
   }
@@ -55,7 +54,7 @@ export const signOut = async () => {
     await GoogleSignin.signOut();
     await firebaseSignOut(auth);
   } catch (error) {
-    console.error('Error during sign out: ', error);
+    throw error;
   }
 };
 

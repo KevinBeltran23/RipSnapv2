@@ -12,8 +12,12 @@ interface Coordinate {
 
 export function useCurrentLocation() {
   const requestPermission = useCallback(async (): Promise<boolean> => {
-    const { status } = await ExpoLocation.requestForegroundPermissionsAsync();
-    return status === 'granted';
+    try {
+      const { status } = await ExpoLocation.requestForegroundPermissionsAsync();
+      return status === 'granted';
+    } catch {
+      return false;
+    }
   }, []);
 
   const getCurrentPosition =
@@ -28,8 +32,7 @@ export function useCurrentLocation() {
           latitude: pos.coords.latitude,
           longitude: pos.coords.longitude,
         };
-      } catch (error) {
-        console.error('Error getting location:', error);
+      } catch {
         return null;
       }
     }, [requestPermission]);

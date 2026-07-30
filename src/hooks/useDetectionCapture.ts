@@ -14,6 +14,7 @@ import {
   saveMetadataFile,
 } from '../utils/capture';
 import { getCurrentLocationSnapshot } from '../utils/location';
+import { getUserFacingMessage } from '../services/errorHandler';
 import type { RipCurrentModelConfig } from '../config/detection';
 import type { DetectionSettings } from '../contexts/DetectionSettingsContext';
 
@@ -131,8 +132,10 @@ export function useDetectionCapture(
           metadata,
         };
       } catch (e: any) {
-        console.error('Photo capture failed:', e);
-        Alert.alert('Capture Failed', e?.message ?? 'Could not take photo.');
+        Alert.alert(
+          'Capture Failed',
+          getUserFacingMessage(e, 'Could not take a photo. Please try again.'),
+        );
         return null;
       } finally {
         setIsProcessing(false);
@@ -172,61 +175,91 @@ export function useDetectionCapture(
       );
     }, 1000);
 
-    cam.startRecording({
-      flash: 'off',
-      onRecordingFinished: async video => {
-        setIsProcessing(true);
-        try {
-          const mediaUri = await saveMediaFile(
-            video.path,
-            sessionId,
-            'video.mp4',
-          );
-          const location = await getCurrentLocationSnapshot();
+    try {
+      cam.startRecording({
+        flash: 'off',
+        onRecordingFinished: async video => {
+          setIsProcessing(true);
+          try {
+            const mediaUri = await saveMediaFile(
+              video.path,
+              sessionId,
+              'video.mp4',
+            );
+            const location = await getCurrentLocationSnapshot();
 
-          const metadata = {
-            sessionId,
-            captureType: 'video' as const,
-            coordinateSpace: 'preview-pixels',
-            startTime: new Date(startTimeRef.current).toISOString(),
-            endTime: new Date().toISOString(),
-            durationMs: Date.now() - startTimeRef.current,
-            location,
-            modelName: modelConfig.name,
-            modelInputSize: modelConfig.inputSize,
-            detectionSettings,
-            screenWidth: previewSize.width,
-            screenHeight: previewSize.height,
-            mediaWidth: video.width,
-            mediaHeight: video.height,
-            cameraPosition,
-            totalFrames: framesRef.current.length,
-            frames: framesRef.current,
-          };
+            const metadata = {
+              sessionId,
+              captureType: 'video' as const,
+              coordinateSpace: 'preview-pixels',
+              startTime: new Date(startTimeRef.current).toISOString(),
+              endTime: new Date().toISOString(),
+              durationMs: Date.now() - startTimeRef.current,
+              location,
+              modelName: modelConfig.name,
+              modelInputSize: modelConfig.inputSize,
+              detectionSettings,
+              screenWidth: previewSize.width,
+              screenHeight: previewSize.height,
+              mediaWidth: video.width,
+              mediaHeight: video.height,
+              cameraPosition,
+              totalFrames: framesRef.current.length,
+              frames: framesRef.current,
+            };
 
-          const metadataUri = await saveMetadataFile(sessionId, metadata);
+            const metadataUri = await saveMetadataFile(sessionId, metadata);
 
-          setLastVideoResult({
-            sessionId,
-            captureType: 'video',
-            mediaUri,
-            metadataUri,
-            metadata,
-          });
-        } catch (e: any) {
-          console.error('Video save failed:', e);
-          Alert.alert('Save Failed', e?.message ?? 'Could not save video.');
-        } finally {
+            setLastVideoResult({
+              sessionId,
+              captureType: 'video',
+              mediaUri,
+              metadataUri,
+              metadata,
+            });
+          } catch (e: any) {
+            Alert.alert(
+              'Save Failed',
+              getUserFacingMessage(
+                e,
+                'Could not save the video. Please try again.',
+              ),
+            );
+          } finally {
+            setIsProcessing(false);
+            setCaptureMode('idle');
+          }
+        },
+        onRecordingError: error => {
+          if (timerRef.current) {
+            clearInterval(timerRef.current);
+            timerRef.current = null;
+          }
           setIsProcessing(false);
           setCaptureMode('idle');
-        }
-      },
-      onRecordingError: error => {
-        console.error('Recording error:', error);
-        setCaptureMode('idle');
-        Alert.alert('Recording Error', error.message);
-      },
-    });
+          Alert.alert(
+            'Recording Error',
+            getUserFacingMessage(
+              error,
+              'Could not record video. Please try again.',
+            ),
+          );
+        },
+      });
+    } catch (error) {
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+        timerRef.current = null;
+      }
+      setCaptureMode('idle');
+      Alert.alert(
+        'Recording Error',
+        getUserFacingMessage(
+          error,
+          'Could not start recording. Please try again.',
+        ),
+      );
+    }
   }, [
     cameraRef,
     cameraPosition,
@@ -244,7 +277,18 @@ export function useDetectionCapture(
     }
     const cam = cameraRef.current;
     if (cam && captureMode === 'recording') {
-      await cam.stopRecording();
+      try {
+        await cam.stopRecording();
+      } catch (error) {
+        setCaptureMode('idle');
+        Alert.alert(
+          'Recording Error',
+          getUserFacingMessage(
+            error,
+            'Could not finish recording. Please try again.',
+          ),
+        );
+      }
     }
   }, [cameraRef, captureMode]);
 

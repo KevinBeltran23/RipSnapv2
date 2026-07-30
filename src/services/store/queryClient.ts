@@ -9,17 +9,31 @@ const storage = createMMKV({ id: 'react-query-cache' });
 
 export const clientPersister: Persister = {
   persistClient: async (client: PersistedClient) => {
-    storage.set('react-query-cache', JSON.stringify(client));
+    try {
+      storage.set('react-query-cache', JSON.stringify(client));
+    } catch {
+      // Cache persistence is best-effort; the in-memory client remains usable.
+    }
   },
   restoreClient: async () => {
     const cacheStr = storage.getString('react-query-cache');
     if (!cacheStr) {
       return undefined;
     }
-    return JSON.parse(cacheStr) as PersistedClient;
+
+    try {
+      return JSON.parse(cacheStr) as PersistedClient;
+    } catch {
+      storage.remove('react-query-cache');
+      return undefined;
+    }
   },
   removeClient: async () => {
-    storage.remove('react-query-cache');
+    try {
+      storage.remove('react-query-cache');
+    } catch {
+      return;
+    }
   },
 };
 

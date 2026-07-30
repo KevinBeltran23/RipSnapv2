@@ -8,15 +8,23 @@ export function useRipMapLocation() {
 
   const getUserCoordinate =
     useCallback(async (): Promise<RipCoordinate | null> => {
-      const coordinate = await getCurrentPosition();
-      if (!coordinate) {
+      try {
+        const coordinate = await getCurrentPosition();
+        if (!coordinate) {
+          Alert.alert(
+            'Location Unavailable',
+            'Allow location access to center the map on your position.',
+          );
+          return null;
+        }
+        return coordinate;
+      } catch {
         Alert.alert(
-          'Location unavailable',
-          'Allow location access to center the map on your position.',
+          'Location Unavailable',
+          'We could not determine your location. Please try again.',
         );
         return null;
       }
-      return coordinate;
     }, [getCurrentPosition]);
 
   return { getUserCoordinate };

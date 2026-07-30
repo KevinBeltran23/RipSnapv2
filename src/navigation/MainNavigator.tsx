@@ -52,10 +52,12 @@ export function MainNavigator() {
   const isLarge = isMediumScreen || isLargeScreen;
   const isLandscape = width > height;
   const lockPortrait = React.useCallback(() => {
-    ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP);
+    ScreenOrientation.lockAsync(
+      ScreenOrientation.OrientationLock.PORTRAIT_UP,
+    ).catch(() => undefined);
   }, []);
   const unlockOrientation = React.useCallback(() => {
-    ScreenOrientation.unlockAsync();
+    ScreenOrientation.unlockAsync().catch(() => undefined);
   }, []);
 
   return (

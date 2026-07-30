@@ -21,6 +21,19 @@ import { createMMKV } from 'react-native-mmkv';
 
 const userStorage = createMMKV({ id: 'user-profile-cache' });
 
+const readCachedUser = (): User | null => {
+  try {
+    const cachedUserStr = userStorage.getString('cached-user');
+    if (!cachedUserStr) return null;
+    return JSON.parse(cachedUserStr) as User;
+  } catch {
+    userStorage.remove('cached-user');
+    return null;
+  }
+};
+
+const initialCachedUser = readCachedUser();
+
 interface AuthContextType {
   authUser: FirebaseAuthTypes.User | null;
   user: User | null;
@@ -57,74 +70,110 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const [isAdmin, setIsAdmin] = useState(false);
 
   // Attempt to load the user synchronously from MMKV on boot
-  const [user, setUser] = useState<User | null>(() => {
-    const cachedUserStr = userStorage.getString('cached-user');
-    return cachedUserStr ? (JSON.parse(cachedUserStr) as User) : null;
-  });
+  const [user, setUser] = useState<User | null>(initialCachedUser);
 
   // Default loading to false if we successfully hydrated a cached user so the UI is instantly visible
-  const [loading, setLoading] = useState<boolean>(
-    !userStorage.getString('cached-user'),
-  );
+  const [loading, setLoading] = useState<boolean>(!initialCachedUser);
 
   const firestoreUnsubscribeRef = React.useRef<(() => void) | null>(null);
 
   useEffect(() => {
-    const authUnsubscribe = onAuthStateChanged(auth, async firebaseUser => {
-      setAuthUser(firebaseUser);
-      if (firestoreUnsubscribeRef.current) {
-        firestoreUnsubscribeRef.current();
-        firestoreUnsubscribeRef.current = null;
-      }
-      if (firebaseUser) {
-        setIsAdmin(false);
-        try {
-          const tokenResult = await firebaseUser.getIdTokenResult(true);
-          setIsAdmin(tokenResult.claims.admin === true);
-        } catch (error) {
-          console.error('Failed to load admin claim:', error);
+    const handleAuthStateChange = async (
+      firebaseUser: FirebaseAuthTypes.User | null,
+    ) => {
+      try {
+        setAuthUser(firebaseUser);
+        if (firestoreUnsubscribeRef.current) {
+          firestoreUnsubscribeRef.current();
+          firestoreUnsubscribeRef.current = null;
+        }
+        if (firebaseUser) {
           setIsAdmin(false);
-        }
+          try {
+            const tokenResult = await firebaseUser.getIdTokenResult(true);
+            setIsAdmin(tokenResult.claims.admin === true);
+          } catch {
+            setIsAdmin(false);
+          }
 
-        // Only trigger the hard loading spinner on boot if we didn't have a cached profile ready
-        if (!userStorage.getString('cached-user')) {
-          setLoading(true);
+          // Only trigger the hard loading spinner on boot if we didn't have a cached profile ready
+          if (!userStorage.getString('cached-user')) {
+            setLoading(true);
+          }
+          const userDocRef = getUserDocumentRef(firebaseUser.uid);
+          const firestoreUnsubscribe = onSnapshot(
+            userDocRef,
+            docSnapshot => {
+              const syncProfile = async () => {
+                try {
+                  if (docSnapshot.exists()) {
+                    const profile = docSnapshot.data() as User;
+                    setUser(profile);
+                    userStorage.set('cached-user', JSON.stringify(profile));
+                  } else {
+                    console.log(
+                      `Profile not found for user ${firebaseUser.uid}. Creating one.`,
+                    );
+                    const newProfile = await createUserProfile(firebaseUser);
+                    setUser(newProfile);
+                    userStorage.set('cached-user', JSON.stringify(newProfile));
+                  }
+                } catch (error) {
+                  Alert.alert(
+                    'Profile Unavailable',
+                    getUserFacingMessage(
+                      error,
+                      'We could not load your profile. Please try again.',
+                    ),
+                  );
+                  setUser(null);
+                  userStorage.remove('cached-user');
+                } finally {
+                  setLoading(false);
+                }
+              };
+              syncProfile();
+            },
+            error => {
+              if ((error as any).code !== 'firestore/permission-denied') {
+                Alert.alert(
+                  'Profile Unavailable',
+                  getUserFacingMessage(
+                    error,
+                    'We could not load your profile. Please try again.',
+                  ),
+                );
+              }
+              setUser(null);
+              userStorage.remove('cached-user');
+              setLoading(false);
+            },
+          );
+          firestoreUnsubscribeRef.current = firestoreUnsubscribe;
+        } else {
+          setIsAdmin(false);
+          setUser(null);
+          userStorage.remove('cached-user');
+          setLoading(false);
         }
-        const userDocRef = getUserDocumentRef(firebaseUser.uid);
-        const firestoreUnsubscribe = onSnapshot(
-          userDocRef,
-          async docSnapshot => {
-            if (docSnapshot.exists()) {
-              const profile = docSnapshot.data() as User;
-              setUser(profile);
-              userStorage.set('cached-user', JSON.stringify(profile));
-            } else {
-              console.log(
-                `Profile not found for user ${firebaseUser.uid}. Creating one.`,
-              );
-              const newProfile = await createUserProfile(firebaseUser);
-              setUser(newProfile);
-              userStorage.set('cached-user', JSON.stringify(newProfile));
-            }
-            setLoading(false);
-          },
-          error => {
-            console.error('Error listening to user profile:', error);
-            if ((error as any).code !== 'firestore/permission-denied') {
-              Alert.alert('Profile Sync Error', getUserFacingMessage(error));
-            }
-            setUser(null);
-            userStorage.remove('cached-user');
-            setLoading(false);
-          },
+      } catch (error) {
+        Alert.alert(
+          'Session Unavailable',
+          getUserFacingMessage(
+            error,
+            'We could not initialize your session. Please try again.',
+          ),
         );
-        firestoreUnsubscribeRef.current = firestoreUnsubscribe;
-      } else {
+        setAuthUser(null);
         setIsAdmin(false);
         setUser(null);
         userStorage.remove('cached-user');
         setLoading(false);
       }
+    };
+
+    const authUnsubscribe = onAuthStateChanged(auth, firebaseUser => {
+      handleAuthStateChange(firebaseUser);
     });
     return () => {
       authUnsubscribe();
@@ -139,7 +188,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
     try {
       await signInWithEmailAndPassword(auth, email, password);
     } catch (error) {
-      console.error('Sign in error:', error);
       throw error;
     }
   };
@@ -154,21 +202,17 @@ export function AuthProvider({ children }: AuthProviderProps) {
       if (displayName && cred.user)
         await cred.user.updateProfile({ displayName });
     } catch (error) {
-      console.error('Sign up error:', error);
       throw error;
     }
   };
 
   const signInWithGoogle = async () => {
     const credential = await GoogleAuth.signInWithGoogle();
-    if (!credential?.user) {
-      throw new Error('Google sign-in did not complete.');
-    }
+    if (!credential?.user) return;
   };
 
   const updateUser = async (data: Partial<User>) => {
     if (!authUser || !user) {
-      console.error('No user logged in to update profile.');
       return;
     }
     try {
@@ -181,7 +225,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
       }
       await updateUserFirestore(authUser.uid, data);
     } catch (error) {
-      console.error('Failed to update profile:', error);
       throw error;
     }
   };
@@ -190,7 +233,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
     try {
       await GoogleAuth.signOut();
     } catch (error) {
-      console.error('Sign out error:', error);
       throw error;
     }
   };
@@ -199,7 +241,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
     try {
       await sendPasswordResetEmail(auth, email);
     } catch (error) {
-      console.error('Forgot password error:', error);
       throw error;
     }
   };

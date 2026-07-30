@@ -63,10 +63,14 @@ export function useRecentlyViewedRipMapPoints(
           ...currentPointIds.filter(pointId => pointId !== point.id),
         ].slice(0, MAX_RECENTLY_VIEWED_POINTS);
 
-        recentlyViewedStorage.set(
-          getRecentlyViewedStorageKey(userId),
-          JSON.stringify(nextPointIds),
-        );
+        try {
+          recentlyViewedStorage.set(
+            getRecentlyViewedStorageKey(userId),
+            JSON.stringify(nextPointIds),
+          );
+        } catch {
+          return currentPointIds;
+        }
 
         return nextPointIds;
       });

@@ -16,6 +16,7 @@ import { useRecentlyViewedRipMapPoints } from '../../hooks/useRecentlyViewedRipM
 import { useRipMapLocation } from '../../hooks/useRipMapLocation';
 import { useRipMapState } from '../../hooks/useRipMapState';
 import { useRipMapPointsQuery } from '../../services/store/ripMapQueries';
+import { getUserFacingMessage } from '../../services/errorHandler';
 import { uploadCapture } from '../../services/firebase/captures';
 import { canUploadToRipMapLayer } from '../../config/mapLayers';
 import {
@@ -77,6 +78,16 @@ function MapScreen({ MapRenderer, clustering }: MapScreenProps) {
     isStale,
     refetch,
   } = useRipMapPointsQuery({ enabled: Boolean(authUser) });
+  const mapErrorMessage = useMemo(
+    () =>
+      (error &&
+        getUserFacingMessage(
+          error,
+          'Map uploads could not be loaded. Check your connection and try again.',
+        )) ||
+      null,
+    [error],
+  );
   const {
     setViewport,
     visibleLayerIds,
@@ -440,7 +451,7 @@ function MapScreen({ MapRenderer, clustering }: MapScreenProps) {
         manualUploadPhase={manualUploadPhase}
         manualUploadProgress={manualUploadProgress}
         isLayerPickerOpen={isLayerPickerOpen}
-        error={error instanceof Error ? error.message : null}
+        error={mapErrorMessage}
         onSelectPoint={handleSelectPoint}
         onSelectClusterPoint={handleSelectClusterPoint}
         onCloseCluster={handleCloseCluster}

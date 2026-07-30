@@ -1,6 +1,9 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
+import { Alert } from 'react-native';
 import { useAuth } from './AuthContext';
 import { createMMKV } from 'react-native-mmkv';
+import { getUserFacingMessage } from '../services/errorHandler';
+import type { User } from '../types/user';
 
 export type ThemeMode = 'light' | 'dark';
 export type ColorBlindMode = 'none' | 'red-green';
@@ -47,20 +50,48 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     }
   }, [user]);
 
+  const syncUserPreference = (data: Partial<User>) => {
+    if (!user) return;
+
+    updateUser(data).catch(error => {
+      Alert.alert(
+        'Settings Not Saved',
+        getUserFacingMessage(
+          error,
+          'Could not save that setting. Check your connection and try again.',
+        ),
+      );
+    });
+  };
+
+  const saveLocalPreference = (key: string, value: string | boolean) => {
+    try {
+      themeStorage.set(key, value);
+    } catch (error) {
+      Alert.alert(
+        'Settings Not Saved',
+        getUserFacingMessage(
+          error,
+          'Could not save that setting. Please try again.',
+        ),
+      );
+    }
+  };
+
   const setThemeMode = (mode: ThemeMode) => {
     setThemeModeState(mode);
-    themeStorage.set('themeMode', mode);
-    if (user) updateUser({ darkMode: mode === 'dark' });
+    saveLocalPreference('themeMode', mode);
+    syncUserPreference({ darkMode: mode === 'dark' });
   };
   const setColorBlindMode = (mode: ColorBlindMode) => {
     setColorBlindModeState(mode);
-    themeStorage.set('colorBlindMode', mode);
-    if (user) updateUser({ colorBlindMode: mode });
+    saveLocalPreference('colorBlindMode', mode);
+    syncUserPreference({ colorBlindMode: mode });
   };
   const setHighContrast = (enabled: boolean) => {
     setHighContrastState(enabled);
-    themeStorage.set('highContrast', enabled);
-    if (user) updateUser({ highContrast: enabled });
+    saveLocalPreference('highContrast', enabled);
+    syncUserPreference({ highContrast: enabled });
   };
 
   const getThemeClasses = (): string => {

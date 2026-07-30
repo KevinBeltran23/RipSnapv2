@@ -22,6 +22,7 @@ import { useResponsiveStyles } from '../../hooks/useResponsiveStyles';
 import Button from '../../components/common/Button';
 import { useDetectionSettings } from '../../contexts/DetectionSettingsContext';
 import { DETECTION_SETTING_LIMITS } from '../../config/detection';
+import { getUserFacingMessage } from '../../services/errorHandler';
 
 interface ProfileSectionProps {
   user: User | null;
@@ -47,8 +48,11 @@ const ProfileSection: React.FC<ProfileSectionProps> = ({
       await onUpdateUser({ displayName });
       setIsEditing(false);
       Alert.alert('Success', 'Profile updated successfully');
-    } catch {
-      Alert.alert('Error', 'Failed to update profile');
+    } catch (error) {
+      Alert.alert(
+        'Profile Update Failed',
+        getUserFacingMessage(error, 'Could not update your profile.'),
+      );
     }
   };
 
@@ -220,6 +224,20 @@ const AccessibilitySettings: React.FC = () => {
     return null;
   }
 
+  const handleSettingChange = async (patch: Partial<User>) => {
+    try {
+      await updateUser(patch);
+    } catch (error) {
+      Alert.alert(
+        'Settings Not Saved',
+        getUserFacingMessage(
+          error,
+          'Could not save that setting. Check your connection and try again.',
+        ),
+      );
+    }
+  };
+
   const dynamicStyles = StyleSheet.create({
     settingRow: {
       flexDirection: 'row',
@@ -243,7 +261,9 @@ const AccessibilitySettings: React.FC = () => {
           trackColor={{ false: colors.gray300, true: colors.primary }}
           thumbColor={colors.white}
           value={user.darkMode}
-          onValueChange={value => updateUser({ darkMode: value })}
+          onValueChange={value => {
+            handleSettingChange({ darkMode: value });
+          }}
         />
       </View>
       <View style={dynamicStyles.settingRow}>
@@ -252,7 +272,9 @@ const AccessibilitySettings: React.FC = () => {
           trackColor={{ false: colors.gray300, true: colors.primary }}
           thumbColor={colors.white}
           value={user.textToSpeech}
-          onValueChange={value => updateUser({ textToSpeech: value })}
+          onValueChange={value => {
+            handleSettingChange({ textToSpeech: value });
+          }}
         />
       </View>
       <View style={dynamicStyles.settingRow}>
@@ -261,7 +283,9 @@ const AccessibilitySettings: React.FC = () => {
           trackColor={{ false: colors.gray300, true: colors.primary }}
           thumbColor={colors.white}
           value={user.highContrast}
-          onValueChange={value => updateUser({ highContrast: value })}
+          onValueChange={value => {
+            handleSettingChange({ highContrast: value });
+          }}
         />
       </View>
       <View style={dynamicStyles.settingRow}>
@@ -270,9 +294,11 @@ const AccessibilitySettings: React.FC = () => {
           trackColor={{ false: colors.gray300, true: colors.primary }}
           thumbColor={colors.white}
           value={user.colorBlindMode === 'red-green'}
-          onValueChange={value =>
-            updateUser({ colorBlindMode: value ? 'red-green' : 'none' })
-          }
+          onValueChange={value => {
+            handleSettingChange({
+              colorBlindMode: value ? 'red-green' : 'none',
+            });
+          }}
         />
       </View>
     </>
@@ -486,8 +512,14 @@ function SettingsScreen() {
         index: 0,
         routes: [{ name: 'Login' }],
       });
-    } catch {
-      Alert.alert('Error', 'Failed to sign out');
+    } catch (error) {
+      Alert.alert(
+        'Sign Out Failed',
+        getUserFacingMessage(
+          error,
+          'Could not sign you out. Please try again.',
+        ),
+      );
     }
   };
 

@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import {
+  Alert,
   Linking,
   StyleSheet,
   Text,
@@ -11,6 +12,7 @@ import Button from '../common/Button';
 import { RIP_MAP_LAYER_BY_ID } from '../../config/mapLayers';
 import { useColors } from '../../hooks/useColors';
 import { useResponsiveStyles } from '../../hooks/useResponsiveStyles';
+import { getUserFacingMessage } from '../../services/errorHandler';
 import type { RipCoordinate, RipMapPoint } from '../../types/ripMap';
 
 interface PopupSheetProps {
@@ -61,10 +63,22 @@ function PopupSheet({
     }
   }, [mode]);
 
-  const handleOpenMaps = () => {
+  const handleOpenMaps = async () => {
     if (!point) return;
     const { latitude, longitude } = point.coordinate;
-    Linking.openURL(`https://maps.google.com/?q=${latitude},${longitude}`);
+    try {
+      await Linking.openURL(
+        `https://maps.google.com/?q=${latitude},${longitude}`,
+      );
+    } catch (error) {
+      Alert.alert(
+        'Could Not Open Maps',
+        getUserFacingMessage(
+          error,
+          'No map application is available right now.',
+        ),
+      );
+    }
   };
 
   const submitLabel = isSubmitting ? 'Saving...' : 'Submit Upload';

@@ -13,30 +13,35 @@ import { DetectionSettingsProvider } from './src/contexts/DetectionSettingsConte
 import AppNavigator from './src/navigation/AppNavigator';
 import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client';
 import { queryClient, clientPersister } from './src/services/store/queryClient';
+import { AppErrorBoundary } from './src/components/common';
 
 export default function App() {
   useEffect(() => {
-    ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP);
+    void ScreenOrientation.lockAsync(
+      ScreenOrientation.OrientationLock.PORTRAIT_UP,
+    ).catch(() => undefined);
   }, []);
 
   return (
     <GestureHandlerRootView style={styles.root}>
-      <SafeAreaProvider>
-        <PersistQueryClientProvider
-          client={queryClient}
-          persistOptions={{ persister: clientPersister }}
-        >
-          <AuthProvider>
-            <ThemeProvider>
-              <DetectionSettingsProvider>
-                <NavigationContainer>
-                  <AppNavigator />
-                </NavigationContainer>
-              </DetectionSettingsProvider>
-            </ThemeProvider>
-          </AuthProvider>
-        </PersistQueryClientProvider>
-      </SafeAreaProvider>
+      <AppErrorBoundary>
+        <SafeAreaProvider>
+          <PersistQueryClientProvider
+            client={queryClient}
+            persistOptions={{ persister: clientPersister }}
+          >
+            <AuthProvider>
+              <ThemeProvider>
+                <DetectionSettingsProvider>
+                  <NavigationContainer>
+                    <AppNavigator />
+                  </NavigationContainer>
+                </DetectionSettingsProvider>
+              </ThemeProvider>
+            </AuthProvider>
+          </PersistQueryClientProvider>
+        </SafeAreaProvider>
+      </AppErrorBoundary>
     </GestureHandlerRootView>
   );
 }

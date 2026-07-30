@@ -1,5 +1,7 @@
 import { isErrorWithCode } from '../utils';
 
+const DEFAULT_USER_ERROR = 'Something went wrong. Please try again.';
+
 const AUTH_ERRORS: Record<string, string> = {
   'auth/wrong-password': 'Incorrect password. Please try again.',
   'auth/invalid-credential': 'Incorrect email or password. Please try again.',
@@ -25,13 +27,20 @@ const FIRESTORE_ERRORS: Record<string, string> = {
     'Service is temporarily unavailable. Try again shortly.',
   'firestore/not-found': 'The requested data could not be found.',
   'firestore/cancelled': 'The operation was cancelled.',
+  'firestore/deadline-exceeded':
+    'The request took too long. Check your connection and try again.',
+  'firestore/failed-precondition':
+    'That action is not available right now. Try again shortly.',
+  'firestore/unauthenticated': 'Your session expired. Please sign in again.',
 };
 
 const STORAGE_ERRORS: Record<string, string> = {
-  'storage/unauthorized': 'Upload failed — please sign in and try again.',
+  'storage/unauthorized': 'Upload failed. Please sign in and try again.',
   'storage/canceled': 'Upload was cancelled.',
   'storage/quota-exceeded': 'Storage quota exceeded. Contact support.',
   'storage/object-not-found': 'File not found.',
+  'storage/retry-limit-exceeded':
+    'The upload took too long. Check your connection and try again.',
 };
 
 const ALL_ERRORS: Record<string, string> = {
@@ -42,15 +51,17 @@ const ALL_ERRORS: Record<string, string> = {
 
 /**
  * Maps a known Firebase/app error to a user-friendly string.
- * Never exposes internal error codes or stack traces to the user.
+ * Never exposes internal error codes, raw messages, or stack traces to users.
  */
-export function getUserFacingMessage(error: unknown): string {
+export function getUserFacingMessage(
+  error: unknown,
+  fallback: string = DEFAULT_USER_ERROR,
+): string {
   if (isErrorWithCode(error)) {
-    return ALL_ERRORS[error.code] ?? 'Something went wrong. Please try again.';
+    const knownMessage = ALL_ERRORS[error.code];
+    if (knownMessage) return knownMessage;
+    return fallback;
   }
-  if (error instanceof Error && error.message) {
-    // Don't expose the raw message — just log it and return generic
-    console.error('[getUserFacingMessage] Unmapped error:', error.message);
-  }
-  return 'Something went wrong. Please try again.';
+
+  return fallback;
 }

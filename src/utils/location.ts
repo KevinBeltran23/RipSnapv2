@@ -47,9 +47,7 @@ export async function getCurrentLocationSnapshot(): Promise<CaptureLocationSnaps
       accuracy: ExpoLocation.Accuracy.Highest,
     });
     return toLocationSnapshot(position);
-  } catch (error) {
-    console.error('Error getting current GPS location:', error);
-
+  } catch {
     try {
       const fallbackPosition = await ExpoLocation.getLastKnownPositionAsync({
         maxAge: 5 * 60 * 1000,
@@ -57,8 +55,7 @@ export async function getCurrentLocationSnapshot(): Promise<CaptureLocationSnaps
       });
 
       return fallbackPosition ? toLocationSnapshot(fallbackPosition) : null;
-    } catch (fallbackError) {
-      console.error('Error getting last known GPS location:', fallbackError);
+    } catch {
       return null;
     }
   }

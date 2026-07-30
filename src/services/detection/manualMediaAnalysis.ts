@@ -9,6 +9,7 @@ import {
   processObjectDetectionOutputs,
 } from '../../utils/detection';
 import type { RipManualUploadMedia } from '../../types/ripMap';
+import { getUserFacingMessage } from '../errorHandler';
 
 export type ManualUploadAnalysisSource =
   | 'manual_photo_upload'
@@ -88,12 +89,6 @@ interface PreparedImage {
 }
 
 const VIDEO_SAMPLE_INTERVAL_MS = 100;
-
-const toErrorMessage = (error: unknown): string => {
-  if (error instanceof Error && error.message) return error.message;
-  if (typeof error === 'string' && error.trim()) return error;
-  return 'Manual media analysis failed.';
-};
 
 const serializeDetections = (detections: Detection[]) =>
   detections.map(detection => ({
@@ -407,4 +402,7 @@ export const analyzeManualVideoUpload = async ({
 };
 
 export const getManualAnalysisErrorMessage = (error: unknown): string =>
-  toErrorMessage(error);
+  getUserFacingMessage(
+    error,
+    'We could not analyze that media. Try a different photo or video.',
+  );

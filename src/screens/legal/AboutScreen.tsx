@@ -1,5 +1,6 @@
 ﻿import React from 'react';
 import {
+  Alert,
   View,
   Text,
   StyleSheet,
@@ -13,6 +14,7 @@ import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Icon from '@expo/vector-icons/MaterialCommunityIcons';
 import { useResponsiveStyles } from '../../hooks/useResponsiveStyles';
+import { getUserFacingMessage } from '../../services/errorHandler';
 
 function AboutScreen() {
   const colors = useColors();
@@ -20,6 +22,17 @@ function AboutScreen() {
   const insets = useSafeAreaInsets();
   const { scaleHeight, scaleWidth, proportionalSize, scaleFont } =
     useResponsiveStyles();
+
+  const openExternalLink = async (url: string) => {
+    try {
+      await Linking.openURL(url);
+    } catch (error) {
+      Alert.alert(
+        'Could Not Open Link',
+        getUserFacingMessage(error, 'Please try again later.'),
+      );
+    }
+  };
 
   const dynamicStyles = StyleSheet.create({
     screenContainer: {
@@ -135,7 +148,7 @@ function AboutScreen() {
         <Text
           style={dynamicStyles.link}
           onPress={() =>
-            Linking.openURL('https://doi.org/10.1145/3462204.3481743')
+            openExternalLink('https://doi.org/10.1145/3462204.3481743')
           }
         >
           Research Paper (ACM)
@@ -143,7 +156,7 @@ function AboutScreen() {
         <Text
           style={dynamicStyles.link}
           onPress={() =>
-            Linking.openURL('https://sites.google.com/ucsc.edu/ripsnap')
+            openExternalLink('https://sites.google.com/ucsc.edu/ripsnap')
           }
         >
           Project Website

@@ -1,10 +1,11 @@
-/** Error utility — type guard for errors with an error code (e.g. Firebase). */
+/** Error utility for errors with an error code (for example, Firebase errors). */
 export const isErrorWithCode = (
   error: unknown,
 ): error is Error & { code: string } => {
   return (
-    error instanceof Error &&
+    typeof error === 'object' &&
+    error !== null &&
     'code' in error &&
-    typeof (error as any).code === 'string'
+    typeof (error as { code?: unknown }).code === 'string'
   );
 };

@@ -54,6 +54,7 @@ import {
 import { useDetectionSettings } from '../../contexts/DetectionSettingsContext';
 import CaptureControls from '../../components/detection/CaptureControls';
 import CaptureReviewScreen from './CaptureReviewScreen';
+import { getUserFacingMessage } from '../../services/errorHandler';
 
 function LiveDetectionScreen() {
   const isFocused = useIsFocused();
@@ -73,6 +74,7 @@ function LiveDetectionScreen() {
   const [latestDetections, setLatestDetections] = useState<Detection[]>([]);
   const [reviewResult, setReviewResult] = useState<CaptureResult | null>(null);
   const [previewLayout, setPreviewLayout] = useState({ width: 0, height: 0 });
+  const [detectionError, setDetectionError] = useState(false);
 
   const [isModelMenuOpen, setIsModelMenuOpen] = useState(false);
   const { settings: detectionSettings, updateSettings } =
@@ -86,6 +88,16 @@ function LiveDetectionScreen() {
     [selectedModelName],
   );
   const ripCurrentModel = useTensorflowModel(selectedModel.asset);
+  const modelLoadError = useMemo(
+    () =>
+      ripCurrentModel.state === 'error'
+        ? getUserFacingMessage(
+            ripCurrentModel.error,
+            'Live detection could not be started. You can still capture media, but no detections will be added.',
+          )
+        : null,
+    [ripCurrentModel],
+  );
 
   const format = useMemo(
     () => (device != null ? getBestFormat(device, 720, 1280) : undefined),
@@ -133,15 +145,17 @@ function LiveDetectionScreen() {
   }, [lastVideoResult, clearLastVideoResult]);
 
   useEffect(() => {
-    if (!hasPermission) requestPermission();
+    if (!hasPermission) {
+      requestPermission().catch(() => undefined);
+    }
   }, [hasPermission, requestPermission]);
 
   useEffect(() => {
-    ScreenOrientation.unlockAsync();
+    ScreenOrientation.unlockAsync().catch(() => undefined);
     return () => {
       ScreenOrientation.lockAsync(
         ScreenOrientation.OrientationLock.PORTRAIT_UP,
-      );
+      ).catch(() => undefined);
     };
   }, []);
 
@@ -149,9 +163,9 @@ function LiveDetectionScreen() {
     if (reviewResult) {
       ScreenOrientation.lockAsync(
         ScreenOrientation.OrientationLock.PORTRAIT_UP,
-      );
+      ).catch(() => undefined);
     } else {
-      ScreenOrientation.unlockAsync();
+      ScreenOrientation.unlockAsync().catch(() => undefined);
     }
   }, [reviewResult]);
 
@@ -165,6 +179,7 @@ function LiveDetectionScreen() {
 
   useEffect(() => {
     setLatestDetections([]);
+    setDetectionError(false);
     detectionsShared.value = [];
     frameSkipCounter.value = 0;
     processingFrame.value = false;
@@ -191,10 +206,10 @@ function LiveDetectionScreen() {
   const updateDetectionsOnJS = useRunOnJS(updateDetections, [updateDetections]);
 
   const logErrorOnJS = useRunOnJS(
-    (message: string, error: unknown, errorMessage?: string) => {
-      console.error(message, error, errorMessage);
+    (_message: string, _error: unknown, _errorMessage?: string) => {
+      setDetectionError(true);
     },
-    [],
+    [setDetectionError],
   );
 
   const frameProcessor = useFrameProcessor(
@@ -374,7 +389,12 @@ function LiveDetectionScreen() {
   if (!hasPermission) {
     return (
       <View style={styles.container}>
-        <Text style={styles.text}>Camera permission required</Text>
+        <Text style={styles.text}>
+          Camera access is needed for live detection.
+        </Text>
+        <Text style={styles.subtext}>
+          Enable camera access in your device settings and try again.
+        </Text>
       </View>
     );
   }
@@ -382,7 +402,10 @@ function LiveDetectionScreen() {
   if (!device) {
     return (
       <View style={styles.container}>
-        <Text style={styles.text}>No camera device found</Text>
+        <Text style={styles.text}>Camera unavailable</Text>
+        <Text style={styles.subtext}>
+          No usable camera was found on this device.
+        </Text>
       </View>
     );
   }
@@ -390,7 +413,7 @@ function LiveDetectionScreen() {
   if (!font) {
     return (
       <View style={styles.container}>
-        <Text style={styles.text}>Loading font...</Text>
+        <Text style={styles.text}>Preparing live detection...</Text>
       </View>
     );
   }
@@ -538,9 +561,24 @@ function LiveDetectionScreen() {
       )}
 
       {/* Model loading indicator */}
-      {ripCurrentModel.model == null && (
+      {modelLoadError ? (
+        <View style={[styles.errorPill, { top: safeTop + 52 }]}>
+          <Text style={styles.errorTitle}>Detection unavailable</Text>
+          <Text style={styles.errorText}>{modelLoadError}</Text>
+        </View>
+      ) : ripCurrentModel.model == null ? (
         <View style={[styles.loadingPill, { top: safeTop + 52 }]}>
           <Text style={styles.loadingText}>Loading model...</Text>
+        </View>
+      ) : null}
+
+      {detectionError && !modelLoadError && (
+        <View style={[styles.errorPill, styles.processingErrorPill]}>
+          <Text style={styles.errorTitle}>Live detection paused</Text>
+          <Text style={styles.errorText}>
+            We could not analyze the camera feed. Try switching models or
+            reopening Live.
+          </Text>
         </View>
       )}
 
@@ -567,6 +605,14 @@ const styles = StyleSheet.create({
     fontSize: 18,
     textAlign: 'center',
     marginTop: 100,
+  },
+  subtext: {
+    color: 'rgba(255, 255, 255, 0.75)',
+    fontSize: 14,
+    lineHeight: 20,
+    marginTop: 10,
+    maxWidth: 320,
+    textAlign: 'center',
   },
   topBar: {
     position: 'absolute',
@@ -678,6 +724,33 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 13,
     fontWeight: '600',
+  },
+  errorPill: {
+    alignSelf: 'center',
+    backgroundColor: 'rgba(120, 20, 20, 0.92)',
+    borderRadius: 10,
+    maxWidth: 330,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    position: 'absolute',
+    top: 52,
+  },
+  processingErrorPill: {
+    bottom: 156,
+    top: undefined,
+  },
+  errorTitle: {
+    color: '#fff',
+    fontSize: 13,
+    fontWeight: '800',
+    marginBottom: 3,
+    textAlign: 'center',
+  },
+  errorText: {
+    color: 'rgba(255, 255, 255, 0.9)',
+    fontSize: 12,
+    lineHeight: 17,
+    textAlign: 'center',
   },
 });
 

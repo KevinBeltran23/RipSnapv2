@@ -6,6 +6,7 @@ import React, {
   useMemo,
   useState,
 } from 'react';
+import { Alert } from 'react-native';
 import { createMMKV } from 'react-native-mmkv';
 import {
   DETECTION_CONFIG,
@@ -13,6 +14,7 @@ import {
   RIP_CURRENT_MODEL,
   RIP_CURRENT_MODELS,
 } from '../config/detection';
+import { getUserFacingMessage } from '../services/errorHandler';
 
 export interface DetectionSettings {
   confidenceThreshold: number;
@@ -80,23 +82,38 @@ const sanitizeSettings = (
   };
 };
 
-const readSettings = (): DetectionSettings =>
-  sanitizeSettings({
-    confidenceThreshold:
-      storage.getNumber(STORAGE_KEYS.confidenceThreshold) ??
-      DEFAULT_DETECTION_SETTINGS.confidenceThreshold,
-    maxDetections:
-      storage.getNumber(STORAGE_KEYS.maxDetections) ??
-      DEFAULT_DETECTION_SETTINGS.maxDetections,
-    modelName:
-      storage.getString(STORAGE_KEYS.modelName) ??
-      DEFAULT_DETECTION_SETTINGS.modelName,
-  });
+const readSettings = (): DetectionSettings => {
+  try {
+    return sanitizeSettings({
+      confidenceThreshold:
+        storage.getNumber(STORAGE_KEYS.confidenceThreshold) ??
+        DEFAULT_DETECTION_SETTINGS.confidenceThreshold,
+      maxDetections:
+        storage.getNumber(STORAGE_KEYS.maxDetections) ??
+        DEFAULT_DETECTION_SETTINGS.maxDetections,
+      modelName:
+        storage.getString(STORAGE_KEYS.modelName) ??
+        DEFAULT_DETECTION_SETTINGS.modelName,
+    });
+  } catch {
+    return DEFAULT_DETECTION_SETTINGS;
+  }
+};
 
 const writeSettings = (settings: DetectionSettings) => {
-  storage.set(STORAGE_KEYS.confidenceThreshold, settings.confidenceThreshold);
-  storage.set(STORAGE_KEYS.maxDetections, settings.maxDetections);
-  storage.set(STORAGE_KEYS.modelName, settings.modelName);
+  try {
+    storage.set(STORAGE_KEYS.confidenceThreshold, settings.confidenceThreshold);
+    storage.set(STORAGE_KEYS.maxDetections, settings.maxDetections);
+    storage.set(STORAGE_KEYS.modelName, settings.modelName);
+  } catch (error) {
+    Alert.alert(
+      'Settings Not Saved',
+      getUserFacingMessage(
+        error,
+        'Could not save your detection settings. Please try again.',
+      ),
+    );
+  }
 };
 
 const DetectionSettingsContext =
