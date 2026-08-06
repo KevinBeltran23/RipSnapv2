@@ -20,9 +20,11 @@ interface Props {
   captureMode: string; // 'idle' | 'photo' | 'recording'
   isProcessing: boolean;
   recordingSeconds: number;
+  videoEnabled?: boolean;
   onPhoto: () => void;
   onRecordStart: () => void;
   onRecordStop: () => void;
+  onVideoUnavailable?: () => void;
 }
 
 function pad2(n: number) {
@@ -33,9 +35,11 @@ export default function CaptureControls({
   captureMode,
   isProcessing,
   recordingSeconds,
+  videoEnabled = true,
   onPhoto,
   onRecordStart,
   onRecordStop,
+  onVideoUnavailable,
 }: Props) {
   const insets = useSafeAreaInsets();
   const { width, height } = useWindowDimensions();
@@ -44,7 +48,8 @@ export default function CaptureControls({
   const isRecording = captureMode === 'recording';
   const isIdle = captureMode === 'idle';
   const isLandscape = width > height;
-  const isVideoMode = selectedMode === 'video';
+  const activeMode = videoEnabled ? selectedMode : 'photo';
+  const isVideoMode = activeMode === 'video';
   const safeAreaStyle = isLandscape
     ? {
         right: Math.max(insets.right, 8),
@@ -75,8 +80,13 @@ export default function CaptureControls({
   const handleShutter = useCallback(() => {
     if (isProcessing) return;
 
-    if (selectedMode === 'photo') {
+    if (activeMode === 'photo') {
       if (isIdle) onPhoto();
+      return;
+    }
+
+    if (!videoEnabled) {
+      onVideoUnavailable?.();
       return;
     }
 
@@ -86,14 +96,24 @@ export default function CaptureControls({
       onRecordStart();
     }
   }, [
-    selectedMode,
+    activeMode,
     isIdle,
     isRecording,
     isProcessing,
+    videoEnabled,
     onPhoto,
     onRecordStart,
     onRecordStop,
+    onVideoUnavailable,
   ]);
+
+  const selectVideoMode = useCallback(() => {
+    if (!videoEnabled) {
+      onVideoUnavailable?.();
+      return;
+    }
+    setSelectedMode('video');
+  }, [onVideoUnavailable, videoEnabled]);
 
   return (
     <View
@@ -176,10 +196,13 @@ export default function CaptureControls({
             </Text>
           </TouchableOpacity>
           <TouchableOpacity
-            onPress={() => setSelectedMode('video')}
-            style={styles.modeBtn}
+            onPress={selectVideoMode}
+            style={[styles.modeBtn, !videoEnabled && styles.modeBtnDisabled]}
             accessibilityRole="tab"
-            accessibilityState={{ selected: selectedMode === 'video' }}
+            accessibilityState={{
+              selected: selectedMode === 'video',
+              disabled: !videoEnabled,
+            }}
           >
             <Text
               style={[
@@ -312,6 +335,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 4,
     paddingHorizontal: 4,
+  },
+  modeBtnDisabled: {
+    opacity: 0.45,
   },
   modeLabel: {
     color: 'rgba(255, 255, 255, 0.5)',

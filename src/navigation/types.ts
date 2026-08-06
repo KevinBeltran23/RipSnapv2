@@ -15,4 +15,5 @@ export type MainTabParamList = {
   HomeTab: undefined;
   SettingsTab: undefined;
   LiveFeedTab: undefined;
+  RemoteCaptureTab: undefined;
 };

@@ -13,6 +13,7 @@ import { useResponsiveStyles } from '../hooks/useResponsiveStyles';
 import HomeScreen from '../screens/main/HomeScreen';
 import MapboxMapScreen from '../screens/main/MapboxMapScreen';
 import LiveDetectionScreen from '../screens/main/LiveDetectionScreen';
+import RemoteCaptureScreen from '../screens/main/RemoteCaptureScreen';
 import SettingsScreen from '../screens/main/SettingsScreen';
 
 const Tab = createBottomTabNavigator<MainTabParamList>();
@@ -38,6 +39,10 @@ const renderMapIcon = ({ color, size }: { color: string; size: number }) => (
 
 const renderCameraIcon = ({ color, size }: { color: string; size: number }) => (
   <TabBarIcon name="camera" color={color} size={size} />
+);
+
+const renderRemoteIcon = ({ color, size }: { color: string; size: number }) => (
+  <TabBarIcon name="cloud-upload-outline" color={color} size={size} />
 );
 
 const renderCogIcon = ({ color, size }: { color: string; size: number }) => (
@@ -105,6 +110,15 @@ export function MainNavigator() {
         options={{
           title: 'Live',
           tabBarIcon: renderCameraIcon,
+        }}
+      />
+      <Tab.Screen
+        name="RemoteCaptureTab"
+        component={RemoteCaptureScreen}
+        listeners={{ focus: unlockOrientation }}
+        options={{
+          title: 'Server',
+          tabBarIcon: renderRemoteIcon,
         }}
       />
       <Tab.Screen

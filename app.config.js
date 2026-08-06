@@ -38,12 +38,25 @@ module.exports = ({ config }) => {
     const googleMapsApiKeyIos = process.env.GOOGLE_MAPS_API_KEY_IOS;
     const googleMapsApiKeyAndroid = process.env.GOOGLE_MAPS_API_KEY_ANDROID;
     const mapboxAccessToken = process.env.EXPO_PUBLIC_MAPBOX_ACCESS_TOKEN;
+    const remoteInferenceUrl = process.env.EXPO_PUBLIC_REMOTE_INFERENCE_URL?.trim();
+    const remoteUsesHttp = remoteInferenceUrl?.toLowerCase().startsWith('http://');
 
     return {
         ...config,
         plugins: withMapboxPlugin(config.plugins ?? []),
         ios: {
             ...ios,
+            infoPlist: {
+                ...(ios.infoPlist ?? {}),
+                ...(remoteUsesHttp
+                    ? {
+                          NSAppTransportSecurity: {
+                              ...(ios.infoPlist?.NSAppTransportSecurity ?? {}),
+                              NSAllowsArbitraryLoads: true,
+                          },
+                      }
+                    : {}),
+            },
             googleServicesFile:
                 process.env.GOOGLE_SERVICES_INFO_PLIST ??
                 existingFile(localIosGoogleServicesFile),
@@ -54,6 +67,7 @@ module.exports = ({ config }) => {
         },
         android: {
             ...android,
+            ...(remoteUsesHttp ? { usesCleartextTraffic: true } : {}),
             googleServicesFile:
                 process.env.GOOGLE_SERVICES_JSON ??
                 existingFile(localAndroidGoogleServicesFile),

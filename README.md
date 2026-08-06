@@ -6,6 +6,19 @@ streaming mode would allow heavier PyTorch `.pt` models to run on a server while
 users interact with a live camera/detection experience from inside the mobile
 app.
 
+## Current Direct Server Checkpoint
+
+The app now has a separate **Server** camera tab beside the existing local
+camera tab. It reuses the native camera preview, camera switch, orientation,
+and capture controls. The current slice captures one JPEG and sends it directly
+to `ripsnap-remote-inference` at `POST /v1/images`; the server returns a receipt
+with the byte count and SHA-256, but does not store or process the image yet.
+
+Set `EXPO_PUBLIC_REMOTE_INFERENCE_URL` to the server's LAN address, such as
+`http://192.168.1.100:8000`, before building the development client. The phone
+and server must be on the same network. HTTP cleartext allowances are enabled
+only when this development URL uses `http://`; use HTTPS before production.
+
 ## Current Local Detection Path
 
 ```text
