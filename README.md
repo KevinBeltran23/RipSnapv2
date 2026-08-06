@@ -10,9 +10,15 @@ app.
 
 The app now has a separate **Server** camera tab beside the existing local
 camera tab. It reuses the native camera preview, camera switch, orientation,
-and capture controls. The current slice captures one JPEG and sends it directly
-to `ripsnap-remote-inference` at `POST /v1/images`; the server returns a receipt
-with the byte count and SHA-256, but does not store or process the image yet.
+and capture controls. A photo is sent directly to
+`ripsnap-remote-inference` at `POST /v1/images`. Video recording now opens one
+server stream at `POST /v1/video-streams`, sends JPEG snapshots sequentially at
+2 FPS while recording, and closes it with `/complete`.
+
+The server groups those frames under one `videoId` and writes an ordered
+manifest. This checkpoint does not mux the frames into an MP4 or process them
+yet. The older short-MP4 path at `POST /v1/videos` remains available for
+transport testing.
 
 Set `EXPO_PUBLIC_REMOTE_INFERENCE_URL` to the server's LAN address, such as
 `http://192.168.1.100:8000`, before building the development client. The phone
@@ -40,11 +46,12 @@ src/config/detection.ts
 ## Remote Streaming Goal
 
 Add an optional remote detection mode where users can stream camera frames or
-video to a server running heavier `.pt` models, receive detections in real time,
-and upload captures through the existing mobile app flow.
+video from the native Server tab to a server running heavier `.pt` models,
+receive detections in real time, and upload captures through the existing mobile
+app flow.
 
 ```text
-Embedded web app -> phone camera -> LiveKit/WebRTC -> server .pt model -> web overlay -> native upload
+RipSnap native Server tab -> phone camera -> LiveKit/WebRTC -> server .pt model -> native overlay
 ```
 
 This remote mode would exist alongside the current local TFLite mode.
@@ -52,11 +59,10 @@ This remote mode would exist alongside the current local TFLite mode.
 ### Planned Streaming Architecture
 
 ```text
-Embedded web app
-  camera preview
+RipSnap React Native Server tab
+  native camera preview and capture controls
   LiveKit client publishes camera video
-  canvas overlay draws server detections
-  sends capture events to React Native via postMessage
+  native overlay draws server detections
 
 LiveKit
   handles WebRTC rooms, signaling, reconnects, and video transport
@@ -79,14 +85,13 @@ alternative would be a custom WebRTC stack. That should only be considered after
 we have benchmarked the LiveKit version and know what problem we are trying to
 solve.
 
-### Frontend Stack
+### Future Remote Client Stack
 
 ```text
-Vite
 React
-TypeScript
-HTML video element
-Canvas overlay
+React Native
+VisionCamera
+Native overlay
 LiveKit JavaScript client
 ```
 
@@ -120,14 +125,10 @@ We should measure stream FPS, inference time, and end-to-end detection latency.
 ```text
 RipSnap React Native app
   Remote Detection screen
-    WebView loads remote web app
-    native app provides auth/GPS/upload bridge
-
-Embedded web app
-  owns camera preview
-  owns streaming connection
-  draws live detection overlay
-  sends capture events to native app
+    owns camera preview
+    owns streaming connection
+    draws live detection overlay
+    native app provides auth/GPS/upload flow
 
 Remote inference server
   receives LiveKit/WebRTC video stream

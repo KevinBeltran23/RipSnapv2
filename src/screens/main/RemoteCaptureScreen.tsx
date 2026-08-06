@@ -28,8 +28,32 @@ import { getBestFormat } from '../../utils/camera';
 import { isRemoteInferenceConfigured } from '../../config/remoteInference';
 import { uploadCapturedImage } from '../../services/remoteInference/imageUpload';
 import type { RemoteImageReceipt } from '../../services/remoteInference/imageUpload';
+import {
+  completeVideoFrameStream,
+  createVideoFrameStream,
+  uploadVideoStreamFrame,
+} from '../../services/remoteInference/frameStream';
+import type { RemoteVideoStreamCompleteReceipt } from '../../services/remoteInference/frameStream';
 
-type UploadState = 'idle' | 'capturing' | 'uploading' | 'sent';
+const STREAM_TARGET_FPS = 2;
+
+type UploadState =
+  | 'idle'
+  | 'capturing'
+  | 'starting'
+  | 'recording'
+  | 'uploading'
+  | 'sent';
+
+type FrameStreamRuntime = {
+  videoId: string;
+  nextSequence: number;
+  lastSequence: number | null;
+  framesSent: number;
+  framesDropped: number;
+  inFlight: Promise<void> | null;
+  stopped: boolean;
+};
 
 function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
@@ -51,17 +75,31 @@ function RemoteCaptureScreen() {
   const [lastReceipt, setLastReceipt] = useState<RemoteImageReceipt | null>(
     null,
   );
+  const [lastStreamReceipt, setLastStreamReceipt] =
+    useState<RemoteVideoStreamCompleteReceipt | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
+  const [recordingSeconds, setRecordingSeconds] = useState(0);
+  const [streamFrameCount, setStreamFrameCount] = useState(0);
+  const [streamDroppedCount, setStreamDroppedCount] = useState(0);
+  const frameStreamRef = useRef<FrameStreamRuntime | null>(null);
+  const frameTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const recordingStartedAtRef = useRef<number | null>(null);
 
   const format = useMemo(
     () => (device != null ? getBestFormat(device, 720, 1280) : undefined),
     [device],
   );
   const isLandscape = width > height;
+  const isRecording = uploadState === 'recording';
   const isProcessing =
-    uploadState === 'capturing' || uploadState === 'uploading';
-  const captureMode = isProcessing ? 'photo' : 'idle';
+    uploadState === 'capturing' ||
+    uploadState === 'starting' ||
+    uploadState === 'uploading';
+  const captureMode = isRecording
+    ? 'recording'
+    : isProcessing
+      ? 'photo'
+      : 'idle';
   const safeTop = insets.top;
 
   useEffect(() => {
@@ -79,10 +117,126 @@ function RemoteCaptureScreen() {
     };
   }, []);
 
+  useEffect(() => {
+    if (!isRecording) {
+      setRecordingSeconds(0);
+      return;
+    }
+
+    const startedAt = Date.now();
+    const timer = setInterval(() => {
+      setRecordingSeconds(Math.floor((Date.now() - startedAt) / 1000));
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [isRecording]);
+
+  const finishFrameStream = useCallback(
+    async (stream: FrameStreamRuntime, showSuccess: boolean) => {
+      if (frameTimerRef.current) {
+        clearInterval(frameTimerRef.current);
+        frameTimerRef.current = null;
+      }
+      stream.stopped = true;
+
+      try {
+        if (stream.inFlight) {
+          await stream.inFlight;
+        }
+
+        const startedAt = recordingStartedAtRef.current ?? Date.now();
+        const receipt = await completeVideoFrameStream(stream.videoId, {
+          ...(stream.lastSequence !== null
+            ? { lastSequence: stream.lastSequence }
+            : {}),
+          framesSent: stream.framesSent,
+          durationMs: Math.max(0, Date.now() - startedAt),
+        });
+
+        if (showSuccess) {
+          setLastStreamReceipt(receipt);
+          setUploadState('sent');
+        }
+      } catch (streamError) {
+        if (showSuccess) {
+          setUploadState('idle');
+          setError(
+            streamError instanceof Error && streamError.message
+              ? streamError.message
+              : 'Could not finish the remote video stream.',
+          );
+        }
+      } finally {
+        if (frameStreamRef.current === stream) {
+          frameStreamRef.current = null;
+        }
+      }
+    },
+    [],
+  );
+
+  const captureAndSendFrame = useCallback(() => {
+    const stream = frameStreamRef.current;
+    const camera = cameraRef.current;
+    if (!stream || stream.stopped || !camera) return;
+
+    if (stream.inFlight) {
+      stream.framesDropped += 1;
+      setStreamDroppedCount(stream.framesDropped);
+      return;
+    }
+
+    const sequence = stream.nextSequence;
+    stream.nextSequence += 1;
+    let framePromise: Promise<void>;
+    framePromise = (async () => {
+      try {
+        const photo = await camera.takeSnapshot({ quality: 60 });
+        const receipt = await uploadVideoStreamFrame(
+          stream.videoId,
+          photo,
+          sequence,
+          Date.now(),
+        );
+        stream.lastSequence = receipt.sequence;
+        stream.framesSent += 1;
+        setStreamFrameCount(stream.framesSent);
+      } catch (frameError) {
+        if (!stream.stopped) {
+          setError(
+            frameError instanceof Error && frameError.message
+              ? frameError.message
+              : 'Could not send a live video frame to the remote server.',
+          );
+        }
+      } finally {
+        stream.inFlight = null;
+      }
+    })();
+    stream.inFlight = framePromise;
+  }, []);
+
+  useEffect(() => {
+    if (!isRecording) return;
+
+    const timer = setInterval(() => {
+      captureAndSendFrame();
+    }, 1000 / STREAM_TARGET_FPS);
+    frameTimerRef.current = timer;
+    captureAndSendFrame();
+
+    return () => {
+      clearInterval(timer);
+      if (frameTimerRef.current === timer) {
+        frameTimerRef.current = null;
+      }
+    };
+  }, [captureAndSendFrame, isRecording]);
+
   const toggleCamera = useCallback(() => {
-    if (isProcessing) return;
+    if (isProcessing || isRecording) return;
     setCameraPosition(previous => (previous === 'back' ? 'front' : 'back'));
-  }, [isProcessing]);
+  }, [isProcessing, isRecording]);
 
   const handlePreviewOrientationChanged = useCallback(
     (_orientation: Orientation) => {
@@ -96,7 +250,8 @@ function RemoteCaptureScreen() {
     if (isProcessing || !cameraRef.current) return;
 
     setError(null);
-    setNotice(null);
+    setLastReceipt(null);
+    setLastStreamReceipt(null);
 
     if (!isRemoteInferenceConfigured) {
       setError(
@@ -123,34 +278,152 @@ function RemoteCaptureScreen() {
     }
   }, [isProcessing]);
 
-  const handleVideoUnavailable = useCallback(() => {
-    setNotice('Server video streaming is the next checkpoint.');
-  }, []);
+  const handleRecordStart = useCallback(() => {
+    const camera = cameraRef.current;
+    if (!camera || isProcessing || isRecording) return;
+
+    setError(null);
+    if (!isRemoteInferenceConfigured) {
+      setError(
+        'Set EXPO_PUBLIC_REMOTE_INFERENCE_URL to the server LAN address before recording.',
+      );
+      return;
+    }
+
+    const captureId = `remote_video_${Date.now()}`;
+    setLastReceipt(null);
+    setLastStreamReceipt(null);
+    setStreamFrameCount(0);
+    setStreamDroppedCount(0);
+    setUploadState('starting');
+
+    (async () => {
+      try {
+        const stream = await createVideoFrameStream({
+          captureId,
+          sourceWidth: format?.videoWidth,
+          sourceHeight: format?.videoHeight,
+          orientation: isLandscape ? 'landscape' : 'portrait',
+          mirrored: cameraPosition === 'front',
+          targetFps: STREAM_TARGET_FPS,
+        });
+        const runtime: FrameStreamRuntime = {
+          videoId: stream.videoId,
+          nextSequence: 0,
+          lastSequence: null,
+          framesSent: 0,
+          framesDropped: 0,
+          inFlight: null,
+          stopped: false,
+        };
+        frameStreamRef.current = runtime;
+        recordingStartedAtRef.current = Date.now();
+
+        camera.startRecording({
+          fileType: 'mp4',
+          flash: 'off',
+          onRecordingFinished: () => {
+            const activeStream = frameStreamRef.current;
+            if (activeStream) {
+              setUploadState('uploading');
+              finishFrameStream(activeStream, true).catch(() => undefined);
+            }
+          },
+          onRecordingError: recordingError => {
+            const activeStream = frameStreamRef.current;
+            if (activeStream) {
+              finishFrameStream(activeStream, false).catch(() => undefined);
+            }
+            setUploadState('idle');
+            setError(
+              recordingError instanceof Error && recordingError.message
+                ? recordingError.message
+                : 'Could not record video.',
+            );
+          },
+        });
+        setUploadState('recording');
+      } catch (recordingError) {
+        const activeStream = frameStreamRef.current;
+        if (activeStream) {
+          finishFrameStream(activeStream, false).catch(() => undefined);
+        }
+        frameStreamRef.current = null;
+        setUploadState('idle');
+        setError(
+          recordingError instanceof Error && recordingError.message
+            ? recordingError.message
+            : 'Could not start the remote video stream.',
+        );
+      }
+    })().catch(() => undefined);
+  }, [
+    cameraPosition,
+    finishFrameStream,
+    format,
+    isLandscape,
+    isProcessing,
+    isRecording,
+  ]);
+
+  const handleRecordStop = useCallback(async () => {
+    if (!cameraRef.current || !isRecording) return;
+
+    try {
+      await cameraRef.current.stopRecording();
+    } catch (recordingError) {
+      const activeStream = frameStreamRef.current;
+      if (activeStream) {
+        finishFrameStream(activeStream, false).catch(() => undefined);
+      }
+      setUploadState('idle');
+      setError(
+        recordingError instanceof Error && recordingError.message
+          ? recordingError.message
+          : 'Could not finish recording.',
+      );
+    }
+  }, [finishFrameStream, isRecording]);
 
   const statusLabel =
     uploadState === 'capturing'
       ? 'Capturing image'
-      : uploadState === 'uploading'
-        ? 'Sending image'
-        : uploadState === 'sent'
-          ? 'Image received'
-          : isRemoteInferenceConfigured
-            ? 'Server capture'
-            : 'Server URL missing';
+      : uploadState === 'starting'
+        ? 'Starting stream'
+        : uploadState === 'recording'
+          ? 'Streaming frames'
+          : uploadState === 'uploading'
+            ? 'Closing stream'
+            : uploadState === 'sent'
+              ? lastStreamReceipt
+                ? 'Frames grouped'
+                : 'Media received'
+              : isRemoteInferenceConfigured
+                ? 'Server capture'
+                : 'Server URL missing';
   const statusIcon =
-    uploadState === 'sent'
-      ? 'check-circle-outline'
-      : error
-        ? 'alert-circle-outline'
-        : 'cloud-upload-outline';
+    uploadState === 'recording'
+      ? 'record-circle-outline'
+      : uploadState === 'sent'
+        ? 'check-circle-outline'
+        : error
+          ? 'alert-circle-outline'
+          : 'cloud-upload-outline';
   const infoMessage =
     error ??
-    notice ??
     (!isRemoteInferenceConfigured
       ? 'Configure EXPO_PUBLIC_REMOTE_INFERENCE_URL with the server LAN address.'
-      : lastReceipt
-        ? `Received ${formatBytes(lastReceipt.sizeBytes)} · ${lastReceipt.sha256.slice(0, 8)}`
-        : null);
+      : uploadState === 'recording'
+        ? `Sent ${streamFrameCount} frames${
+            streamDroppedCount > 0 ? ` skipped: ${streamDroppedCount}` : ''
+          }`
+        : lastStreamReceipt
+          ? `Grouped ${lastStreamReceipt.frameCount} frames${
+              streamDroppedCount > 0 ? ` · ${streamDroppedCount} skipped` : ''
+            }`
+          : lastReceipt
+            ? `Received ${formatBytes(lastReceipt.sizeBytes)} · ${lastReceipt.sha256.slice(0, 8)}`
+            : null);
 
   if (!hasPermission) {
     return (
@@ -190,7 +463,7 @@ function RemoteCaptureScreen() {
         outputOrientation="device"
         onPreviewOrientationChanged={handlePreviewOrientationChanged}
         photo={true}
-        video={false}
+        video={true}
         audio={false}
       />
 
@@ -209,9 +482,12 @@ function RemoteCaptureScreen() {
 
         <View style={styles.topControls}>
           <TouchableOpacity
-            style={[styles.iconBtn, isProcessing && styles.disabledControl]}
+            style={[
+              styles.iconBtn,
+              (isProcessing || isRecording) && styles.disabledControl,
+            ]}
             onPress={toggleCamera}
-            disabled={isProcessing}
+            disabled={isProcessing || isRecording}
             accessibilityLabel="Switch camera"
             accessibilityRole="button"
           >
@@ -235,12 +511,11 @@ function RemoteCaptureScreen() {
       <CaptureControls
         captureMode={captureMode}
         isProcessing={isProcessing}
-        recordingSeconds={0}
-        videoEnabled={false}
+        recordingSeconds={recordingSeconds}
+        videoEnabled={true}
         onPhoto={handlePhoto}
-        onRecordStart={() => undefined}
-        onRecordStop={() => undefined}
-        onVideoUnavailable={handleVideoUnavailable}
+        onRecordStart={handleRecordStart}
+        onRecordStop={handleRecordStop}
       />
     </View>
   );
