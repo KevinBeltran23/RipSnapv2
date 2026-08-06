@@ -240,22 +240,34 @@ First-time development build:
 eas build --profile development --platform android
 ```
 
+For creating an APK executable:
+
+```sh
+eas build --profile production-apk --platform android
+```
+
 Or:
 
 ```sh
 eas build --profile development --platform ios
 ```
 
+For submitting to app store:
+
+```sh
+eas build --profile production --auto-submit --platform ios
+```
+
 ## Build Locally
 
 ```sh
-yarn expo run:android
+eas build --profile production-apk --platform android --local --output ./RipSnap.apk
 ```
 
 Or:
 
 ```sh
-yarn expo run:ios
+eas build --profile production --platform ios --local --output ./RipSnap.ipa
 ```
 
 ## General Dev
